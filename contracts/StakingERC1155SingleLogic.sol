@@ -99,51 +99,33 @@ contract StakingERC1155 is
         emit Buy(msg.sender, tokenId);
     }
 
-    function rewardsToWithdraw(uint256 _tokenId) external view returns (uint256) {
+    function rewardsToWithdraw(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        return _rewardsToWithdraw(tokenInfo);
-    }
-
-    function _rewardsToWithdraw(TokenInfo memory _tokenInfo) internal view returns (uint256) {
-        uint256 rewardsPeriodsCount = (block.timestamp - _tokenInfo.initTimestamp) / rewardsPeriod;
-        uint256 rewardForOnePeriod = (_tokenInfo.buyPrice * _tokenInfo.rewardsRate) / 10000;
+        uint256 rewardsPeriodsCount = (block.timestamp - tokenInfo.initTimestamp) / rewardsPeriod;
+        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) / 10000;
         uint256 allCurrentRewards = rewardsPeriodsCount * rewardForOnePeriod;
-        uint256 rewardsThatCanBeWithdrawn = allCurrentRewards - _tokenInfo.withdrawnRewards;
+        uint256 rewardsThatCanBeWithdrawn = allCurrentRewards - tokenInfo.withdrawnRewards;
         return rewardsThatCanBeWithdrawn;
     }
 
-    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
+    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) public nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
 
-        uint256 rewardsThatCanBeWithdrawn = _rewardsToWithdraw(tokenInfo);
+        uint256 rewardsThatCanBeWithdrawn = rewardsToWithdraw(_tokenId);
         require(rewardsThatCanBeWithdrawn > 0, "StakingERC1155: no rewards to withdraw!");
 
-        _claimRewards(_tokenId, _tokenToWithdrawn, rewardsThatCanBeWithdrawn);
-
-        tokenInfo.withdrawnRewards += rewardsThatCanBeWithdrawn; 
-    }
-
-    function _claimRewards(
-        uint256 _tokenId,
-        address _tokenToWithdrawn,
-        uint256 _rewardsThatCanBeWithdrawn
-    ) internal {
-        IERC20(_tokenToWithdrawn).transfer(msg.sender, _rewardsThatCanBeWithdrawn);
+        IERC20(_tokenToWithdrawn).transfer(msg.sender, rewardsThatCanBeWithdrawn);
         emit ClaimRewards(msg.sender, _tokenId);
+
+        tokenInfo.withdrawnRewards += rewardsThatCanBeWithdrawn;
     }
 
-    function lockPeriodIsExpired(uint256 _tokenId) external view returns (bool) {
+
+    function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        return _lockPeriodIsExpired(tokenInfo.initTimestamp, tokenInfo.lockPeriod);
-    }
-
-    function _lockPeriodIsExpired(
-        uint256 _initTimestamp,
-        uint256 _lockPeriod
-    ) internal view returns (bool) {
-        return block.timestamp >= _initTimestamp + _lockPeriod * 365 days;
+        return block.timestamp >= tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days;
     }
 
     function sell(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
@@ -152,14 +134,14 @@ contract StakingERC1155 is
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
 
         require(
-            _lockPeriodIsExpired(tokenInfo.initTimestamp, tokenInfo.lockPeriod),
+            lockPeriodIsExpired(_tokenId),
             "StakingERC1155: blocking period has not expired!"
         );
 
         // Claim rewards if has not withdrawn
-        uint256 rewardsThatCanBeWithdrawn = _rewardsToWithdraw(tokenInfo);
+        uint256 rewardsThatCanBeWithdrawn = rewardsToWithdraw(_tokenId);
         if (rewardsThatCanBeWithdrawn > 0) {
-            _claimRewards(_tokenId, _tokenToWithdrawn, rewardsThatCanBeWithdrawn);
+            claimRewards(_tokenId, _tokenToWithdrawn);
         }
 
         _burn(_tokenId);
