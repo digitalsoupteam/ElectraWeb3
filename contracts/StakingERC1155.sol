@@ -3,9 +3,10 @@ pragma solidity 0.8.18;
 
 import { ERC721EnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
+contract StakingERC1155 is ReentrancyGuardUpgradeable, OwnableUpgradeable, ERC721EnumerableUpgradeable {
     mapping(string => uint256) public items;
     mapping(uint256 => uint256) public lockPeriods;
     uint256 public nextTokenId;
@@ -28,6 +29,7 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
     event Sell(address indexed recipient, uint256 indexed tokenId);
 
     function initialize() public initializer {
+        __ReentrancyGuard_init();
         __Ownable_init();
         __ERC721_init("StakingERC1155", "StakingERC1155");
 
@@ -63,7 +65,7 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
         require(ownerOf(_tokenId) == msg.sender, "StakingERC1155: not token owner!");
     }
 
-    function buy(string calldata _itemName, uint256 _lockPeriod, address _tokenForPay) external {
+    function buy(string calldata _itemName, uint256 _lockPeriod, address _tokenForPay) external nonReentrant {
         uint256 itemPrice = items[_itemName];
         require(itemPrice > 0, "StakingERC1155: item not exists!");
 
@@ -102,7 +104,7 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
         return rewardsThatCanBeWithdrawn;
     }
 
-    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) external {
+    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
@@ -134,7 +136,7 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
         return block.timestamp >= _initTimestamp + _lockPeriod * 365 days;
     }
 
-    function sell(uint256 _tokenId, address _tokenToWithdrawn) external {
+    function sell(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
@@ -144,6 +146,7 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
             "StakingERC1155: blocking period has not expired!"
         );
 
+        // Claim rewards if has not withdrawn
         uint256 rewardsThatCanBeWithdrawn = _rewardsToWithdraw(tokenInfo);
         if (rewardsThatCanBeWithdrawn > 0) {
             _claimRewards(_tokenId, _tokenToWithdrawn, rewardsThatCanBeWithdrawn);
