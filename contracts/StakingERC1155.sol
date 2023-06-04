@@ -20,7 +20,6 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
         uint256 buyPrice;
         uint256 sellPrice;
         uint256 initTimestamp;
-        uint256 lastRewardTimestamp;
         uint256 withdrawnRewards;
     }
 
@@ -30,7 +29,7 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
 
     function initialize() public initializer {
         __Ownable_init();
-        __ERC721_init("MyToken", "MTK");
+        __ERC721_init("StakingERC1155", "StakingERC1155");
 
         items["electric scooter"] = 1000;
         items["electric moped"] = 1000;
@@ -60,16 +59,18 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
         delete items[_name];
     }
 
-    function buy(string calldata _itemName, uint256 _lockPeriod) external {
+    function _enforseIsTokenOwner(uint256 _tokenId) internal view {
+        require(ownerOf(_tokenId) == msg.sender, "StakingERC1155: not token owner!");
+    }
+
+    function buy(string calldata _itemName, uint256 _lockPeriod, address _tokenForPay) external {
         uint256 itemPrice = items[_itemName];
         require(itemPrice > 0, "StakingERC1155: item not exists!");
 
         uint256 rewardsRate = lockPeriods[_lockPeriod];
         require(rewardsRate > 0, "StakingERC1155: lockPeriod not exists!");
 
-        address tokenForBuy = address(0);
-
-        IERC20(tokenForBuy).transferFrom(msg.sender, address(this), itemPrice);
+        IERC20(_tokenForPay).transferFrom(msg.sender, address(this), itemPrice);
 
         uint256 sellPrice = (itemPrice * 9) / 10;
 
@@ -82,48 +83,75 @@ contract StakingERC1155 is OwnableUpgradeable, ERC721EnumerableUpgradeable {
             buyPrice: itemPrice,
             sellPrice: sellPrice,
             initTimestamp: block.timestamp,
-            lastRewardTimestamp: block.timestamp,
             withdrawnRewards: 0
         });
 
         emit Buy(msg.sender, tokenId);
     }
 
-    function claimRewards(uint256 _tokenId) external {
-        require(ownerOf(_tokenId) == msg.sender, "StakingERC1155: not token owner!");
+    function rewardsToWithdraw(uint256 _tokenId) external view returns (uint256) {
+        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
+        return _rewardsToWithdraw(tokenInfo);
+    }
+
+    function _rewardsToWithdraw(TokenInfo memory _tokenInfo) internal view returns (uint256) {
+        uint256 rewardsPeriodsCount = (block.timestamp - _tokenInfo.initTimestamp) / rewardsPeriod;
+        uint256 rewardForOnePeriod = (_tokenInfo.buyPrice * _tokenInfo.rewardsRate) / 10000;
+        uint256 allCurrentRewards = rewardsPeriodsCount * rewardForOnePeriod;
+        uint256 rewardsThatCanBeWithdrawn = allCurrentRewards - _tokenInfo.withdrawnRewards;
+        return rewardsThatCanBeWithdrawn;
+    }
+
+    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) external {
+        _enforseIsTokenOwner(_tokenId);
 
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
 
-        uint256 rewardsPeriodsCount = (block.timestamp - tokenInfo.lastRewardTimestamp) /
-            rewardsPeriod;
-        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) / 10000;
-        uint256 allCurrentRewards = rewardsPeriodsCount * rewardForOnePeriod;
-        uint256 rewardsThatCanBeWithdrawn = allCurrentRewards - tokenInfo.withdrawnRewards;
-
+        uint256 rewardsThatCanBeWithdrawn = _rewardsToWithdraw(tokenInfo);
         require(rewardsThatCanBeWithdrawn > 0, "StakingERC1155: no rewards to withdraw!");
 
-        address withdrawnToken = address(0);
+        _claimRewards(_tokenId, _tokenToWithdrawn, rewardsThatCanBeWithdrawn);
+    }
 
-        IERC20(withdrawnToken).transfer(msg.sender, rewardsThatCanBeWithdrawn);
-
+    function _claimRewards(
+        uint256 _tokenId,
+        address _tokenToWithdrawn,
+        uint256 _rewardsThatCanBeWithdrawn
+    ) internal {
+        IERC20(_tokenToWithdrawn).transfer(msg.sender, _rewardsThatCanBeWithdrawn);
         emit ClaimRewards(msg.sender, _tokenId);
     }
 
-    function sell(uint256 _tokenId) external {
-        require(ownerOf(_tokenId) == msg.sender, "StakingERC1155: not token owner!");
+    function lockPeriodIsExpired(uint256 _tokenId) external view returns (bool) {
+        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
+        return _lockPeriodIsExpired(tokenInfo.initTimestamp, tokenInfo.lockPeriod);
+    }
+
+    function _lockPeriodIsExpired(
+        uint256 _initTimestamp,
+        uint256 _lockPeriod
+    ) internal view returns (bool) {
+        return block.timestamp >= _initTimestamp + _lockPeriod * 365 days;
+    }
+
+    function sell(uint256 _tokenId, address _tokenToWithdrawn) external {
+        _enforseIsTokenOwner(_tokenId);
 
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
 
         require(
-            block.timestamp >= tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days,
+            _lockPeriodIsExpired(tokenInfo.initTimestamp, tokenInfo.lockPeriod),
             "StakingERC1155: blocking period has not expired!"
         );
 
+        uint256 rewardsThatCanBeWithdrawn = _rewardsToWithdraw(tokenInfo);
+        if (rewardsThatCanBeWithdrawn > 0) {
+            _claimRewards(_tokenId, _tokenToWithdrawn, rewardsThatCanBeWithdrawn);
+        }
+
         _burn(_tokenId);
 
-        address withdrawnToken = address(0);
-
-        IERC20(withdrawnToken).transfer(msg.sender, tokenInfo.sellPrice);
+        IERC20(_tokenToWithdrawn).transfer(msg.sender, tokenInfo.sellPrice);
 
         emit Sell(msg.sender, _tokenId);
     }
