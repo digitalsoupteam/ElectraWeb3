@@ -6,7 +6,11 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract StakingERC1155 is ReentrancyGuardUpgradeable, OwnableUpgradeable, ERC721EnumerableUpgradeable {
+contract StakingERC1155 is
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    ERC721EnumerableUpgradeable
+{
     mapping(string => uint256) public items;
     mapping(uint256 => uint256) public lockPeriods;
     uint256 public nextTokenId;
@@ -65,7 +69,11 @@ contract StakingERC1155 is ReentrancyGuardUpgradeable, OwnableUpgradeable, ERC72
         require(ownerOf(_tokenId) == msg.sender, "StakingERC1155: not token owner!");
     }
 
-    function buy(string calldata _itemName, uint256 _lockPeriod, address _tokenForPay) external nonReentrant {
+    function buy(
+        string calldata _itemName,
+        uint256 _lockPeriod,
+        address _tokenForPay
+    ) external nonReentrant {
         uint256 itemPrice = items[_itemName];
         require(itemPrice > 0, "StakingERC1155: item not exists!");
 
