@@ -423,7 +423,7 @@ contract RentStaking is
     function _enforceUsdPriserDecimals(address _pricer) internal view {
         require(
             IPricerToUSD(_pricer).decimals() == 8,
-            "RentStaking: pricer must be with decimal equal to 8!"
+            "RentStaking: usd pricer must be with decimal equal to 8!"
         );
     }
 
