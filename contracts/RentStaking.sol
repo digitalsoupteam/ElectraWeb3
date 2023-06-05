@@ -284,7 +284,7 @@ contract RentStaking is
         uint256 toknePriceUSD = getTokenPriceUSD(_tokenForPay);
         uint256 tokenAmount = (priceByUSD *
             10 ** IERC20Metadata(_tokenForPay).decimals() *
-            toknePriceUSD) / 1e6;
+            toknePriceUSD) / 1e8;
         require(tokenAmount > 0, "RentStaking: token amount can not be zero!");
         return tokenAmount;
     }
@@ -306,7 +306,7 @@ contract RentStaking is
         return
             (rewardsToWithdrawByUSD(_tokenId) *
                 10 ** IERC20Metadata(_tokenToWithdrawn).decimals() *
-                getTokenPriceUSD(_tokenToWithdrawn)) / 1e6;
+                getTokenPriceUSD(_tokenToWithdrawn)) / 1e8;
     }
 
     function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
@@ -325,7 +325,7 @@ contract RentStaking is
         return
             (getSellAmoutByUSD(_tokenId) *
                 10 ** IERC20Metadata(_tokenToWithdrawn).decimals() *
-                getTokenPriceUSD(_tokenToWithdrawn)) / 1e6;
+                getTokenPriceUSD(_tokenToWithdrawn)) / 1e8;
     }
 
     // ------------------------------------------------------------------------------------
@@ -388,7 +388,7 @@ contract RentStaking is
 
     function addToken(address _token, address _pricer) public onlyOwner {
         require(pricers[_token] == address(0), "RentStaking: token already exists!");
-        _enforcePriserDecimals(_pricer);
+        _enforceUsdPriserDecimals(_pricer);
         pricers[_token] = _pricer;
         supportedTokens.push(_token);
 
@@ -398,7 +398,7 @@ contract RentStaking is
     function updateTokenPricer(address _token, address _pricer) external onlyOwner {
         address oldPricer = pricers[_token];
         require(oldPricer != address(0), "RentStaking: token not exists!");
-        _enforcePriserDecimals(_pricer);
+        _enforceUsdPriserDecimals(_pricer);
         pricers[_token] = _pricer;
 
         emit UpdateTokenPricer(_token, oldPricer, _pricer);
@@ -420,10 +420,10 @@ contract RentStaking is
         require(ownerOf(_tokenId) == msg.sender, "RentStaking: not token owner!");
     }
 
-    function _enforcePriserDecimals(address _pricer) internal view {
+    function _enforceUsdPriserDecimals(address _pricer) internal view {
         require(
-            IPricerToUSD(_pricer).decimals() == 6,
-            "RentStaking: pricer must be with decimal equal to 6!"
+            IPricerToUSD(_pricer).decimals() == 8,
+            "RentStaking: pricer must be with decimal equal to 8!"
         );
     }
 

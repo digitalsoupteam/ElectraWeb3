@@ -45,7 +45,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const supportedTokens = [
     {
       token: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
-      pricer: '0x87ea38c9f24264ec1fff41b04ec94a97caf99941',
+      pricer: '0xcBb98864Ef56E9042e7d2efef76141f15731B82f',
     }, // BUSD
     {
       token: '0x55d398326f99059ff775485246999027b3197955',
