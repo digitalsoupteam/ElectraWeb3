@@ -61,7 +61,13 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       execute: {
         init: {
           methodName: 'initialize',
-          args: [items, lockPeriods, supportedTokens],
+          args: [
+            'RentStaking', // _nftName
+            'RentStaking', // _nftSymbol
+            items, // _items
+            lockPeriods,  // _lockPeriods
+            supportedTokens, // _supportedTokens
+          ],
         },
       },
     },

@@ -12,8 +12,16 @@ contract RentStaking is
     OwnableUpgradeable,
     ERC721EnumerableUpgradeable
 {
+    // ------------------------------------------------------------------------------------
+    // ----- CONSTANTS --------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     uint256 public constant REWARS_PERIOD = 30 days;
     uint256 public constant PERCENT_PRECISION = 10000;
+
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     string[] public items;
     mapping(string => uint256) public itemsPrices;
@@ -28,6 +36,10 @@ contract RentStaking is
 
     mapping(uint256 => TokenInfo) public tokensInfo;
 
+    // ------------------------------------------------------------------------------------
+    // ----- STRUCTURES -------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     struct TokenInfo {
         string itemName;
         uint256 lockPeriod;
@@ -37,6 +49,25 @@ contract RentStaking is
         uint256 initTimestamp;
         uint256 withdrawnRewards;
     }
+
+    struct Item {
+        string name;
+        uint256 price;
+    }
+
+    struct LockPeriod {
+        uint256 lockTime;
+        uint256 rewardsRate;
+    }
+
+    struct SupportedToken {
+        address token;
+        address pricer;
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- EVENTS -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     event Buy(address indexed recipient, uint256 indexed tokenId);
     event ClaimRewards(
@@ -63,29 +94,21 @@ contract RentStaking is
     );
     event DeleteLockPeriod(uint256 lockPeriod);
 
-    struct Item {
-        string name;
-        uint256 price;
-    }
-
-    struct LockPeriod {
-        uint256 lockTime;
-        uint256 rewardsRate;
-    }
-
-    struct SupportedToken {
-        address token;
-        address pricer;
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- CONTRACT INITIALIZE ----------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function initialize(
+        string calldata _nftName,
+        string calldata _nftSymbol,
         Item[] calldata _items,
         LockPeriod[] calldata _lockPerios,
         SupportedToken[] calldata _supportedTokens
     ) public initializer {
+        // Init extends
         __ReentrancyGuard_init();
         __Ownable_init();
-        __ERC721_init("RentStaking", "RentStaking");
+        __ERC721_init(_nftName, _nftSymbol);
 
         // Init items
         uint256 l = _items.length;
@@ -106,189 +129,9 @@ contract RentStaking is
         }
     }
 
-    function getItems() external view returns (string[] memory) {
-        return items;
-    }
-
-    function getItemsWithPrice() external view returns (Item[] memory) {
-        Item[] memory result = new Item[](items.length);
-        uint256 l = items.length;
-        for (uint256 i; i < l; i++) {
-            result[i] = Item({ name: items[i], price: itemsPrices[items[i]] });
-        }
-        return result;
-    }
-
-    function getSupportedTokens() external view returns (address[] memory) {
-        return supportedTokens;
-    }
-
-    function getLockPeriods() external view returns (uint256[] memory) {
-        return lockPeriods;
-    }
-
-    function getLockPeriodsWithRewardsRates() external view returns (LockPeriod[] memory) {
-        LockPeriod[] memory result = new LockPeriod[](lockPeriods.length);
-        uint256 l = lockPeriods.length;
-        for (uint256 i; i < l; i++) {
-            result[i] = LockPeriod({
-                lockTime: lockPeriods[i],
-                rewardsRate: lockPeriodsRewardRates[lockPeriods[i]]
-            });
-        }
-        return result;
-    }
-
-    function addItem(string calldata _name, uint256 _price) public onlyOwner {
-        require(itemsPrices[_name] == 0, "RentStaking: item already exists!");
-        itemsPrices[_name] = _price;
-        items.push(_name);
-
-        emit AddItem(_name, _price);
-    }
-
-    function updateItemPrice(string calldata _name, uint256 _price) external onlyOwner {
-        require(_price > 0, "RentStaking: can not set price 0, use deleteItem");
-        uint256 oldItemPrice = itemsPrices[_name];
-        require(oldItemPrice > 0, "RentStaking: item not exists!");
-        itemsPrices[_name] = _price;
-
-        emit UpdateItemPrice(_name, oldItemPrice, _price);
-    }
-
-    function _getItemIndex(string memory _name) internal view returns (uint256) {
-        uint256 l = items.length;
-        bytes32 nameHash = keccak256(abi.encodePacked(_name));
-        for (uint256 i; i < l; i++) {
-            if (nameHash == keccak256(abi.encodePacked(items[i]))) {
-                return i;
-            }
-        }
-        revert("RentStaking: not found item index");
-    }
-
-    function deleteItem(string calldata _name) external onlyOwner {
-        require(itemsPrices[_name] > 0, "RentStaking: item not exists!");
-        delete itemsPrices[_name];
-        delete items[_getItemIndex(_name)];
-
-        emit DeleteItem(_name);
-    }
-
-    function addLockPeriod(uint256 _lockTime, uint256 _rewardsRate) public onlyOwner {
-        require(lockPeriodsRewardRates[_lockTime] == 0, "RentStaking: lock period already exists!");
-        lockPeriodsRewardRates[_lockTime] = _rewardsRate;
-        lockPeriods.push(_lockTime);
-
-        emit AddLockPeriod(_lockTime, _rewardsRate);
-    }
-
-    function updateLockPeriodRewardsRate(
-        uint256 _lockTime,
-        uint256 _rewardsRate
-    ) external onlyOwner {
-        require(_rewardsRate > 0, "RentStaking: can not set rewards rate to 0, use deleteItem");
-        uint256 oldRewardsRate = lockPeriodsRewardRates[_lockTime];
-        require(oldRewardsRate > 0, "RentStaking: item not exists!");
-
-        lockPeriodsRewardRates[_lockTime] = _rewardsRate;
-
-        emit UpdateLockPeriodRewardsRate(_lockTime, oldRewardsRate, _rewardsRate);
-    }
-
-    function _getLockPeriodIndex(uint256 _lockTime) internal view returns (uint256) {
-        uint256 l = lockPeriods.length;
-        for (uint256 i; i < l; i++) {
-            if (_lockTime == lockPeriods[i]) {
-                return i;
-            }
-        }
-        revert("RentStaking: not found lock period index");
-    }
-
-    function deleteLockPeriod(uint256 _lockTime) external onlyOwner {
-        require(lockPeriodsRewardRates[_lockTime] > 0, "RentStaking: lock period not exists!");
-        delete lockPeriodsRewardRates[_lockTime];
-        delete lockPeriods[_getLockPeriodIndex(_lockTime)];
-
-        emit DeleteLockPeriod(_lockTime);
-    }
-
-    function _enforcePriserDecimals(address _pricer) internal view {
-        require(
-            IPricerToUSD(_pricer).decimals() == 6,
-            "RentStaking: pricer must be with decimal equal to 6!"
-        );
-    }
-
-    function addToken(address _token, address _pricer) public onlyOwner {
-        require(pricers[_token] == address(0), "RentStaking: token already exists!");
-        _enforcePriserDecimals(_pricer);
-        pricers[_token] = _pricer;
-        supportedTokens.push(_token);
-
-        emit AddToken(_token, _pricer);
-    }
-
-    function updateTokenPricer(address _token, address _pricer) external onlyOwner {
-        address oldPricer = pricers[_token];
-        require(oldPricer != address(0), "RentStaking: token not exists!");
-        _enforcePriserDecimals(_pricer);
-        pricers[_token] = _pricer;
-
-        emit UpdateTokenPricer(_token, oldPricer, _pricer);
-    }
-
-    function _getTokenIndex(address _token) internal view returns (uint256) {
-        uint256 l = supportedTokens.length;
-        for (uint256 i; i < l; i++) {
-            if (_token == supportedTokens[i]) {
-                return i;
-            }
-        }
-        revert("RentStaking: not found token index");
-    }
-
-    function deleteToken(address _token) external onlyOwner {
-        require(pricers[_token] != address(0), "RentStaking: token not exists!");
-        delete pricers[_token];
-        delete supportedTokens[_getTokenIndex(_token)];
-
-        emit DeleteToken(_token);
-    }
-
-    function _enforseIsTokenOwner(uint256 _tokenId) internal view {
-        require(ownerOf(_tokenId) == msg.sender, "RentStaking: not token owner!");
-    }
-
-    function getTokenPriceUSD(address _token) public view returns (uint256) {
-        address pricerAddress = pricers[_token];
-        require(pricerAddress != address(0), "RentStaking: token not registered!");
-        IPricerToUSD pricer = IPricerToUSD(pricerAddress);
-        (, int256 tokenPrice, , , ) = pricer.latestRoundData();
-        uint256 price = uint256(tokenPrice);
-        require(price > 0, "RentStaking: price can not be zero!");
-        return price;
-    }
-
-    function getBuyPriceByUSD(string calldata _itemName) public view returns (uint256) {
-        uint256 itemPrice = itemsPrices[_itemName];
-        require(itemPrice > 0, "RentStaking: item not exists!");
-        return itemPrice;
-    }
-
-    function getBuyPriceByToken(
-        string calldata _itemName,
-        address _tokenForPay
-    ) public view returns (uint256) {
-        uint256 priceByUSD = getBuyPriceByUSD(_itemName);
-        uint256 toknePriceUSD = getTokenPriceUSD(_tokenForPay);
-        uint256 tokenAmount = (priceByUSD *
-            10 ** IERC20Metadata(_tokenForPay).decimals() *
-            toknePriceUSD) / 1e6;
-        require(tokenAmount > 0, "RentStaking: token amount can not be zero!");
-        return tokenAmount;
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- USER ACTIONS -----------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function buy(
         string calldata _itemName,
@@ -330,6 +173,110 @@ contract RentStaking is
         emit Buy(msg.sender, tokenId);
     }
 
+    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) public nonReentrant {
+        _enforseIsTokenOwner(_tokenId);
+
+        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
+        require(rewardsByUsd > 0, "RentStaking: no usd rewards to withdraw!");
+
+        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+        require(rewardsByToken > 0, "RentStaking: no token rewards to withdraw!");
+
+        IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+
+        tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
+
+        tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
+
+        emit ClaimRewards(msg.sender, _tokenId, rewardsByUsd, rewardsByToken);
+    }
+
+    function sell(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
+        _enforseIsTokenOwner(_tokenId);
+
+        require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
+
+        require(rewardsToWithdrawByUSD(_tokenId) == 0, "RentStaking: claim rewards before sell!");
+
+        IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+
+        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
+
+        require(tokenAmountToWitdrawn > 0, "RentStaking: not enough funds to sell!");
+
+        tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
+
+        _burn(_tokenId);
+
+        emit Sell(msg.sender, _tokenId);
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW STATE -------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function getItems() external view returns (string[] memory) {
+        return items;
+    }
+
+    function getItemsWithPrice() external view returns (Item[] memory) {
+        Item[] memory result = new Item[](items.length);
+        uint256 l = items.length;
+        for (uint256 i; i < l; i++) {
+            result[i] = Item({ name: items[i], price: itemsPrices[items[i]] });
+        }
+        return result;
+    }
+
+    function getSupportedTokens() external view returns (address[] memory) {
+        return supportedTokens;
+    }
+
+    function getLockPeriods() external view returns (uint256[] memory) {
+        return lockPeriods;
+    }
+
+    function getLockPeriodsWithRewardsRates() external view returns (LockPeriod[] memory) {
+        LockPeriod[] memory result = new LockPeriod[](lockPeriods.length);
+        uint256 l = lockPeriods.length;
+        for (uint256 i; i < l; i++) {
+            result[i] = LockPeriod({
+                lockTime: lockPeriods[i],
+                rewardsRate: lockPeriodsRewardRates[lockPeriods[i]]
+            });
+        }
+        return result;
+    }
+
+    function getTokenPriceUSD(address _token) public view returns (uint256) {
+        address pricerAddress = pricers[_token];
+        require(pricerAddress != address(0), "RentStaking: token not registered!");
+        IPricerToUSD pricer = IPricerToUSD(pricerAddress);
+        (, int256 tokenPrice, , , ) = pricer.latestRoundData();
+        uint256 price = uint256(tokenPrice);
+        require(price > 0, "RentStaking: price can not be zero!");
+        return price;
+    }
+
+    function getBuyPriceByUSD(string calldata _itemName) public view returns (uint256) {
+        uint256 itemPrice = itemsPrices[_itemName];
+        require(itemPrice > 0, "RentStaking: item not exists!");
+        return itemPrice;
+    }
+
+    function getBuyPriceByToken(
+        string calldata _itemName,
+        address _tokenForPay
+    ) public view returns (uint256) {
+        uint256 priceByUSD = getBuyPriceByUSD(_itemName);
+        uint256 toknePriceUSD = getTokenPriceUSD(_tokenForPay);
+        uint256 tokenAmount = (priceByUSD *
+            10 ** IERC20Metadata(_tokenForPay).decimals() *
+            toknePriceUSD) / 1e6;
+        require(tokenAmount > 0, "RentStaking: token amount can not be zero!");
+        return tokenAmount;
+    }
+
     function rewardsToWithdrawByUSD(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
         uint256 rewardsPeriodsCount = (block.timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
@@ -348,24 +295,6 @@ contract RentStaking is
             (rewardsToWithdrawByUSD(_tokenId) *
                 10 ** IERC20Metadata(_tokenToWithdrawn).decimals() *
                 getTokenPriceUSD(_tokenToWithdrawn)) / 1e6;
-    }
-
-    function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) public nonReentrant {
-        _enforseIsTokenOwner(_tokenId);
-
-        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
-        require(rewardsByUsd > 0, "RentStaking: no usd rewards to withdraw!");
-
-        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-        require(rewardsByToken > 0, "RentStaking: no token rewards to withdraw!");
-
-        IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-
-        tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
-
-        tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
-
-        emit ClaimRewards(msg.sender, _tokenId, rewardsByUsd, rewardsByToken);
     }
 
     function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
@@ -387,23 +316,133 @@ contract RentStaking is
                 getTokenPriceUSD(_tokenToWithdrawn)) / 1e6;
     }
 
-    function sell(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
-        _enforseIsTokenOwner(_tokenId);
+    // ------------------------------------------------------------------------------------
+    // ----- OWNER ACTIONS ----------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
-        require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
+    function addItem(string calldata _name, uint256 _price) public onlyOwner {
+        require(itemsPrices[_name] == 0, "RentStaking: item already exists!");
+        itemsPrices[_name] = _price;
+        items.push(_name);
 
-        require(rewardsToWithdrawByUSD(_tokenId) == 0, "RentStaking: claim rewards before sell!");
+        emit AddItem(_name, _price);
+    }
 
-        IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+    function updateItemPrice(string calldata _name, uint256 _price) external onlyOwner {
+        require(_price > 0, "RentStaking: can not set price 0, use deleteItem");
+        uint256 oldItemPrice = itemsPrices[_name];
+        require(oldItemPrice > 0, "RentStaking: item not exists!");
+        itemsPrices[_name] = _price;
 
-        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
+        emit UpdateItemPrice(_name, oldItemPrice, _price);
+    }
 
-        require(tokenAmountToWitdrawn > 0, "RentStaking: not enough funds to sell!");
+    function deleteItem(string calldata _name) external onlyOwner {
+        require(itemsPrices[_name] > 0, "RentStaking: item not exists!");
+        delete itemsPrices[_name];
+        delete items[_getItemIndex(_name)];
 
-        tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
+        emit DeleteItem(_name);
+    }
 
-        _burn(_tokenId);
+    function addLockPeriod(uint256 _lockTime, uint256 _rewardsRate) public onlyOwner {
+        require(lockPeriodsRewardRates[_lockTime] == 0, "RentStaking: lock period already exists!");
+        lockPeriodsRewardRates[_lockTime] = _rewardsRate;
+        lockPeriods.push(_lockTime);
 
-        emit Sell(msg.sender, _tokenId);
+        emit AddLockPeriod(_lockTime, _rewardsRate);
+    }
+
+    function updateLockPeriodRewardsRate(
+        uint256 _lockTime,
+        uint256 _rewardsRate
+    ) external onlyOwner {
+        require(_rewardsRate > 0, "RentStaking: can not set rewards rate to 0, use deleteItem");
+        uint256 oldRewardsRate = lockPeriodsRewardRates[_lockTime];
+        require(oldRewardsRate > 0, "RentStaking: item not exists!");
+
+        lockPeriodsRewardRates[_lockTime] = _rewardsRate;
+
+        emit UpdateLockPeriodRewardsRate(_lockTime, oldRewardsRate, _rewardsRate);
+    }
+
+    function deleteLockPeriod(uint256 _lockTime) external onlyOwner {
+        require(lockPeriodsRewardRates[_lockTime] > 0, "RentStaking: lock period not exists!");
+        delete lockPeriodsRewardRates[_lockTime];
+        delete lockPeriods[_getLockPeriodIndex(_lockTime)];
+
+        emit DeleteLockPeriod(_lockTime);
+    }
+
+    function addToken(address _token, address _pricer) public onlyOwner {
+        require(pricers[_token] == address(0), "RentStaking: token already exists!");
+        _enforcePriserDecimals(_pricer);
+        pricers[_token] = _pricer;
+        supportedTokens.push(_token);
+
+        emit AddToken(_token, _pricer);
+    }
+
+    function updateTokenPricer(address _token, address _pricer) external onlyOwner {
+        address oldPricer = pricers[_token];
+        require(oldPricer != address(0), "RentStaking: token not exists!");
+        _enforcePriserDecimals(_pricer);
+        pricers[_token] = _pricer;
+
+        emit UpdateTokenPricer(_token, oldPricer, _pricer);
+    }
+
+    function deleteToken(address _token) external onlyOwner {
+        require(pricers[_token] != address(0), "RentStaking: token not exists!");
+        delete pricers[_token];
+        delete supportedTokens[_getTokenIndex(_token)];
+
+        emit DeleteToken(_token);
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- INTERNAL METHODS -------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function _enforseIsTokenOwner(uint256 _tokenId) internal view {
+        require(ownerOf(_tokenId) == msg.sender, "RentStaking: not token owner!");
+    }
+
+    function _enforcePriserDecimals(address _pricer) internal view {
+        require(
+            IPricerToUSD(_pricer).decimals() == 6,
+            "RentStaking: pricer must be with decimal equal to 6!"
+        );
+    }
+
+    function _getItemIndex(string memory _name) internal view returns (uint256) {
+        uint256 l = items.length;
+        bytes32 nameHash = keccak256(abi.encodePacked(_name));
+        for (uint256 i; i < l; i++) {
+            if (nameHash == keccak256(abi.encodePacked(items[i]))) {
+                return i;
+            }
+        }
+        revert("RentStaking: not found item index");
+    }
+
+    function _getLockPeriodIndex(uint256 _lockTime) internal view returns (uint256) {
+        uint256 l = lockPeriods.length;
+        for (uint256 i; i < l; i++) {
+            if (_lockTime == lockPeriods[i]) {
+                return i;
+            }
+        }
+        revert("RentStaking: not found lock period index");
+    }
+
+    function _getTokenIndex(address _token) internal view returns (uint256) {
+        uint256 l = supportedTokens.length;
+        for (uint256 i; i < l; i++) {
+            if (_token == supportedTokens[i]) {
+                return i;
+            }
+        }
+        revert("RentStaking: not found token index");
     }
 }
