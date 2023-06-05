@@ -50,7 +50,7 @@ const config: HardhatUserConfig = {
     timeout: 100000000,
   },
   tracer: {
-    tasks: ['node', 'deploy'],
+    tasks: [ 'deploy'],
   },
 }
 
