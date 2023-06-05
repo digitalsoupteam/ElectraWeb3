@@ -232,6 +232,18 @@ contract RentStaking is
         return supportedTokens;
     }
 
+    function getSupportedTokensWithPricers() external view returns (SupportedToken[] memory) {
+        SupportedToken[] memory result = new SupportedToken[](supportedTokens.length);
+        uint256 l = supportedTokens.length;
+        for (uint256 i; i < l; i++) {
+            result[i] = SupportedToken({
+                token: supportedTokens[i],
+                pricer: pricers[supportedTokens[i]]
+            });
+        }
+        return result;
+    }
+
     function getLockPeriods() external view returns (uint256[] memory) {
         return lockPeriods;
     }
