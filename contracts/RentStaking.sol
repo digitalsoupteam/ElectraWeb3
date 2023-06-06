@@ -16,10 +16,9 @@ contract RentStaking is
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    uint256 constant REWARS_PERIOD = 30 days;
-    uint256 constant PERCENT_PRECISION = 10000;
-    address constant BNB_PLACEHOLDER = address(0);
-    address constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    uint256 public constant REWARS_PERIOD = 30 days;
+    uint256 public constant PERCENT_PRECISION = 10000;
+    address public constant BNB_PLACEHOLDER = address(0);
 
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
@@ -366,7 +365,7 @@ contract RentStaking is
 
     function deposit(address _token, uint256 _amount) external payable onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
-        
+
         if (_token == BNB_PLACEHOLDER) {
             // BNB
             require(msg.value == _amount, "RentStaking: msg.value not equal amount!");
