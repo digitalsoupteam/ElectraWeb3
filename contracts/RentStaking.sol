@@ -96,6 +96,10 @@ contract RentStaking is
     );
     event DeleteLockPeriod(uint256 lockPeriod);
 
+    event Deposit(address indexed token, uint256 amount);
+
+    event Withdraw(address indexed token, uint256 amount);
+
     // ------------------------------------------------------------------------------------
     // ----- CONTRACT INITIALIZE ----------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -196,11 +200,13 @@ contract RentStaking is
 
         if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
             // BNB
+            require(address(this).balance >= rewardsByToken, "RentStaking: insufficient funds!");
             (bool success, ) = msg.sender.call{ value: rewardsByToken }("");
             require(success, "RentStaking: failed transfer bnb rewards!");
         } else {
             // ERC20
             IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+            require(tokenToWithdrawn.balanceOf(address(this)) >= rewardsByToken, "RentStaking: insufficient funds!");
             tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
         }
 
@@ -222,14 +228,16 @@ contract RentStaking is
 
         if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
             // BNB
+            require(address(this).balance >= tokenAmountToWitdrawn, "RentStaking: insufficient funds!");
             (bool success, ) = msg.sender.call{ value: tokenAmountToWitdrawn }("");
             require(success, "RentStaking: failed transfer of bnb for sale!");
         } else {
             // ERC20
             IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+            require(tokenToWithdrawn.balanceOf(address(this)) >= tokenAmountToWitdrawn, "RentStaking: insufficient funds!");
             tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
         }
-
+ 
         _burn(_tokenId);
 
         emit Sell(msg.sender, _tokenId);
@@ -355,6 +363,36 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
     // ----- OWNER ACTIONS ----------------------------------------------------------------
     // ------------------------------------------------------------------------------------
+
+    function deposit(address _token, uint256 _amount) external payable onlyOwner {
+        require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
+        
+        if (_token == BNB_PLACEHOLDER) {
+            // BNB
+            require(msg.value == _amount, "RentStaking: msg.value not equal amount!");
+        } else {
+            // ERC20
+            IERC20Metadata(_token).transferFrom(msg.sender, address(this), _amount);
+        }
+
+        emit Deposit(_token, _amount);
+    }
+
+    function withdraw(address _token, uint256 _amount) external payable onlyOwner {
+        if (_token == BNB_PLACEHOLDER) {
+            // BNB
+            require(address(this).balance >= _amount, "RentStaking: insufficient funds!");
+            (bool success, ) = msg.sender.call{ value: _amount }("");
+            require(success, "RentStaking: failed transfer bnb rewards!");
+        } else {
+            // ERC20
+            IERC20Metadata token = IERC20Metadata(_token);
+            require(token.balanceOf(address(this)) >= _amount, "RentStaking: insufficient funds!");
+            IERC20Metadata(_token).transfer(msg.sender, _amount);
+        }
+
+        emit Withdraw(_token, _amount);
+    }
 
     function addItem(string calldata _name, uint256 _price) public onlyOwner {
         require(itemsPrices[_name] == 0, "RentStaking: item already exists!");
