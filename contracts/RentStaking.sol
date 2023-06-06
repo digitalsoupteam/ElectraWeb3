@@ -16,8 +16,10 @@ contract RentStaking is
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    uint256 public constant REWARS_PERIOD = 30 days;
-    uint256 public constant PERCENT_PRECISION = 10000;
+    uint256 constant REWARS_PERIOD = 30 days;
+    uint256 constant PERCENT_PRECISION = 10000;
+    address constant BNB_PLACEHOLDER = address(0);
+    address constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
 
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
@@ -97,7 +99,6 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
     // ----- CONTRACT INITIALIZE ----------------------------------------------------------
     // ------------------------------------------------------------------------------------
-
     function initialize(
         string calldata _nftName,
         string calldata _nftSymbol,
@@ -137,7 +138,7 @@ contract RentStaking is
         string calldata _itemName,
         uint256 _lockPeriod,
         address _tokenForPay
-    ) external nonReentrant {
+    ) external payable nonReentrant {
         uint256 itemPrice = itemsPrices[_itemName];
         require(itemPrice > 0, "RentStaking: item not exists!");
 
@@ -147,14 +148,25 @@ contract RentStaking is
         uint256 tokenAmount = getBuyPriceByToken(_itemName, _tokenForPay);
 
         // Trasfer token for pay
-        IERC20Metadata tokenForPay = IERC20Metadata(_tokenForPay);
-        uint256 tokenBalanceBefore = tokenForPay.balanceOf(address(this));
-        tokenForPay.transferFrom(msg.sender, address(this), tokenAmount);
-        uint256 tokenBalanceAfter = tokenForPay.balanceOf(address(this));
-        require(
-            tokenBalanceAfter - tokenBalanceBefore == tokenAmount,
-            "RentStaking: failed transfer token for pay!"
-        );
+        if (_tokenForPay == BNB_PLACEHOLDER) {
+            // BNB
+            require(msg.value >= tokenAmount, "RentStaking: an insufficient amount bnb for pay!");
+            uint256 change = msg.value - tokenAmount;
+            if (change > 0) {
+                (bool success, ) = msg.sender.call{ value: change }("");
+                require(success, "RentStaking: failed transfer change!");
+            }
+        } else {
+            // ERC20
+            IERC20Metadata tokenForPay = IERC20Metadata(_tokenForPay);
+            uint256 tokenBalanceBefore = tokenForPay.balanceOf(address(this));
+            tokenForPay.transferFrom(msg.sender, address(this), tokenAmount);
+            uint256 tokenBalanceAfter = tokenForPay.balanceOf(address(this));
+            require(
+                tokenBalanceAfter - tokenBalanceBefore == tokenAmount,
+                "RentStaking: failed transfer token for pay!"
+            );
+        }
 
         uint256 sellPrice = (itemPrice * 9) / 10;
 
@@ -182,9 +194,15 @@ contract RentStaking is
         uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
         require(rewardsByToken > 0, "RentStaking: no token rewards to withdraw!");
 
-        IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-
-        tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
+        if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
+            // BNB
+            (bool success, ) = msg.sender.call{ value: rewardsByToken }("");
+            require(success, "RentStaking: failed transfer bnb rewards!");
+        } else {
+            // ERC20
+            IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+            tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
+        }
 
         tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
 
@@ -198,13 +216,19 @@ contract RentStaking is
 
         require(rewardsToWithdrawByUSD(_tokenId) == 0, "RentStaking: claim rewards before sell!");
 
-        IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-
         uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
 
         require(tokenAmountToWitdrawn > 0, "RentStaking: not enough funds to sell!");
 
-        tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
+        if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
+            // BNB
+            (bool success, ) = msg.sender.call{ value: tokenAmountToWitdrawn }("");
+            require(success, "RentStaking: failed transfer of bnb for sale!");
+        } else {
+            // ERC20
+            IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
+            tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
+        }
 
         _burn(_tokenId);
 
