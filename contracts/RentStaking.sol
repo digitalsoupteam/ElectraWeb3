@@ -108,6 +108,7 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
     // ----- CONTRACT INITIALIZE ----------------------------------------------------------
     // ------------------------------------------------------------------------------------
+
     function initialize(
         string calldata _nftName,
         string calldata _nftSymbol,
@@ -267,6 +268,18 @@ contract RentStaking is
         return items;
     }
 
+    function getItemsLength() external view returns (uint256) {
+        return items.length;
+    }
+
+    function getLockPeriodsLength() external view returns (uint256) {
+        return lockPeriods.length;
+    }
+
+    function getSupportedTokensLength() external view returns (uint256) {
+        return supportedTokens.length;
+    }
+
     function getItemsWithPrice() external view returns (Item[] memory) {
         Item[] memory result = new Item[](items.length);
         uint256 l = items.length;
@@ -292,6 +305,18 @@ contract RentStaking is
         return result;
     }
 
+    function isItemExists(string calldata _itemName) external view returns (bool) {
+        return itemsPrices[_itemName] != 0;
+    }
+
+    function isLockPeriodExists(uint256 _lockPeriod) external view returns (bool) {
+        return lockPeriodsRewardRates[_lockPeriod] != 0;
+    }
+
+    function isSupportedToken(address _token) external view returns (bool) {
+        return pricers[_token] != address(0);
+    }
+
     function getLockPeriods() external view returns (uint256[] memory) {
         return lockPeriods;
     }
@@ -314,7 +339,7 @@ contract RentStaking is
         IPricerToUSD pricer = IPricerToUSD(pricerAddress);
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         uint256 price = uint256(tokenPrice);
-        require(price > 0, "RentStaking: price can not be zero!");
+        require(price > 0, "RentStaking: price from pricer can not be zero!");
         return price;
     }
 
@@ -376,6 +401,48 @@ contract RentStaking is
                 getTokenPriceUSD(_tokenToWithdrawn)) / 1e8;
     }
 
+    function hasRewards(uint256 _tokenId) public view returns (bool) {
+        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
+        return rewardsByUsd > 0;
+    }
+
+    function hasRewardsByToken(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (bool) {
+        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+        return rewardsByToken > 0;
+    }
+
+    function hasBalanceToClaim(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (bool) {
+        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken;
+    }
+
+    function canClaim(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
+        return
+            hasRewardsByToken(_tokenId, _tokenToWithdrawn) &&
+            hasBalanceToClaim(_tokenId, _tokenToWithdrawn);
+    }
+
+    function hasBalanceToSell(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (bool) {
+        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
+        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn;
+    }
+
+    function canSell(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
+        return
+            lockPeriodIsExpired(_tokenId) &&
+            !hasRewards(_tokenId) &&
+            hasBalanceToSell(_tokenId, _tokenToWithdrawn);
+    }
+
     // ------------------------------------------------------------------------------------
     // ----- OWNER ACTIONS ----------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -397,7 +464,10 @@ contract RentStaking is
     }
 
     function withdraw(address _token, uint256 _amount) public payable onlyOwner {
-        require(tokensToOwnerWithdrawBalances[_token] >= _amount, "RentStaking: insufficient funds!");
+        require(
+            tokensToOwnerWithdrawBalances[_token] >= _amount,
+            "RentStaking: insufficient funds!"
+        );
 
         if (_token == BNB_PLACEHOLDER) {
             // BNB
@@ -437,7 +507,7 @@ contract RentStaking is
         // Delete from array
         uint256 index = _getItemIndex(_name);
         uint256 maxIndex = items.length - 1;
-        for(uint256 i = index; i < maxIndex; i++) {
+        for (uint256 i = index; i < maxIndex; i++) {
             items[i] = items[i + 1];
         }
         items.pop();
@@ -473,7 +543,7 @@ contract RentStaking is
         // Delete from array
         uint256 index = _getLockPeriodIndex(_lockTime);
         uint256 maxIndex = lockPeriods.length - 1;
-        for(uint256 i = index; i < maxIndex; i++) {
+        for (uint256 i = index; i < maxIndex; i++) {
             lockPeriods[i] = lockPeriods[i + 1];
         }
         lockPeriods.pop();
@@ -506,16 +576,17 @@ contract RentStaking is
         uint256 ownerBalance = tokensToOwnerWithdrawBalances[_token];
         uint256 userBalance = tokensToUserWithdrawBalances[_token];
         uint256 allBalance = ownerBalance + userBalance;
-        if(allBalance > 0) {
+        if (allBalance > 0) {
             withdraw(_token, allBalance);
         }
 
         // Delete pricer
         delete pricers[_token];
+
         // Delete from array
         uint256 index = _getTokenIndex(_token);
         uint256 maxIndex = supportedTokens.length - 1;
-        for(uint256 i = index; i < maxIndex; i++) {
+        for (uint256 i = index; i < maxIndex; i++) {
             supportedTokens[i] = supportedTokens[i + 1];
         }
         supportedTokens.pop();
