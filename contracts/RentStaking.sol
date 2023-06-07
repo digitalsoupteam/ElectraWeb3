@@ -37,6 +37,12 @@ contract RentStaking is
 
     mapping(uint256 => TokenInfo) public tokensInfo;
 
+    address[] public tokensToOwnerWithdraw;
+    mapping(address => uint256) public tokensToOwnerWithdrawBalances;
+
+    address[] public tokensToUserWithdraw;
+    mapping(address => uint256) public tokensToUserWithdrawBalances;
+
     // ------------------------------------------------------------------------------------
     // ----- STRUCTURES -------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -171,6 +177,8 @@ contract RentStaking is
             );
         }
 
+        tokensToOwnerWithdrawBalances[_tokenForPay] += tokenAmount;
+
         uint256 sellPrice = (itemPrice * 9) / 10;
 
         uint256 tokenId = nextTokenId++;
@@ -197,18 +205,22 @@ contract RentStaking is
         uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
         require(rewardsByToken > 0, "RentStaking: no token rewards to withdraw!");
 
+        require(
+            tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken,
+            "RentStaking: insufficient funds!"
+        );
+
         if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
             // BNB
-            require(address(this).balance >= rewardsByToken, "RentStaking: insufficient funds!");
             (bool success, ) = msg.sender.call{ value: rewardsByToken }("");
             require(success, "RentStaking: failed transfer bnb rewards!");
         } else {
             // ERC20
             IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-            require(tokenToWithdrawn.balanceOf(address(this)) >= rewardsByToken, "RentStaking: insufficient funds!");
             tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
         }
 
+        tokensToUserWithdrawBalances[_tokenToWithdrawn] -= rewardsByToken;
         tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
 
         emit ClaimRewards(msg.sender, _tokenId, rewardsByUsd, rewardsByToken);
@@ -225,18 +237,23 @@ contract RentStaking is
 
         require(tokenAmountToWitdrawn > 0, "RentStaking: not enough funds to sell!");
 
+        require(
+            tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn,
+            "RentStaking: insufficient funds!"
+        );
+
         if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
             // BNB
-            require(address(this).balance >= tokenAmountToWitdrawn, "RentStaking: insufficient funds!");
             (bool success, ) = msg.sender.call{ value: tokenAmountToWitdrawn }("");
             require(success, "RentStaking: failed transfer of bnb for sale!");
         } else {
             // ERC20
             IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-            require(tokenToWithdrawn.balanceOf(address(this)) >= tokenAmountToWitdrawn, "RentStaking: insufficient funds!");
             tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
         }
- 
+
+        tokensToUserWithdrawBalances[_tokenToWithdrawn] -= tokenAmountToWitdrawn;
+
         _burn(_tokenId);
 
         emit Sell(msg.sender, _tokenId);
@@ -374,21 +391,24 @@ contract RentStaking is
             IERC20Metadata(_token).transferFrom(msg.sender, address(this), _amount);
         }
 
+        tokensToUserWithdrawBalances[_token] += _amount;
+
         emit Deposit(_token, _amount);
     }
 
-    function withdraw(address _token, uint256 _amount) external payable onlyOwner {
+    function withdraw(address _token, uint256 _amount) public payable onlyOwner {
+        require(tokensToOwnerWithdrawBalances[_token] >= _amount, "RentStaking: insufficient funds!");
+
         if (_token == BNB_PLACEHOLDER) {
             // BNB
-            require(address(this).balance >= _amount, "RentStaking: insufficient funds!");
             (bool success, ) = msg.sender.call{ value: _amount }("");
             require(success, "RentStaking: failed transfer bnb rewards!");
         } else {
             // ERC20
-            IERC20Metadata token = IERC20Metadata(_token);
-            require(token.balanceOf(address(this)) >= _amount, "RentStaking: insufficient funds!");
             IERC20Metadata(_token).transfer(msg.sender, _amount);
         }
+
+        tokensToOwnerWithdrawBalances[_token] -= _amount;
 
         emit Withdraw(_token, _amount);
     }
@@ -413,7 +433,14 @@ contract RentStaking is
     function deleteItem(string calldata _name) external onlyOwner {
         require(itemsPrices[_name] > 0, "RentStaking: item not exists!");
         delete itemsPrices[_name];
-        delete items[_getItemIndex(_name)];
+
+        // Delete from array
+        uint256 index = _getItemIndex(_name);
+        uint256 maxIndex = items.length - 1;
+        for(uint256 i = index; i < maxIndex; i++) {
+            items[i] = items[i + 1];
+        }
+        items.pop();
 
         emit DeleteItem(_name);
     }
@@ -442,7 +469,14 @@ contract RentStaking is
     function deleteLockPeriod(uint256 _lockTime) external onlyOwner {
         require(lockPeriodsRewardRates[_lockTime] > 0, "RentStaking: lock period not exists!");
         delete lockPeriodsRewardRates[_lockTime];
-        delete lockPeriods[_getLockPeriodIndex(_lockTime)];
+
+        // Delete from array
+        uint256 index = _getLockPeriodIndex(_lockTime);
+        uint256 maxIndex = lockPeriods.length - 1;
+        for(uint256 i = index; i < maxIndex; i++) {
+            lockPeriods[i] = lockPeriods[i + 1];
+        }
+        lockPeriods.pop();
 
         emit DeleteLockPeriod(_lockTime);
     }
@@ -467,8 +501,24 @@ contract RentStaking is
 
     function deleteToken(address _token) external onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: token not exists!");
+
+        // Witdraw before
+        uint256 ownerBalance = tokensToOwnerWithdrawBalances[_token];
+        uint256 userBalance = tokensToUserWithdrawBalances[_token];
+        uint256 allBalance = ownerBalance + userBalance;
+        if(allBalance > 0) {
+            withdraw(_token, allBalance);
+        }
+
+        // Delete pricer
         delete pricers[_token];
-        delete supportedTokens[_getTokenIndex(_token)];
+        // Delete from array
+        uint256 index = _getTokenIndex(_token);
+        uint256 maxIndex = supportedTokens.length - 1;
+        for(uint256 i = index; i < maxIndex; i++) {
+            supportedTokens[i] = supportedTokens[i + 1];
+        }
+        supportedTokens.pop();
 
         emit DeleteToken(_token);
     }
