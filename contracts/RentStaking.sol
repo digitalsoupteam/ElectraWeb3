@@ -6,6 +6,7 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPricerToUSD } from "./interfaces/IPricerToUSD.sol";
+import { TransferLib } from "./libs/TransferLib.sol";
 
 contract RentStaking is
     ReentrancyGuardUpgradeable,
@@ -158,26 +159,7 @@ contract RentStaking is
 
         uint256 tokenAmount = getBuyPriceByToken(_itemName, _tokenForPay);
 
-        // Trasfer token for pay
-        if (_tokenForPay == BNB_PLACEHOLDER) {
-            // BNB
-            require(msg.value >= tokenAmount, "RentStaking: an insufficient amount bnb for pay!");
-            uint256 change = msg.value - tokenAmount;
-            if (change > 0) {
-                (bool success, ) = msg.sender.call{ value: change }("");
-                require(success, "RentStaking: failed transfer change!");
-            }
-        } else {
-            // ERC20
-            IERC20Metadata tokenForPay = IERC20Metadata(_tokenForPay);
-            uint256 tokenBalanceBefore = tokenForPay.balanceOf(address(this));
-            tokenForPay.transferFrom(msg.sender, address(this), tokenAmount);
-            uint256 tokenBalanceAfter = tokenForPay.balanceOf(address(this));
-            require(
-                tokenBalanceAfter - tokenBalanceBefore == tokenAmount,
-                "RentStaking: failed transfer token for pay!"
-            );
-        }
+        TransferLib.transferFrom(_tokenForPay, tokenAmount, msg.sender, address(this));
 
         tokensToOwnerWithdrawBalances[_tokenForPay] += tokenAmount;
 
@@ -212,15 +194,7 @@ contract RentStaking is
             "RentStaking: insufficient funds!"
         );
 
-        if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
-            // BNB
-            (bool success, ) = msg.sender.call{ value: rewardsByToken }("");
-            require(success, "RentStaking: failed transfer bnb rewards!");
-        } else {
-            // ERC20
-            IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-            tokenToWithdrawn.transfer(msg.sender, rewardsByToken);
-        }
+        TransferLib.transfer(_tokenToWithdrawn, rewardsByToken, msg.sender);
 
         tokensToUserWithdrawBalances[_tokenToWithdrawn] -= rewardsByToken;
         tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
@@ -244,15 +218,7 @@ contract RentStaking is
             "RentStaking: insufficient funds!"
         );
 
-        if (_tokenToWithdrawn == BNB_PLACEHOLDER) {
-            // BNB
-            (bool success, ) = msg.sender.call{ value: tokenAmountToWitdrawn }("");
-            require(success, "RentStaking: failed transfer of bnb for sale!");
-        } else {
-            // ERC20
-            IERC20Metadata tokenToWithdrawn = IERC20Metadata(_tokenToWithdrawn);
-            tokenToWithdrawn.transfer(msg.sender, tokenAmountToWitdrawn);
-        }
+        TransferLib.transfer(_tokenToWithdrawn, tokenAmountToWitdrawn, msg.sender);
 
         tokensToUserWithdrawBalances[_tokenToWithdrawn] -= tokenAmountToWitdrawn;
 
@@ -379,32 +345,34 @@ contract RentStaking is
         address _tokenForPay
     ) public view returns (uint256) {
         uint256 priceByUSD = getBuyPriceByUSD(_itemName);
-        uint256 toknePriceUSD = getTokenPriceUSD(_tokenForPay);
-        uint256 tokenAmount = (priceByUSD *
-            10 ** IERC20Metadata(_tokenForPay).decimals() *
-            toknePriceUSD) / 1e8;
+        uint256 tokenAmount = usdAmountToToken(priceByUSD, _tokenForPay);
         require(tokenAmount > 0, "RentStaking: token amount can not be zero!");
         return tokenAmount;
     }
 
-    function rewardsToWithdrawByUSD(uint256 _tokenId) public view returns (uint256) {
+    function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
+        return
+            (_usdAmount * 10 ** IERC20Metadata(_token).decimals() * getTokenPriceUSD(_token)) / 1e8;
+    }
+
+    function calculateAllRewardsByUSD(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
         uint256 rewardsPeriodsCount = (block.timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
         uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) /
             PERCENT_PRECISION;
         uint256 allCurrentRewards = rewardsPeriodsCount * rewardForOnePeriod;
-        uint256 rewardsThatCanBeWithdrawn = allCurrentRewards - tokenInfo.withdrawnRewards;
-        return rewardsThatCanBeWithdrawn;
+        return allCurrentRewards;
+    }
+
+    function rewardsToWithdrawByUSD(uint256 _tokenId) public view returns (uint256) {
+        return calculateAllRewardsByUSD(_tokenId) - tokensInfo[_tokenId].withdrawnRewards;
     }
 
     function rewardsToWithdrawByToken(
         uint256 _tokenId,
         address _tokenToWithdrawn
     ) public view returns (uint256) {
-        return
-            (rewardsToWithdrawByUSD(_tokenId) *
-                10 ** IERC20Metadata(_tokenToWithdrawn).decimals() *
-                getTokenPriceUSD(_tokenToWithdrawn)) / 1e8;
+        return usdAmountToToken(rewardsToWithdrawByUSD(_tokenId), _tokenToWithdrawn);
     }
 
     function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
@@ -420,59 +388,54 @@ contract RentStaking is
         uint256 _tokenId,
         address _tokenToWithdrawn
     ) public view returns (uint256) {
-        return
-            (getSellAmoutByUSD(_tokenId) *
-                10 ** IERC20Metadata(_tokenToWithdrawn).decimals() *
-                getTokenPriceUSD(_tokenToWithdrawn)) / 1e8;
+        return usdAmountToToken(getSellAmoutByUSD(_tokenId), _tokenToWithdrawn);
     }
 
-    function hasRewards(uint256 _tokenId) public view returns (bool) {
-        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
-        return rewardsByUsd > 0;
-    }
+    // function hasRewards(uint256 _tokenId) public view returns (bool) {
+    //     uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
+    //     return rewardsByUsd > 0;
+    // }
 
-    function hasRewardsByToken(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (bool) {
-        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-        return rewardsByToken > 0;
-    }
+    // function hasRewardsByToken(
+    //     uint256 _tokenId,
+    //     address _tokenToWithdrawn
+    // ) public view returns (bool) {
+    //     uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+    //     return rewardsByToken > 0;
+    // }
 
-    function hasBalanceToClaim(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (bool) {
-        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken;
-    }
+    // function hasBalanceToClaim(
+    //     uint256 _tokenId,
+    //     address _tokenToWithdrawn
+    // ) public view returns (bool) {
+    //     uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+    //     return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken;
+    // }
 
-    function canClaim(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
-        return
-            hasRewardsByToken(_tokenId, _tokenToWithdrawn) &&
-            hasBalanceToClaim(_tokenId, _tokenToWithdrawn);
-    }
+    // function canClaim(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
+    //     return
+    //         hasRewardsByToken(_tokenId, _tokenToWithdrawn) &&
+    //         hasBalanceToClaim(_tokenId, _tokenToWithdrawn);
+    // }
 
-    function hasBalanceToSell(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (bool) {
-        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
-        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn;
-    }
+    // function hasBalanceToSell(
+    //     uint256 _tokenId,
+    //     address _tokenToWithdrawn
+    // ) public view returns (bool) {
+    //     uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
+    //     return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn;
+    // }
 
-    function canSell(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
-        return
-            lockPeriodIsExpired(_tokenId) &&
-            !hasRewards(_tokenId) &&
-            hasBalanceToSell(_tokenId, _tokenToWithdrawn);
-    }
+    // function canSell(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
+    //     return
+    //         lockPeriodIsExpired(_tokenId) &&
+    //         !hasRewards(_tokenId) &&
+    //         hasBalanceToSell(_tokenId, _tokenToWithdrawn);
+    // }
 
-    function canReStake(uint256 _tokenId) external view returns (bool) {
-        return
-            lockPeriodIsExpired(_tokenId) &&
-            !hasRewards(_tokenId);
-    }
+    // function canReStake(uint256 _tokenId) external view returns (bool) {
+    //     return lockPeriodIsExpired(_tokenId) && !hasRewards(_tokenId);
+    // }
 
     // ------------------------------------------------------------------------------------
     // ----- OWNER ACTIONS ----------------------------------------------------------------
@@ -481,13 +444,7 @@ contract RentStaking is
     function deposit(address _token, uint256 _amount) external payable onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
 
-        if (_token == BNB_PLACEHOLDER) {
-            // BNB
-            require(msg.value == _amount, "RentStaking: msg.value not equal amount!");
-        } else {
-            // ERC20
-            IERC20Metadata(_token).transferFrom(msg.sender, address(this), _amount);
-        }
+        TransferLib.transferFrom(_token, _amount, msg.sender, address(this));
 
         tokensToUserWithdrawBalances[_token] += _amount;
 
@@ -500,14 +457,7 @@ contract RentStaking is
             "RentStaking: insufficient funds!"
         );
 
-        if (_token == BNB_PLACEHOLDER) {
-            // BNB
-            (bool success, ) = msg.sender.call{ value: _amount }("");
-            require(success, "RentStaking: failed transfer bnb rewards!");
-        } else {
-            // ERC20
-            IERC20Metadata(_token).transfer(msg.sender, _amount);
-        }
+        TransferLib.transfer(_token, _amount, msg.sender);
 
         tokensToOwnerWithdrawBalances[_token] -= _amount;
 
