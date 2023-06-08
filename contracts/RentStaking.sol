@@ -355,11 +355,16 @@ contract RentStaking is
             (_usdAmount * 10 ** IERC20Metadata(_token).decimals() * getTokenPriceUSD(_token)) / 1e8;
     }
 
+    function calculateRewarsForOnePeriodUSD(uint256 _tokenId) public view returns (uint256) {
+        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
+        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) / PERCENT_PRECISION;
+        return rewardForOnePeriod;
+    }
+
     function calculateAllRewardsByUSD(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
         uint256 rewardsPeriodsCount = (block.timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
-        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) /
-            PERCENT_PRECISION;
+        uint256 rewardForOnePeriod = calculateRewarsForOnePeriodUSD(_tokenId);
         uint256 allCurrentRewards = rewardsPeriodsCount * rewardForOnePeriod;
         return allCurrentRewards;
     }
@@ -382,6 +387,13 @@ contract RentStaking is
     function getExpiredTimestamp(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
         return tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days;
+    }
+    
+    function getNextRewardTimestamp(uint256 _tokenId) external view returns (uint256) {
+        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
+        uint256 rewardForOnePeriod = calculateRewarsForOnePeriodUSD(_tokenId);
+        uint256 expiredPeriodsCount = tokenInfo.withdrawnRewards / rewardForOnePeriod;        
+        return tokenInfo.initTimestamp + expiredPeriodsCount * REWARS_PERIOD + REWARS_PERIOD;
     }
 
     function getSellAmoutByUSD(uint256 _tokenId) public view returns (uint256) {
