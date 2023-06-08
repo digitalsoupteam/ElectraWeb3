@@ -84,6 +84,7 @@ contract RentStaking is
         uint256 rewardsByToken
     );
     event Sell(address indexed recipient, uint256 indexed tokenId);
+    event ReStake(address indexed recipient, uint256 indexed tokenId);
 
     event AddItem(string indexed name, uint256 price);
     event UpdateItemPrice(string indexed name, uint256 oldPrice, uint256 newPrice);
@@ -258,6 +259,30 @@ contract RentStaking is
         _burn(_tokenId);
 
         emit Sell(msg.sender, _tokenId);
+    }
+
+    function reStake(uint256 _tokenId, uint256 _lockPeriod) external nonReentrant {
+        _enforseIsTokenOwner(_tokenId);
+
+        require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
+
+        require(rewardsToWithdrawByUSD(_tokenId) == 0, "RentStaking: claim rewards before sell!");
+
+        uint256 rewardsRate = lockPeriods[_lockPeriod];
+        require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
+
+        TokenInfo storage tokenInfo = tokensInfo[_tokenId];
+
+        uint256 sellPrice = (tokenInfo.sellPrice * 9) / 10;
+
+        tokenInfo.lockPeriod = _lockPeriod;
+        tokenInfo.rewardsRate = rewardsRate;
+        tokenInfo.buyPrice = tokenInfo.sellPrice;
+        tokenInfo.sellPrice = sellPrice;
+        tokenInfo.initTimestamp = block.timestamp;
+        tokenInfo.withdrawnRewards = 0;
+
+        emit ReStake(msg.sender, _tokenId);
     }
 
     // ------------------------------------------------------------------------------------
@@ -441,6 +466,12 @@ contract RentStaking is
             lockPeriodIsExpired(_tokenId) &&
             !hasRewards(_tokenId) &&
             hasBalanceToSell(_tokenId, _tokenToWithdrawn);
+    }
+
+    function canReStake(uint256 _tokenId) external view returns (bool) {
+        return
+            lockPeriodIsExpired(_tokenId) &&
+            !hasRewards(_tokenId);
     }
 
     // ------------------------------------------------------------------------------------
