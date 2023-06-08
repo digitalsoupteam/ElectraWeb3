@@ -376,8 +376,12 @@ contract RentStaking is
     }
 
     function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
+        return block.timestamp >= getExpiredTimestamp(_tokenId);
+    }
+
+    function getExpiredTimestamp(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        return block.timestamp >= tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days;
+        return tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days;
     }
 
     function getSellAmoutByUSD(uint256 _tokenId) public view returns (uint256) {
