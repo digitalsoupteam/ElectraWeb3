@@ -55,6 +55,7 @@ contract RentStaking is
         uint256 buyPrice;
         uint256 sellPrice;
         uint256 initTimestamp;
+        uint256 lastRewardTimestamp;
         uint256 withdrawnRewards;
     }
 
@@ -174,6 +175,7 @@ contract RentStaking is
             buyPrice: itemPrice,
             sellPrice: sellPrice,
             initTimestamp: block.timestamp,
+            lastRewardTimestamp: block.timestamp,
             withdrawnRewards: 0
         });
 
@@ -198,6 +200,10 @@ contract RentStaking is
 
         tokensToUserWithdrawBalances[_tokenToWithdrawn] -= rewardsByToken;
         tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
+        tokensInfo[_tokenId].lastRewardTimestamp =
+            tokensInfo[_tokenId].initTimestamp +
+            calcaluteAllRewardsPeriodsCount(_tokenId) *
+            REWARS_PERIOD;
 
         emit ClaimRewards(msg.sender, _tokenId, rewardsByUsd, rewardsByToken);
     }
@@ -246,6 +252,7 @@ contract RentStaking is
         tokenInfo.buyPrice = tokenInfo.sellPrice;
         tokenInfo.sellPrice = sellPrice;
         tokenInfo.initTimestamp = block.timestamp;
+        tokenInfo.lastRewardTimestamp = block.timestamp;
         tokenInfo.withdrawnRewards = 0;
 
         emit ReStake(msg.sender, _tokenId);
@@ -357,28 +364,30 @@ contract RentStaking is
 
     function calculateRewarsForOnePeriodUSD(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) / PERCENT_PRECISION;
+        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) /
+            PERCENT_PRECISION;
         return rewardForOnePeriod;
     }
 
-    function calculateAllRewardsByUSD(uint256 _tokenId) public view returns (uint256) {
+    function calcaluteAllRewardsPeriodsCount(uint256 _tokenId) public view returns (uint256) {
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        uint256 rewardsPeriodsCount = (block.timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
-        uint256 rewardForOnePeriod = calculateRewarsForOnePeriodUSD(_tokenId);
-        uint256 allCurrentRewards = rewardsPeriodsCount * rewardForOnePeriod;
-        return allCurrentRewards;
+        return (block.timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
+    }
+
+    function calculateAllRewardsByUSD(uint256 _tokenId) public view returns (uint256) {
+        return calcaluteAllRewardsPeriodsCount(_tokenId) * calculateRewarsForOnePeriodUSD(_tokenId);
     }
 
     function rewardsToWithdrawByUSD(uint256 _tokenId) public view returns (uint256) {
         return calculateAllRewardsByUSD(_tokenId) - tokensInfo[_tokenId].withdrawnRewards;
     }
 
-    function rewardsToWithdrawByToken(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (uint256) {
-        return usdAmountToToken(rewardsToWithdrawByUSD(_tokenId), _tokenToWithdrawn);
-    }
+    // function rewardsToWithdrawByToken(
+    //     uint256 _tokenId,
+    //     address _tokenToWithdrawn
+    // ) public view returns (uint256) {
+    //     return usdAmountToToken(rewardsToWithdrawByUSD(_tokenId), _tokenToWithdrawn);
+    // }
 
     function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
         return block.timestamp >= getExpiredTimestamp(_tokenId);
@@ -388,12 +397,9 @@ contract RentStaking is
         TokenInfo memory tokenInfo = tokensInfo[_tokenId];
         return tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days;
     }
-    
+
     function getNextRewardTimestamp(uint256 _tokenId) external view returns (uint256) {
-        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        uint256 rewardForOnePeriod = calculateRewarsForOnePeriodUSD(_tokenId);
-        uint256 expiredPeriodsCount = tokenInfo.withdrawnRewards / rewardForOnePeriod;        
-        return tokenInfo.initTimestamp + expiredPeriodsCount * REWARS_PERIOD + REWARS_PERIOD;
+        return tokensInfo[_tokenId].lastRewardTimestamp + REWARS_PERIOD;
     }
 
     function getSellAmoutByUSD(uint256 _tokenId) public view returns (uint256) {
