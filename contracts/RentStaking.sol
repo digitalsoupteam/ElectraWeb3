@@ -395,52 +395,6 @@ contract RentStaking is
         return usdAmountToToken(getSellAmoutByUSD(_tokenId), _tokenToWithdrawn);
     }
 
-    // function hasRewards(uint256 _tokenId) public view returns (bool) {
-    //     uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
-    //     return rewardsByUsd > 0;
-    // }
-
-    // function hasRewardsByToken(
-    //     uint256 _tokenId,
-    //     address _tokenToWithdrawn
-    // ) public view returns (bool) {
-    //     uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-    //     return rewardsByToken > 0;
-    // }
-
-    // function hasBalanceToClaim(
-    //     uint256 _tokenId,
-    //     address _tokenToWithdrawn
-    // ) public view returns (bool) {
-    //     uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-    //     return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken;
-    // }
-
-    // function canClaim(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
-    //     return
-    //         hasRewardsByToken(_tokenId, _tokenToWithdrawn) &&
-    //         hasBalanceToClaim(_tokenId, _tokenToWithdrawn);
-    // }
-
-    // function hasBalanceToSell(
-    //     uint256 _tokenId,
-    //     address _tokenToWithdrawn
-    // ) public view returns (bool) {
-    //     uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
-    //     return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn;
-    // }
-
-    // function canSell(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
-    //     return
-    //         lockPeriodIsExpired(_tokenId) &&
-    //         !hasRewards(_tokenId) &&
-    //         hasBalanceToSell(_tokenId, _tokenToWithdrawn);
-    // }
-
-    // function canReStake(uint256 _tokenId) external view returns (bool) {
-    //     return lockPeriodIsExpired(_tokenId) && !hasRewards(_tokenId);
-    // }
-
     // ------------------------------------------------------------------------------------
     // ----- OWNER ACTIONS ----------------------------------------------------------------
     // ------------------------------------------------------------------------------------
