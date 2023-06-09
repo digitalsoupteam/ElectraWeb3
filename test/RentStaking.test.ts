@@ -4,10 +4,8 @@ import { IERC20Metadata__factory, RentStaking, RentStaking__factory } from '../t
 import { BNB_PLACEHOLDER, BUSD, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { ContractReceipt, ContractTransaction } from 'ethers'
-import { expect  } from 'chai'
-import { ContractReceiptUtils } from './utils/ContractReceiptUtils'
-
-
+import {assert, expect } from 'chai'
+import { Test } from 'mocha'
 
 const inputTokens = [
   // BNB_PLACEHOLDER,
@@ -15,8 +13,7 @@ const inputTokens = [
   // USDT
 ]
 
-
-describe(`RentStaking`, () => {
+const suite = describe(`RentStaking`, () => {
   let rentStaking: RentStaking
 
   let initSnapshot: string
@@ -25,82 +22,91 @@ describe(`RentStaking`, () => {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
 
+  let itemsWithPrice: RentStaking.ItemStructOutput[]
+  let lockPeriodsWithRewardsRates: RentStaking.LockPeriodStructOutput[]
+
   before(async () => {
     const accounts = await ethers.getSigners()
     owner = accounts[0]
     user1 = accounts[8]
     user2 = accounts[9]
 
-    await deployments.fixture([
-      'RentStaking',
-    ])
+    await deployments.fixture(['RentStaking'])
     const RentStakingDeployment = await deployments.get('RentStaking')
 
     rentStaking = RentStaking__factory.connect(RentStakingDeployment.address, owner)
 
+    itemsWithPrice = await rentStaking.getItemsWithPrice()
+    lockPeriodsWithRewardsRates = await rentStaking.getLockPeriodsWithRewardsRates()
+
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
+
+    // Dynamic tests
+    registryDinamicTests()
   })
 
   afterEach(async () => {
+    console.log('afterEach')
     await ethers.provider.send('evm_revert', [initSnapshot])
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
 
-  // it('Regular unit', async () => {
-  //   console.log(await rentStaking.getItemsWithPrice())
-  //   console.log(await rentStaking.getLockPeriodsWithRewardsRates())
-  //   console.log(await rentStaking.getSupportedTokens())
-  // })
-
-  for(const inputToken of inputTokens) {
-    it(`Regular unit inputToken=${inputToken}`, async () => {
-      const user = user1
-      const slippage = 10; // 10%
-      const inputTokenAmount = await ERC20Minter.mint(inputToken, user.address, 20000)
-    
-      const itemsWithPrice = await rentStaking.getItemsWithPrice()
-      const lockPeriodsWithRewardsRates = await rentStaking.getLockPeriodsWithRewardsRates()
-
-      for(const itemWithPrice of itemsWithPrice) {
-        for(const lockPeriodWithRewardsRate of lockPeriodsWithRewardsRates) {
-
-
-          console.log(`item ${itemWithPrice.name}`)
-          console.log(`lockPeriodWithRewardsRate ${lockPeriodWithRewardsRate.lockTime}`)
-          const nextTokenId = await rentStaking.nextTokenId()
-
-          const buyPriceByToken = await rentStaking.getBuyPriceByToken(itemWithPrice.name, inputToken)
-          const buyPriceWithSlippage = buyPriceByToken.mul(100 + slippage).div(100)
-          let txBuy: ContractTransaction;
-          let receiptBuy: ContractReceipt;
-          if(inputToken == BNB_PLACEHOLDER) {
-            txBuy = await rentStaking.connect(user).buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken, {value: buyPriceWithSlippage});
-            receiptBuy = await txBuy.wait()
-          } else {
-            const token = IERC20Metadata__factory.connect(inputToken, user)
-            const txApprove = await token.approve(rentStaking.address, buyPriceWithSlippage)
-            await txApprove.wait()
-            txBuy = await rentStaking.connect(user).buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken);
-            receiptBuy = await txBuy.wait()
-          }
-
-          const eventStep1 = ContractReceiptUtils.getEvent(
-            receiptBuy.events,
-            rentStaking,
-            rentStaking.filters.Buy(),
-          )
-          console.log( 'eventStep1.args')
-          console.log( eventStep1.args)
-
-          await expect(txBuy).to.emit(rentStaking, 'Buy').withArgs(
-            user.address, // recipeint,
-            nextTokenId, // tokenId
+  async function registryDinamicTests() {
+    for (const inputToken of inputTokens) {
+      for (const itemWithPrice of itemsWithPrice) {
+        for (const lockPeriodWithRewardsRate of lockPeriodsWithRewardsRates) {
+          suite.addTest(
+            new Test(
+              `Regular unit: buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
+              async () => {
+                await regularUnitTest_buyItem(inputToken, itemWithPrice, lockPeriodWithRewardsRate)
+              },
+            ),
           )
         }
       }
-
-  
-
-    })
+    }
   }
+
+  async function regularUnitTest_buyItem(
+    inputToken: string,
+    itemWithPrice: RentStaking.ItemStructOutput,
+    lockPeriodWithRewardsRate: RentStaking.LockPeriodStructOutput,
+  ) {
+    assert(Math.random() > 0.5, "Random");
+    const user = user1
+    const slippage = 10 // 10%
+    const inputTokenAmount = await ERC20Minter.mint(inputToken, user.address, 20000)
+    const nextTokenId = await rentStaking.nextTokenId()
+
+    const buyPriceByToken = await rentStaking.getBuyPriceByToken(itemWithPrice.name, inputToken)
+    const buyPriceWithSlippage = buyPriceByToken.mul(100 + slippage).div(100)
+    let txBuy: ContractTransaction
+    let receiptBuy: ContractReceipt
+    if (inputToken == BNB_PLACEHOLDER) {
+      txBuy = await rentStaking
+        .connect(user)
+        .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken, {
+          value: buyPriceWithSlippage,
+        })
+      receiptBuy = await txBuy.wait()
+    } else {
+      const token = IERC20Metadata__factory.connect(inputToken, user)
+      const txApprove = await token.approve(rentStaking.address, buyPriceWithSlippage)
+      await txApprove.wait()
+      txBuy = await rentStaking
+        .connect(user)
+        .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken)
+      receiptBuy = await txBuy.wait()
+    }
+
+    await expect(txBuy).to.emit(rentStaking, 'Buy').withArgs(
+      user.address, // recipeint,
+      nextTokenId, // tokenId
+    )
+  }
+
+
+  it('3', () => {})
+ 
 })
