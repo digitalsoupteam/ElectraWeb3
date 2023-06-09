@@ -166,11 +166,8 @@ contract RentStaking is
 
         uint256 sellPrice = (itemPrice * 9) / 10;
 
-        console.log("nextTokenId", nextTokenId);
         uint256 tokenId = nextTokenId++;
         
-        console.log("tokenId", tokenId);
-        console.log("nextTokenId", nextTokenId);
         _safeMint(msg.sender, tokenId);
         tokensInfo[tokenId] = TokenInfo({
             itemName: _itemName,

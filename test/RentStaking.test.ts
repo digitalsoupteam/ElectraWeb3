@@ -73,7 +73,6 @@ const suite = describe(`RentStaking`, () => {
     itemWithPrice: RentStaking.ItemStructOutput,
     lockPeriodWithRewardsRate: RentStaking.LockPeriodStructOutput,
   ) {
-    assert(Math.random() > 0.5, "Random");
     const user = user1
     const slippage = 10 // 10%
     const inputTokenAmount = await ERC20Minter.mint(inputToken, user.address, 20000)
