@@ -7,7 +7,7 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPricerToUSD } from "./interfaces/IPricerToUSD.sol";
 import { TransferLib } from "./libs/TransferLib.sol";
-
+import "hardhat/console.sol";
 contract RentStaking is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -155,7 +155,7 @@ contract RentStaking is
         uint256 itemPrice = itemsPrices[_itemName];
         require(itemPrice > 0, "RentStaking: item not exists!");
 
-        uint256 rewardsRate = lockPeriods[_lockPeriod];
+        uint256 rewardsRate = lockPeriodsRewardRates[_lockPeriod];
         require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
 
         uint256 tokenAmount = getBuyPriceByToken(_itemName, _tokenForPay);
@@ -166,7 +166,11 @@ contract RentStaking is
 
         uint256 sellPrice = (itemPrice * 9) / 10;
 
+        console.log("nextTokenId", nextTokenId);
         uint256 tokenId = nextTokenId++;
+        
+        console.log("tokenId", tokenId);
+        console.log("nextTokenId", nextTokenId);
         _safeMint(msg.sender, tokenId);
         tokensInfo[tokenId] = TokenInfo({
             itemName: _itemName,
@@ -382,12 +386,12 @@ contract RentStaking is
         return calculateAllRewardsByUSD(_tokenId) - tokensInfo[_tokenId].withdrawnRewards;
     }
 
-    // function rewardsToWithdrawByToken(
-    //     uint256 _tokenId,
-    //     address _tokenToWithdrawn
-    // ) public view returns (uint256) {
-    //     return usdAmountToToken(rewardsToWithdrawByUSD(_tokenId), _tokenToWithdrawn);
-    // }
+    function rewardsToWithdrawByToken(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (uint256) {
+        return usdAmountToToken(rewardsToWithdrawByUSD(_tokenId), _tokenToWithdrawn);
+    }
 
     function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
         return block.timestamp >= getExpiredTimestamp(_tokenId);
@@ -411,6 +415,52 @@ contract RentStaking is
         address _tokenToWithdrawn
     ) public view returns (uint256) {
         return usdAmountToToken(getSellAmoutByUSD(_tokenId), _tokenToWithdrawn);
+    }
+
+    function hasRewards(uint256 _tokenId) public view returns (bool) {
+        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
+        return rewardsByUsd > 0;
+    }
+
+    function hasRewardsByToken(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (bool) {
+        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+        return rewardsByToken > 0;
+    }
+
+    function hasBalanceToClaim(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (bool) {
+        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
+        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken;
+    }
+
+    function canClaim(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
+        return
+            hasRewardsByToken(_tokenId, _tokenToWithdrawn) &&
+            hasBalanceToClaim(_tokenId, _tokenToWithdrawn);
+    }
+
+    function hasBalanceToSell(
+        uint256 _tokenId,
+        address _tokenToWithdrawn
+    ) public view returns (bool) {
+        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
+        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn;
+    }
+
+    function canSell(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
+        return
+            lockPeriodIsExpired(_tokenId) &&
+            !hasRewards(_tokenId) &&
+            hasBalanceToSell(_tokenId, _tokenToWithdrawn);
+    }
+
+    function canReStake(uint256 _tokenId) external view returns (bool) {
+        return lockPeriodIsExpired(_tokenId) && !hasRewards(_tokenId);
     }
 
     // ------------------------------------------------------------------------------------

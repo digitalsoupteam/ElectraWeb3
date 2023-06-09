@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
+import { BNB_PLACEHOLDER, BUSD, CHAINLINK_BNB_USD, CHAINLINK_BUSD_USD, CHAINLINK_USDT_USD, USDT } from '../constants/addresses'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
@@ -44,12 +45,16 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const supportedTokens = [
     {
-      token: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
-      pricer: '0xcBb98864Ef56E9042e7d2efef76141f15731B82f',
+      token: BNB_PLACEHOLDER,
+      pricer: CHAINLINK_BNB_USD,
     }, // BUSD
     {
-      token: '0x55d398326f99059ff775485246999027b3197955',
-      pricer: '0xb97ad0e74fa7d920791e90258a6e2085088b4320',
+      token: BUSD,
+      pricer: CHAINLINK_BUSD_USD,
+    }, // BUSD
+    {
+      token: USDT,
+      pricer: CHAINLINK_USDT_USD,
     }, // USDT
   ]
 

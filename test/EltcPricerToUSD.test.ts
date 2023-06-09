@@ -1,4 +1,5 @@
 import { deployments, ethers } from 'hardhat'
+import { assert } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { PricerToUSD, PricerToUSD__factory } from '../typechain-types'
 
@@ -25,7 +26,10 @@ describe(`EltcPricerToUSD`, () => {
   })
 
   it('Regular unit', async () => {
-    const tx = await eltcPricerToUSD.setCurrentPrice(ethers.utils.parseUnits('1', 8))
+    const newPrice = ethers.utils.parseUnits('2', 8);
+    const tx = await eltcPricerToUSD.setCurrentPrice(newPrice)
     const receipt = await tx.wait()
+    const {answer} = await eltcPricerToUSD.latestRoundData()
+    assert(answer.eq(newPrice), 'latestRoundData answer != newPrice')
   })
 })
