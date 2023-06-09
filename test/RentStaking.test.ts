@@ -3,8 +3,8 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata__factory, RentStaking, RentStaking__factory } from '../typechain-types'
 import { BNB_PLACEHOLDER, BUSD, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
-import { ContractReceipt, ContractTransaction } from 'ethers'
-import {assert, expect } from 'chai'
+import { BigNumber, ContractReceipt, ContractTransaction } from 'ethers'
+import { assert, expect } from 'chai'
 import { Test } from 'mocha'
 
 const inputTokens = [
@@ -63,6 +63,18 @@ const suite = describe(`RentStaking`, () => {
               },
             ),
           )
+          suite.addTest(
+            new Test(
+              `Error unit(not enough funds): buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
+              async () => {
+                await errorUnitTest_buyItem_notEnoughFunds(
+                  inputToken,
+                  itemWithPrice,
+                  lockPeriodWithRewardsRate,
+                )
+              },
+            ),
+          )
         }
       }
     }
@@ -80,24 +92,14 @@ const suite = describe(`RentStaking`, () => {
 
     const buyPriceByToken = await rentStaking.getBuyPriceByToken(itemWithPrice.name, inputToken)
     const buyPriceWithSlippage = buyPriceByToken.mul(100 + slippage).div(100)
-    let txBuy: ContractTransaction
-    let receiptBuy: ContractReceipt
-    if (inputToken == BNB_PLACEHOLDER) {
-      txBuy = await rentStaking
-        .connect(user)
-        .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken, {
-          value: buyPriceWithSlippage,
-        })
-      receiptBuy = await txBuy.wait()
-    } else {
-      const token = IERC20Metadata__factory.connect(inputToken, user)
-      const txApprove = await token.approve(rentStaking.address, buyPriceWithSlippage)
-      await txApprove.wait()
-      txBuy = await rentStaking
-        .connect(user)
-        .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken)
-      receiptBuy = await txBuy.wait()
-    }
+
+    let txBuy: ContractTransaction = await buy(
+      inputToken,
+      itemWithPrice,
+      lockPeriodWithRewardsRate,
+      user,
+      buyPriceWithSlippage,
+    )
 
     await expect(txBuy).to.emit(rentStaking, 'Buy').withArgs(
       user.address, // recipeint,
@@ -105,7 +107,55 @@ const suite = describe(`RentStaking`, () => {
     )
   }
 
+  async function errorUnitTest_buyItem_notEnoughFunds(
+    inputToken: string,
+    itemWithPrice: RentStaking.ItemStructOutput,
+    lockPeriodWithRewardsRate: RentStaking.LockPeriodStructOutput,
+  ) {
+    const user = user1
+    const inputTokenAmount = await ERC20Minter.mint(inputToken, user.address, 20000)
+
+    const buyPriceByToken = await rentStaking.getBuyPriceByToken(itemWithPrice.name, inputToken)
+    const errorByPrice = buyPriceByToken.mul(9).div(10)
+    let txBuy: ContractTransaction = await buy(
+      inputToken,
+      itemWithPrice,
+      lockPeriodWithRewardsRate,
+      user,
+      errorByPrice,
+    )
+
+    await expect(txBuy).to.be.revertedWith('RentStaking: not enough funds!')
+  }
+
+  async function buy(
+    inputToken: string,
+    itemWithPrice: RentStaking.ItemStructOutput,
+    lockPeriodWithRewardsRate: RentStaking.LockPeriodStructOutput,
+    user: SignerWithAddress,
+    buyPrice: BigNumber,
+  ): Promise<ContractTransaction> {
+    let txBuy: ContractTransaction
+    let receiptBuy: ContractReceipt
+    if (inputToken == BNB_PLACEHOLDER) {
+      txBuy = await rentStaking
+        .connect(user)
+        .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken, {
+          value: buyPrice,
+        })
+      receiptBuy = await txBuy.wait()
+    } else {
+      const token = IERC20Metadata__factory.connect(inputToken, user)
+      const txApprove = await token.approve(rentStaking.address, buyPrice)
+      await txApprove.wait()
+      txBuy = await rentStaking
+        .connect(user)
+        .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken)
+      receiptBuy = await txBuy.wait()
+    }
+
+    return txBuy
+  }
 
   it('3', () => {})
- 
 })

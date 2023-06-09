@@ -8,6 +8,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { IPricerToUSD } from "./interfaces/IPricerToUSD.sol";
 import { TransferLib } from "./libs/TransferLib.sol";
 import "hardhat/console.sol";
+
 contract RentStaking is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -159,6 +160,7 @@ contract RentStaking is
         require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
 
         uint256 tokenAmount = getBuyPriceByToken(_itemName, _tokenForPay);
+        require(_getInputAmount(_tokenForPay) >= tokenAmount, "RentStaking: not enough funds!");
 
         TransferLib.transferFrom(_tokenForPay, tokenAmount, msg.sender, address(this));
 
@@ -167,7 +169,7 @@ contract RentStaking is
         uint256 sellPrice = (itemPrice * 9) / 10;
 
         uint256 tokenId = nextTokenId++;
-        
+
         _safeMint(msg.sender, tokenId);
         tokensInfo[tokenId] = TokenInfo({
             itemName: _itemName,
@@ -642,5 +644,13 @@ contract RentStaking is
             }
         }
         revert("RentStaking: not found token index");
+    }
+
+    function _getInputAmount(address _token) internal view returns (uint256) {
+        if (_token == BNB_PLACEHOLDER) {
+            return msg.value;
+        } else {
+            return IERC20Metadata(_token).allowance(msg.sender, address(this));
+        }
     }
 }
