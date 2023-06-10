@@ -204,7 +204,7 @@ contract RentStaking is
 
         require(
             tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken,
-            "RentStaking: insufficient funds!"
+            "RentStaking: insufficient funds to claim!"
         );
 
         TransferLib.transfer(_tokenToWithdrawn, rewardsByToken, msg.sender);
