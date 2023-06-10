@@ -373,8 +373,9 @@ contract RentStaking is
     }
 
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
+        uint256 decimals = _token == BNB_PLACEHOLDER ? 18 : IERC20Metadata(_token).decimals();
         return
-            (_usdAmount * 10 ** IERC20Metadata(_token).decimals() * getTokenPriceUSD(_token)) / 1e8;
+            (_usdAmount * 10 ** decimals * getTokenPriceUSD(_token)) / 1e8;
     }
 
     function calculateRewarsForOnePeriodUSD(uint256 _tokenId) public view returns (uint256) {
