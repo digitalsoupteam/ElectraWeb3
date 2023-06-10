@@ -8,11 +8,7 @@ import { assert, expect } from 'chai'
 import { Test } from 'mocha'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
-const inputTokens = [
-  // BNB_PLACEHOLDER,
-  BUSD,
-  // USDT
-]
+const inputTokens = [BNB_PLACEHOLDER, BUSD, USDT]
 
 const suite = describe(`RentStaking`, () => {
   let rentStaking: RentStaking
@@ -23,6 +19,7 @@ const suite = describe(`RentStaking`, () => {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
 
+  let supportedTokens: RentStaking.SupportedTokenStructOutput[]
   let itemsWithPrice: RentStaking.ItemStructOutput[]
   let lockPeriodsWithRewardsRates: RentStaking.LockPeriodStructOutput[]
 
@@ -37,6 +34,7 @@ const suite = describe(`RentStaking`, () => {
 
     rentStaking = RentStaking__factory.connect(RentStakingDeployment.address, owner)
 
+    supportedTokens = await rentStaking.getSupportedTokensWithPricers()
     itemsWithPrice = await rentStaking.getItemsWithPrice()
     lockPeriodsWithRewardsRates = await rentStaking.getLockPeriodsWithRewardsRates()
 
@@ -53,33 +51,55 @@ const suite = describe(`RentStaking`, () => {
   })
 
   async function registryDinamicTests() {
-    for (const inputToken of inputTokens) {
+    const allCases = generateAllCases()
+
+    for (const data of allCases) {
+      const { supportedToken, itemWithPrice, lockPeriodWithRewardsRate } = data
+      suite.addTest(
+        new Test(
+          `Regular unit: token ${supportedToken.token} buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
+          async () => {
+            await regularUnitTest_buyItem(supportedToken.token, itemWithPrice, lockPeriodWithRewardsRate)
+          },
+        ),
+      )
+    }
+
+    for (const data of allCases) {
+      const { supportedToken, itemWithPrice, lockPeriodWithRewardsRate } = data
+      suite.addTest(
+        new Test(
+          `Error unit(not enough funds): token ${supportedToken.token} buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
+          async () => {
+            await errorUnitTest_buyItem_notEnoughFunds(
+              supportedToken.token,
+              itemWithPrice,
+              lockPeriodWithRewardsRate,
+            )
+          },
+        ),
+      )
+    }
+  }
+
+  function generateAllCases(): Array<{
+    supportedToken: RentStaking.SupportedTokenStructOutput
+    itemWithPrice: RentStaking.ItemStructOutput
+    lockPeriodWithRewardsRate: RentStaking.LockPeriodStructOutput
+  }> {
+    const data = []
+    for (const supportedToken of supportedTokens) {
       for (const itemWithPrice of itemsWithPrice) {
         for (const lockPeriodWithRewardsRate of lockPeriodsWithRewardsRates) {
-          suite.addTest(
-            new Test(
-              `Regular unit: buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
-              async () => {
-                await regularUnitTest_buyItem(inputToken, itemWithPrice, lockPeriodWithRewardsRate)
-              },
-            ),
-          )
-          return
-          suite.addTest(
-            new Test(
-              `Error unit(not enough funds): buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
-              async () => {
-                await errorUnitTest_buyItem_notEnoughFunds(
-                  inputToken,
-                  itemWithPrice,
-                  lockPeriodWithRewardsRate,
-                )
-              },
-            ),
-          )
+          data.push({
+            supportedToken,
+            itemWithPrice,
+            lockPeriodWithRewardsRate,
+          })
         }
       }
     }
+    return data
   }
 
   async function regularUnitTest_buyItem(
@@ -109,8 +129,8 @@ const suite = describe(`RentStaking`, () => {
       tokenId, // tokenId
       inputToken, // tokenForPay
       anyValue, // tokenAmunt
-    )    
-    
+    )
+
     await expect(txBuy).to.emit(rentStaking, 'Transfer').withArgs(
       ethers.constants.AddressZero, // from,
       user.address, // to
