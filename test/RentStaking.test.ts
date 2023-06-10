@@ -100,6 +100,7 @@ const suite = describe(`RentStaking`, () => {
       user,
       buyPriceWithSlippage,
     )
+    await txBuy.wait()
 
     await expect(txBuy).to.emit(rentStaking, 'Buy').withArgs(
       user.address, // recipeint,
@@ -117,7 +118,7 @@ const suite = describe(`RentStaking`, () => {
 
     const buyPriceByToken = await rentStaking.getBuyPriceByToken(itemWithPrice.name, inputToken)
     const errorByPrice = buyPriceByToken.mul(9).div(10)
-    let txBuy: ContractTransaction = await buy(
+    let txBuy: Promise<ContractTransaction> = buy(
       inputToken,
       itemWithPrice,
       lockPeriodWithRewardsRate,
@@ -135,26 +136,20 @@ const suite = describe(`RentStaking`, () => {
     user: SignerWithAddress,
     buyPrice: BigNumber,
   ): Promise<ContractTransaction> {
-    let txBuy: ContractTransaction
-    let receiptBuy: ContractReceipt
     if (inputToken == BNB_PLACEHOLDER) {
-      txBuy = await rentStaking
+      return rentStaking
         .connect(user)
         .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken, {
           value: buyPrice,
         })
-      receiptBuy = await txBuy.wait()
     } else {
       const token = IERC20Metadata__factory.connect(inputToken, user)
       const txApprove = await token.approve(rentStaking.address, buyPrice)
       await txApprove.wait()
-      txBuy = await rentStaking
+      return rentStaking
         .connect(user)
         .buy(itemWithPrice.name, lockPeriodWithRewardsRate.lockTime, inputToken)
-      receiptBuy = await txBuy.wait()
     }
-
-    return txBuy
   }
 
   it('3', () => {})
