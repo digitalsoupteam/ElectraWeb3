@@ -172,7 +172,7 @@ contract RentStaking is
 
         tokensToOwnerWithdrawBalances[_tokenForPay] += tokenAmount;
 
-        uint256 sellPrice = (itemPrice * 9) / 10;
+        uint256 sellPrice = calculateSellPrice(itemPrice);
 
         uint256 tokenId = nextTokenId++;
 
@@ -256,7 +256,7 @@ contract RentStaking is
 
         TokenInfo storage tokenInfo = tokensInfo[_tokenId];
 
-        uint256 sellPrice = (tokenInfo.sellPrice * 9) / 10;
+        uint256 sellPrice = calculateSellPrice(tokenInfo.sellPrice);
 
         tokenInfo.lockPeriod = _lockPeriod;
         tokenInfo.rewardsRate = rewardsRate;
@@ -340,6 +340,10 @@ contract RentStaking is
             });
         }
         return result;
+    }
+
+    function calculateSellPrice(uint256 _price) public view returns (uint256) {
+        return _price * 9 / 10;
     }
 
     function getTokenPriceUSD(address _token) public view returns (uint256) {

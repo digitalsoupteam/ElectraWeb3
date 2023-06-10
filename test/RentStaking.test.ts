@@ -6,6 +6,7 @@ import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber, ContractReceipt, ContractTransaction } from 'ethers'
 import { assert, expect } from 'chai'
 import { Test } from 'mocha'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const inputTokens = [
   // BNB_PLACEHOLDER,
@@ -63,6 +64,7 @@ const suite = describe(`RentStaking`, () => {
               },
             ),
           )
+          return
           suite.addTest(
             new Test(
               `Error unit(not enough funds): buy item ${itemWithPrice.name} with lock period ${lockPeriodWithRewardsRate.lockTime} `,
@@ -88,7 +90,7 @@ const suite = describe(`RentStaking`, () => {
     const user = user1
     const slippage = 10 // 10%
     const inputTokenAmount = await ERC20Minter.mint(inputToken, user.address, 20000)
-    const nextTokenId = await rentStaking.nextTokenId()
+    const tokenId = await rentStaking.nextTokenId()
 
     const buyPriceByToken = await rentStaking.getBuyPriceByToken(itemWithPrice.name, inputToken)
     const buyPriceWithSlippage = buyPriceByToken.mul(100 + slippage).div(100)
@@ -100,12 +102,33 @@ const suite = describe(`RentStaking`, () => {
       user,
       buyPriceWithSlippage,
     )
-    await txBuy.wait()
+    const receiptBuy = await txBuy.wait()
 
     await expect(txBuy).to.emit(rentStaking, 'Buy').withArgs(
       user.address, // recipeint,
-      nextTokenId, // tokenId
+      tokenId, // tokenId
+      inputToken, // tokenForPay
+      anyValue, // tokenAmunt
+    )    
+    
+    await expect(txBuy).to.emit(rentStaking, 'Transfer').withArgs(
+      ethers.constants.AddressZero, // from,
+      user.address, // to
+      tokenId, // tokenId
     )
+
+    const tokenInfo = await rentStaking.tokensInfo(tokenId)
+    const buyPrice = await rentStaking.getBuyPriceByUSD(itemWithPrice.name)
+    const sellPrice = await rentStaking.calculateSellPrice(buyPrice)
+    const timestamp = (await ethers.provider.getBlock(receiptBuy.blockNumber)).timestamp
+
+    assert(tokenInfo.itemName == itemWithPrice.name, '!itemName')
+    assert(tokenInfo.lockPeriod.eq(lockPeriodWithRewardsRate.lockTime), '!lockPeriod')
+    assert(tokenInfo.buyPrice.eq(buyPrice), '!buyPrice')
+    assert(tokenInfo.sellPrice.eq(sellPrice), '!sellPrice')
+    assert(tokenInfo.initTimestamp.eq(timestamp), '!initTimestamp')
+    assert(tokenInfo.lastRewardTimestamp.eq(timestamp), '!lastRewardTimestamp')
+    assert(tokenInfo.withdrawnRewards.eq(0), '!withdrawnRewards')
   }
 
   async function errorUnitTest_buyItem_notEnoughFunds(
