@@ -79,7 +79,12 @@ contract RentStaking is
     // ----- EVENTS -----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    event Buy(address indexed recipient, uint256 indexed tokenId);
+    event Buy(
+        address indexed recipient,
+        uint256 indexed tokenId,
+        address indexed tokenForPay,
+        uint256 tokenAmount
+    );
     event ClaimRewards(
         address indexed recipient,
         uint256 indexed tokenId,
@@ -162,6 +167,7 @@ contract RentStaking is
         uint256 tokenAmount = getBuyPriceByToken(_itemName, _tokenForPay);
         require(_getInputAmount(_tokenForPay) >= tokenAmount, "RentStaking: not enough funds!");
 
+        // ~ 38 000 gas
         TransferLib.transferFrom(_tokenForPay, tokenAmount, msg.sender, address(this));
 
         tokensToOwnerWithdrawBalances[_tokenForPay] += tokenAmount;
@@ -170,7 +176,9 @@ contract RentStaking is
 
         uint256 tokenId = nextTokenId++;
 
+        // ~ 70 000 gas
         _safeMint(msg.sender, tokenId);
+        // ~ 160 000 gas
         tokensInfo[tokenId] = TokenInfo({
             itemName: _itemName,
             lockPeriod: _lockPeriod,
@@ -182,7 +190,7 @@ contract RentStaking is
             withdrawnRewards: 0
         });
 
-        emit Buy(msg.sender, tokenId);
+        emit Buy(msg.sender, tokenId, _tokenForPay, tokenAmount);
     }
 
     function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) public nonReentrant {
