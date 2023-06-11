@@ -7,7 +7,8 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPricerToUSD } from "./interfaces/IPricerToUSD.sol";
 import { TransferLib } from "./libs/TransferLib.sol";
-import "hardhat/console.sol";
+
+// import "hardhat/console.sol";
 
 contract RentStaking is
     ReentrancyGuardUpgradeable,
@@ -19,23 +20,29 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
 
     uint256 public constant REWARS_PERIOD = 30 days;
-    uint256 public constant PERCENT_PRECISION = 10000;
+    uint256 public constant PERCENT_PRECISION = 100;
     address public constant BNB_PLACEHOLDER = address(0);
 
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    string[] public items;
+    mapping(uint256 => string) public items;
+    mapping(string => uint256) public itemsIndexes;
+    uint256 public itemsLength;
     mapping(string => uint256) public itemsPrices;
 
-    uint256[] public lockPeriods;
+    mapping(uint256 => uint256) public lockPeriods;
+    mapping(uint256 => uint256) public lockPeriodsIndexes;
+    uint256 public lockPeriodsLength;
     mapping(uint256 => uint256) public lockPeriodsRewardRates;
 
-    uint256 public nextTokenId;
-
-    address[] public supportedTokens;
+    mapping(uint256 => address) public supportedTokens;
+    mapping(address => uint256) public supportedTokensIndexes;
+    uint256 public supportedTokensLength;
     mapping(address => address) public pricers;
+
+    uint256 public nextTokenId;
 
     mapping(uint256 => TokenInfo) public tokensInfo;
 
@@ -58,6 +65,9 @@ contract RentStaking is
         uint256 initTimestamp;
         uint256 lastRewardTimestamp;
         uint256 withdrawnRewards;
+        uint256 allPeriodsCount;
+        uint256 claimedPeriodsCount;
+        uint256 rewarsForOnePeriod;
     }
 
     struct Item {
@@ -85,13 +95,16 @@ contract RentStaking is
         address indexed tokenForPay,
         uint256 tokenAmount
     );
+
     event ClaimRewards(
         address indexed recipient,
         uint256 indexed tokenId,
         uint256 rewardsByUsd,
         uint256 rewardsByToken
     );
+
     event Sell(address indexed recipient, uint256 indexed tokenId);
+
     event ReStake(address indexed recipient, uint256 indexed tokenId);
 
     event AddItem(string indexed name, uint256 price);
@@ -176,6 +189,7 @@ contract RentStaking is
 
         uint256 tokenId = nextTokenId++;
 
+        uint256 rewardForOnePeriod = (itemPrice * rewardsRate) / PERCENT_PRECISION;
         // ~ 70 000 gas
         _safeMint(msg.sender, tokenId);
         // ~ 160 000 gas
@@ -187,7 +201,10 @@ contract RentStaking is
             sellPrice: sellPrice,
             initTimestamp: block.timestamp,
             lastRewardTimestamp: block.timestamp,
-            withdrawnRewards: 0
+            withdrawnRewards: 0,
+            allPeriodsCount: _lockPeriod * 12,
+            claimedPeriodsCount: 0,
+            rewarsForOnePeriod: rewardForOnePeriod
         });
 
         emit Buy(msg.sender, tokenId, _tokenForPay, tokenAmount);
@@ -273,40 +290,129 @@ contract RentStaking is
     // ----- VIEW STATE -------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function getItems() external view returns (string[] memory) {
-        return items;
+    function calculateDepositAmount(
+        uint256 _timestamp,
+        uint256 _startTokenIndex,
+        uint256 _endTokenIndex
+    ) external view returns (uint256) {
+        uint256 amount;
+        for (uint256 i = _startTokenIndex; i < _endTokenIndex; i++) {
+            uint256 tokenId = tokenByIndex(i);
+            TokenInfo storage tokenInfo = tokensInfo[tokenId];
+
+            uint256 periodsCount = (_timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
+            uint256 rewardsForOnePeriod = calculateRewarsForOnePeriodUSD(tokenId);
+            uint256 rewards = periodsCount * rewardsForOnePeriod - tokenInfo.withdrawnRewards;
+
+            amount += rewards;
+            if (lockPeriodIsExpired(tokenId)) {
+                amount += tokenInfo.sellPrice;
+            }
+        }
+        return amount;
     }
 
-    function getItemsLength() external view returns (uint256) {
-        return items.length;
-    }
-
-    function getLockPeriodsLength() external view returns (uint256) {
-        return lockPeriods.length;
-    }
-
-    function getSupportedTokensLength() external view returns (uint256) {
-        return supportedTokens.length;
-    }
-
-    function getItemsWithPrice() external view returns (Item[] memory) {
-        Item[] memory result = new Item[](items.length);
-        uint256 l = items.length;
-        for (uint256 i; i < l; i++) {
-            result[i] = Item({ name: items[i], price: itemsPrices[items[i]] });
+    function getItems(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (string[] memory) {
+        require(_startIndex < itemsLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > itemsLength) {
+            _endIndex = itemsLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        string[] memory result = new string[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            result[index++] = items[i];
         }
         return result;
     }
 
-    function getSupportedTokens() external view returns (address[] memory) {
-        return supportedTokens;
+    function getItemsWithPrice(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (Item[] memory) {
+        require(_startIndex < itemsLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > itemsLength) {
+            _endIndex = itemsLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        Item[] memory result = new Item[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            result[index++] = Item({ name: items[i], price: itemsPrices[items[i]] });
+        }
+        return result;
     }
 
-    function getSupportedTokensWithPricers() external view returns (SupportedToken[] memory) {
-        SupportedToken[] memory result = new SupportedToken[](supportedTokens.length);
-        uint256 l = supportedTokens.length;
-        for (uint256 i; i < l; i++) {
-            result[i] = SupportedToken({
+    function getLockPeriods(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (uint256[] memory) {
+        require(_startIndex < lockPeriodsLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > lockPeriodsLength) {
+            _endIndex = lockPeriodsLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        uint256[] memory result = new uint256[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            result[index++] = lockPeriods[i];
+        }
+        return result;
+    }
+
+    function getLockPeriodsWithRewardsRates(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (LockPeriod[] memory) {
+        require(_startIndex < lockPeriodsLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > lockPeriodsLength) {
+            _endIndex = lockPeriodsLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        LockPeriod[] memory result = new LockPeriod[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            result[index++] = LockPeriod({
+                lockTime: lockPeriods[i],
+                rewardsRate: lockPeriodsRewardRates[lockPeriods[i]]
+            });
+        }
+        return result;
+    }
+
+    function getSupportedTokens(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (address[] memory) {
+        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > supportedTokensLength) {
+            _endIndex = supportedTokensLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        address[] memory result = new address[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            result[index++] = supportedTokens[i];
+        }
+        return result;
+    }
+
+    function getSupportedTokensWithPricers(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (SupportedToken[] memory) {
+        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > supportedTokensLength) {
+            _endIndex = supportedTokensLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        SupportedToken[] memory result = new SupportedToken[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            result[index++] = SupportedToken({
                 token: supportedTokens[i],
                 pricer: pricers[supportedTokens[i]]
             });
@@ -326,24 +432,8 @@ contract RentStaking is
         return pricers[_token] != address(0);
     }
 
-    function getLockPeriods() external view returns (uint256[] memory) {
-        return lockPeriods;
-    }
-
-    function getLockPeriodsWithRewardsRates() external view returns (LockPeriod[] memory) {
-        LockPeriod[] memory result = new LockPeriod[](lockPeriods.length);
-        uint256 l = lockPeriods.length;
-        for (uint256 i; i < l; i++) {
-            result[i] = LockPeriod({
-                lockTime: lockPeriods[i],
-                rewardsRate: lockPeriodsRewardRates[lockPeriods[i]]
-            });
-        }
-        return result;
-    }
-
     function calculateSellPrice(uint256 _price) public view returns (uint256) {
-        return _price * 9 / 10;
+        return (_price * 9) / 10;
     }
 
     function getTokenPriceUSD(address _token) public view returns (uint256) {
@@ -374,8 +464,7 @@ contract RentStaking is
 
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
         uint256 decimals = _token == BNB_PLACEHOLDER ? 18 : IERC20Metadata(_token).decimals();
-        return
-            (_usdAmount * 10 ** decimals * getTokenPriceUSD(_token)) / 1e8;
+        return (_usdAmount * 10 ** decimals * getTokenPriceUSD(_token)) / 1e8;
     }
 
     function calculateRewarsForOnePeriodUSD(uint256 _tokenId) public view returns (uint256) {
@@ -475,9 +564,9 @@ contract RentStaking is
         return lockPeriodIsExpired(_tokenId) && !hasRewards(_tokenId);
     }
 
-    // ------------------------------------------------------------------------------------
-    // ----- OWNER ACTIONS ----------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+    // // ------------------------------------------------------------------------------------
+    // // ----- OWNER ACTIONS ----------------------------------------------------------------
+    // // ------------------------------------------------------------------------------------
 
     function deposit(address _token, uint256 _amount) external payable onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
@@ -505,7 +594,9 @@ contract RentStaking is
     function addItem(string calldata _name, uint256 _price) public onlyOwner {
         require(itemsPrices[_name] == 0, "RentStaking: item already exists!");
         itemsPrices[_name] = _price;
-        items.push(_name);
+        items[itemsLength] = _name;
+        itemsIndexes[_name] = itemsLength;
+        itemsLength++;
 
         emit AddItem(_name, _price);
     }
@@ -524,12 +615,15 @@ contract RentStaking is
         delete itemsPrices[_name];
 
         // Delete from array
-        uint256 index = _getItemIndex(_name);
-        uint256 maxIndex = items.length - 1;
-        for (uint256 i = index; i < maxIndex; i++) {
-            items[i] = items[i + 1];
+        uint256 index = itemsIndexes[_name];
+        uint256 lastIndex = --itemsLength;
+        if (index != lastIndex) {
+            string memory lastItem = items[lastIndex];
+            items[index] = lastItem;
+            itemsIndexes[lastItem] = index;
         }
-        items.pop();
+        delete items[lastIndex];
+        delete itemsIndexes[_name];
 
         emit DeleteItem(_name);
     }
@@ -537,7 +631,9 @@ contract RentStaking is
     function addLockPeriod(uint256 _lockTime, uint256 _rewardsRate) public onlyOwner {
         require(lockPeriodsRewardRates[_lockTime] == 0, "RentStaking: lock period already exists!");
         lockPeriodsRewardRates[_lockTime] = _rewardsRate;
-        lockPeriods.push(_lockTime);
+        lockPeriods[lockPeriodsLength] = _lockTime;
+        lockPeriodsIndexes[_lockTime] = lockPeriodsLength;
+        supportedTokensLength++;
 
         emit AddLockPeriod(_lockTime, _rewardsRate);
     }
@@ -560,12 +656,15 @@ contract RentStaking is
         delete lockPeriodsRewardRates[_lockTime];
 
         // Delete from array
-        uint256 index = _getLockPeriodIndex(_lockTime);
-        uint256 maxIndex = lockPeriods.length - 1;
-        for (uint256 i = index; i < maxIndex; i++) {
-            lockPeriods[i] = lockPeriods[i + 1];
+        uint256 index = lockPeriodsIndexes[_lockTime];
+        uint256 lastIndex = --lockPeriodsLength;
+        if (index != lastIndex) {
+            uint256 lastLockPeriod = lockPeriods[lastIndex];
+            lockPeriods[index] = lastLockPeriod;
+            lockPeriodsIndexes[lastLockPeriod] = index;
         }
-        lockPeriods.pop();
+        delete lockPeriods[lastIndex];
+        delete lockPeriodsIndexes[_lockTime];
 
         emit DeleteLockPeriod(_lockTime);
     }
@@ -573,8 +672,10 @@ contract RentStaking is
     function addToken(address _token, address _pricer) public onlyOwner {
         require(pricers[_token] == address(0), "RentStaking: token already exists!");
         _enforceUsdPriserDecimals(_pricer);
-        pricers[_token] = _pricer;
-        supportedTokens.push(_token);
+        pricers[_token] = _pricer;        
+        supportedTokens[supportedTokensLength] = _token;
+        supportedTokensIndexes[_token] = lockPeriodsLength;
+        supportedTokensLength++;
 
         emit AddToken(_token, _pricer);
     }
@@ -603,19 +704,22 @@ contract RentStaking is
         delete pricers[_token];
 
         // Delete from array
-        uint256 index = _getTokenIndex(_token);
-        uint256 maxIndex = supportedTokens.length - 1;
-        for (uint256 i = index; i < maxIndex; i++) {
-            supportedTokens[i] = supportedTokens[i + 1];
+        uint256 index = supportedTokensIndexes[_token];
+        uint256 lastIndex = --supportedTokensLength;
+        if (index != lastIndex) {
+            address lastToken = supportedTokens[lastIndex];
+            supportedTokens[index] = lastToken;
+            supportedTokensIndexes[lastToken] = index;
         }
-        supportedTokens.pop();
+        delete supportedTokens[lastIndex];
+        delete supportedTokensIndexes[_token];
 
         emit DeleteToken(_token);
     }
 
-    // ------------------------------------------------------------------------------------
-    // ----- INTERNAL METHODS -------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+    // // ------------------------------------------------------------------------------------
+    // // ----- INTERNAL METHODS -------------------------------------------------------------
+    // // ------------------------------------------------------------------------------------
 
     function _enforseIsTokenOwner(uint256 _tokenId) internal view {
         require(ownerOf(_tokenId) == msg.sender, "RentStaking: not token owner!");
@@ -626,37 +730,6 @@ contract RentStaking is
             IPricerToUSD(_pricer).decimals() == 8,
             "RentStaking: usd pricer must be with decimal equal to 8!"
         );
-    }
-
-    function _getItemIndex(string memory _name) internal view returns (uint256) {
-        uint256 l = items.length;
-        bytes32 nameHash = keccak256(abi.encodePacked(_name));
-        for (uint256 i; i < l; i++) {
-            if (nameHash == keccak256(abi.encodePacked(items[i]))) {
-                return i;
-            }
-        }
-        revert("RentStaking: not found item index");
-    }
-
-    function _getLockPeriodIndex(uint256 _lockTime) internal view returns (uint256) {
-        uint256 l = lockPeriods.length;
-        for (uint256 i; i < l; i++) {
-            if (_lockTime == lockPeriods[i]) {
-                return i;
-            }
-        }
-        revert("RentStaking: not found lock period index");
-    }
-
-    function _getTokenIndex(address _token) internal view returns (uint256) {
-        uint256 l = supportedTokens.length;
-        for (uint256 i; i < l; i++) {
-            if (_token == supportedTokens[i]) {
-                return i;
-            }
-        }
-        revert("RentStaking: not found token index");
     }
 
     function _getInputAmount(address _token) internal view returns (uint256) {
