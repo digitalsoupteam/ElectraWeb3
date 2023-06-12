@@ -9,7 +9,7 @@ import { IPricerToUSD } from "./interfaces/IPricerToUSD.sol";
 import { TransferLib } from "./libs/TransferLib.sol";
 import { TimestampLib } from "./libs/TimestampLib.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract RentStaking is
     ReentrancyGuardUpgradeable,
@@ -21,7 +21,7 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
 
     // Один период наград равен 30 дням
-    uint256 public constant REWARS_PERIOD = 30 days;
+    uint256 public constant REWARS_PERIOD = 30 days; // 360 days in "year"
     // Процентная точность, на данный момент без знаков после запятой
     uint256 public constant PERCENT_PRECISION = 100; // 1 = 1%, 100 = 100%
     // "Адрес" для BNB, так как у него нет адреса, используется нулевой, для совместимости с функциями работающими с ERC20
@@ -72,15 +72,15 @@ contract RentStaking is
     struct TokenInfo {
         // Название техники, неизменно
         string itemName;
-        // Период блокировки, в годах, неизменно
+        // Период блокировки, в годах, может меняться только при повтрном стейкинге
         uint256 lockPeriod;
-        // Процент годовых наград, неизменно
+        // Процент годовых наград, может меняться только при повтрном стейкинге
         uint256 rewardsRate;
         // Цена покупки, в USD, может меняться только при повтрном стейкинге
         uint256 buyPrice;
         // Цена продажи, в USD, может меняться только при повтрном стейкинге
         uint256 sellPrice;
-        // Временная метка начала дня, когда был сделан стейкинг
+        // Временная метка начала дня, когда был сделан стейкинг, может меняться только при повтрном стейкинге
         uint256 initialDayTimestamp;
         // Временная метка последнего периода, с которого взяли награды
         uint256 lastRewardTimestamp;
@@ -221,6 +221,7 @@ contract RentStaking is
         require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
 
         uint256 tokenAmount = usdAmountToToken(itemPrice, _tokenForPay);
+        require(tokenAmount > 0, "RentStaking: tokens amount can not be zero!");
         require(
             _getInputAmount(_tokenForPay) >= tokenAmount,
             "RentStaking: insufficient funds to pay!"
@@ -719,6 +720,7 @@ contract RentStaking is
     function deposit(address _token, uint256 _amount) external payable onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
         require(_amount > 0, "RentStaking: empty deposit!");
+        require(_getInputAmount(_token) >= _amount, "RentStaking: insufficient input amount!");
 
         tokensToUserWithdrawBalances[_token] += _amount;
 
