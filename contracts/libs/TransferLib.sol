@@ -5,7 +5,6 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 
 library TransferLib {
     address internal constant BNB_PLACEHOLDER = address(0);
-
     function transfer(address _token, uint256 _amount, address _recipient) internal {
         if (_token == BNB_PLACEHOLDER) {
             (bool success, ) = _recipient.call{ value: _amount }("");
@@ -14,7 +13,6 @@ library TransferLib {
             IERC20Metadata(_token).transfer(_recipient, _amount);
         }
     }
-
     function transferFrom(address _token, uint256 _amount, address _from, address _to) internal {
         if (_token == BNB_PLACEHOLDER) {
             require(msg.value >= _amount, "TransferLib: an insufficient amount bnb!");

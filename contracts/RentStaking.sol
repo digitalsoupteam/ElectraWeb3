@@ -7,8 +7,9 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IPricerToUSD } from "./interfaces/IPricerToUSD.sol";
 import { TransferLib } from "./libs/TransferLib.sol";
+import { TimestampLib } from "./libs/TimestampLib.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract RentStaking is
     ReentrancyGuardUpgradeable,
@@ -19,70 +20,98 @@ contract RentStaking is
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    // Один период наград равен 30 дням
     uint256 public constant REWARS_PERIOD = 30 days;
-    uint256 public constant PERCENT_PRECISION = 100;
+    // Процентная точность, на данный момент без знаков после запятой
+    uint256 public constant PERCENT_PRECISION = 100; // 1 = 1%, 100 = 100%
+    // "Адрес" для BNB, так как у него нет адреса, используется нулевой, для совместимости с функциями работающими с ERC20
     address public constant BNB_PLACEHOLDER = address(0);
 
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    // Составная структура, представляющая собой итерируемую неупорядоченную коллекцию предметов техники
     mapping(uint256 => string) public items;
     mapping(string => uint256) public itemsIndexes;
     uint256 public itemsLength;
+    // Цены предметов
     mapping(string => uint256) public itemsPrices;
 
+    // Составная структура, представляющая собой итерируемую неупорядоченную коллекцию предметов техники
     mapping(uint256 => uint256) public lockPeriods;
     mapping(uint256 => uint256) public lockPeriodsIndexes;
     uint256 public lockPeriodsLength;
+    // Процент наград каждого периода
     mapping(uint256 => uint256) public lockPeriodsRewardRates;
 
+    // Составная структура, представляющая собой итерируемую неупорядоченную коллекцию предметов техники
     mapping(uint256 => address) public supportedTokens;
     mapping(address => uint256) public supportedTokensIndexes;
     uint256 public supportedTokensLength;
+    // Ончейн прайсеры каждого поддерживаемого токена
     mapping(address => address) public pricers;
 
+    // Счетчик id для новых токенов
     uint256 public nextTokenId;
 
+    // Основное хранилище данных каждой NFT
     mapping(uint256 => TokenInfo) public tokensInfo;
 
-    address[] public tokensToOwnerWithdraw;
+    // Баланс всех поддерживаемых токенов, которые внесли пользователи, для снятия владельцем
     mapping(address => uint256) public tokensToOwnerWithdrawBalances;
 
-    address[] public tokensToUserWithdraw;
+    // Баланс всех поддерживаемых токенов, которые внес владелец, для расчетов с пользователями
     mapping(address => uint256) public tokensToUserWithdrawBalances;
 
     // ------------------------------------------------------------------------------------
     // ----- STRUCTURES -------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    // Описывает данные каждой NFT, включая информацию по стейкингу
     struct TokenInfo {
+        // Название техники, неизменно
         string itemName;
+        // Период блокировки, в годах, неизменно
         uint256 lockPeriod;
+        // Процент годовых наград, неизменно
         uint256 rewardsRate;
+        // Цена покупки, в USD, может меняться только при повтрном стейкинге
         uint256 buyPrice;
+        // Цена продажи, в USD, может меняться только при повтрном стейкинге
         uint256 sellPrice;
-        uint256 initTimestamp;
+        // Временная метка начала дня, когда был сделан стейкинг
+        uint256 initialDayTimestamp;
+        // Временная метка последнего периода, с которого взяли награды
         uint256 lastRewardTimestamp;
+        // Суммарное количество выведенных наград, в usd, сохраняеться при повторном стейкинге. Не несет функциональной ценности, только для аналитики
         uint256 withdrawnRewards;
-        uint256 allPeriodsCount;
+        // Количество периодов, за которые были получены награды
         uint256 claimedPeriodsCount;
-        uint256 rewarsForOnePeriod;
     }
 
+    // Описывает предмет
     struct Item {
         string name;
         uint256 price;
     }
 
+    // Описывает период блокировки
     struct LockPeriod {
         uint256 lockTime;
         uint256 rewardsRate;
     }
 
+    // Описывает поддерживаемые токены (для расчетов/оплаты)
     struct SupportedToken {
         address token;
         address pricer;
+    }
+
+    // Описывает балансы токенов
+    struct TokenAndBalace {
+        address token;
+        uint256 balance;
     }
 
     // ------------------------------------------------------------------------------------
@@ -99,6 +128,8 @@ contract RentStaking is
     event ClaimRewards(
         address indexed recipient,
         uint256 indexed tokenId,
+        address indexed withdrawnToken,
+        uint256 claimedPeriodsCount,
         uint256 rewardsByUsd,
         uint256 rewardsByToken
     );
@@ -131,6 +162,8 @@ contract RentStaking is
     // ----- CONTRACT INITIALIZE ----------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    // "Конструктор" для обвноляемых контрактов
+    // Вызывается единственный раз, устанавливая начальный стейт контракта
     function initialize(
         string calldata _nftName,
         string calldata _nftSymbol,
@@ -166,6 +199,16 @@ contract RentStaking is
     // ----- USER ACTIONS -----------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    // Покупка техники, и первоначальный стейкинг
+    // Предмет на выбор [_itemName], период блокировки на выбор [_lockPeriod], токен для оплаты [_tokenForPay]
+    //
+    // Безопасность
+    // - Повторный вход [nonReentrant]
+    // - Только зарегестрированные предметы
+    // - Только зарегестрированные периоды блокировки
+    // - Только если сумма для оплаты в токенах больше 0
+    // - Только если пользователь предоставил доступное количество средств для оплаты (если больше - вернем сдачу)
+    // - Только если получатель может принимать ERC721 (EOA - всегда, контракты - должны реализовать соответствующий интерфейс)
     function buy(
         string calldata _itemName,
         uint256 _lockPeriod,
@@ -177,8 +220,11 @@ contract RentStaking is
         uint256 rewardsRate = lockPeriodsRewardRates[_lockPeriod];
         require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
 
-        uint256 tokenAmount = getBuyPriceByToken(_itemName, _tokenForPay);
-        require(_getInputAmount(_tokenForPay) >= tokenAmount, "RentStaking: not enough funds!");
+        uint256 tokenAmount = usdAmountToToken(itemPrice, _tokenForPay);
+        require(
+            _getInputAmount(_tokenForPay) >= tokenAmount,
+            "RentStaking: insufficient funds to pay!"
+        );
 
         // ~ 38 000 gas
         TransferLib.transferFrom(_tokenForPay, tokenAmount, msg.sender, address(this));
@@ -189,7 +235,7 @@ contract RentStaking is
 
         uint256 tokenId = nextTokenId++;
 
-        uint256 rewardForOnePeriod = (itemPrice * rewardsRate) / PERCENT_PRECISION;
+        uint256 initialDayTimestamp = TimestampLib.getStartDayTimestamp(block.timestamp);
         // ~ 70 000 gas
         _safeMint(msg.sender, tokenId);
         // ~ 160 000 gas
@@ -199,51 +245,95 @@ contract RentStaking is
             rewardsRate: rewardsRate,
             buyPrice: itemPrice,
             sellPrice: sellPrice,
-            initTimestamp: block.timestamp,
-            lastRewardTimestamp: block.timestamp,
+            initialDayTimestamp: initialDayTimestamp,
+            lastRewardTimestamp: initialDayTimestamp,
             withdrawnRewards: 0,
-            allPeriodsCount: _lockPeriod * 12,
-            claimedPeriodsCount: 0,
-            rewarsForOnePeriod: rewardForOnePeriod
+            claimedPeriodsCount: 0
         });
 
         emit Buy(msg.sender, tokenId, _tokenForPay, tokenAmount);
     }
 
+    // Получение наград
+    // Выдаются по [_tokenId], в токенах [_tokenToWithdrawn] (ERC20 или BNB)
+    //
+    // Безопасность
+    // - Повторный вход [nonReentrant]
+    // - Только владелец токена
+    // - Только если есть неизрасходованные периоды
+    // - Только если накопилось достаточное количество периодов
+    // - Только если есть награды в USD
+    // - Только если есть награды в [_tokenToWithdrawn]
+    // - Только если есть доступный баланс в [tokensToUserWithdrawBalances]
     function claimRewards(uint256 _tokenId, address _tokenToWithdrawn) public nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
-        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
-        require(rewardsByUsd > 0, "RentStaking: no usd rewards to withdraw!");
-
-        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-        require(rewardsByToken > 0, "RentStaking: no token rewards to withdraw!");
+        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
 
         require(
-            tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken,
-            "RentStaking: insufficient funds to claim!"
+            calculateNotClaimedPeriodsCount(_tokenId) > 0,
+            "RentStaking: not has available periods! Sell or ReStake your item"
         );
 
-        TransferLib.transfer(_tokenToWithdrawn, rewardsByToken, msg.sender);
+        uint256 allExpiredPeriodsCount = calculateAllExpiredPeriodsCount(_tokenId, block.timestamp);
+        require(allExpiredPeriodsCount > 0, "RentStaking: not has expired periods!");
 
-        tokensToUserWithdrawBalances[_tokenToWithdrawn] -= rewardsByToken;
-        tokensInfo[_tokenId].withdrawnRewards += rewardsByUsd;
+        uint256 usdRewards = availableRewars(_tokenId, block.timestamp);
+        require(usdRewards > 0, "RentStaking: not has usd rewards!");
+
+        uint256 tokenReards = usdAmountToToken(usdRewards, _tokenToWithdrawn);
+        require(tokenReards > 0, "RentStaking: not has token rewards!");
+
+        require(
+            tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenReards,
+            "RentStaking: not has token balance to claim!"
+        );
+
+        uint256 claimedPeriodsCount = calculatePeriodsCountToClaim(_tokenId, block.timestamp);
+
+        tokensInfo[_tokenId].claimedPeriodsCount += claimedPeriodsCount;
+        tokensInfo[_tokenId].withdrawnRewards += usdRewards;
         tokensInfo[_tokenId].lastRewardTimestamp =
-            tokensInfo[_tokenId].initTimestamp +
-            calcaluteAllRewardsPeriodsCount(_tokenId) *
+            tokenInfo.initialDayTimestamp +
+            allExpiredPeriodsCount *
             REWARS_PERIOD;
 
-        emit ClaimRewards(msg.sender, _tokenId, rewardsByUsd, rewardsByToken);
+        TransferLib.transfer(_tokenToWithdrawn, tokenReards, msg.sender);
+
+        emit ClaimRewards(
+            msg.sender,
+            _tokenId,
+            _tokenToWithdrawn,
+            claimedPeriodsCount,
+            usdRewards,
+            tokenReards
+        );
     }
 
+    // Продажа после истечения периода блокирвоки
+    // Продаем по [_tokenId], выплата в токенах [_tokenToWithdrawn] (ERC20 или BNB)
+    //
+    // Безопасность
+    // - Повторный вход [nonReentrant]
+    // - Только владелец токена
+    // - Только если истек период блокировки
+    // - Только если нет наград для вывода
+    // - Только если сумма вывода в токенах больше 0
+    // - Только если есть доступный баланс в [tokensToUserWithdrawBalances]
     function sell(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
         require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
 
-        require(rewardsToWithdrawByUSD(_tokenId) == 0, "RentStaking: claim rewards before sell!");
+        require(
+            availableRewars(_tokenId, block.timestamp) == 0,
+            "RentStaking: claim rewards before sell!"
+        );
 
-        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
+        uint256 tokenAmountToWitdrawn = usdAmountToToken(
+            tokensInfo[_tokenId].sellPrice,
+            _tokenToWithdrawn
+        );
 
         require(tokenAmountToWitdrawn > 0, "RentStaking: not enough funds to sell!");
 
@@ -252,21 +342,32 @@ contract RentStaking is
             "RentStaking: insufficient funds!"
         );
 
-        TransferLib.transfer(_tokenToWithdrawn, tokenAmountToWitdrawn, msg.sender);
-
         tokensToUserWithdrawBalances[_tokenToWithdrawn] -= tokenAmountToWitdrawn;
 
         _burn(_tokenId);
 
+        TransferLib.transfer(_tokenToWithdrawn, tokenAmountToWitdrawn, msg.sender);
+
         emit Sell(msg.sender, _tokenId);
     }
 
+    // Повторный стейкинг, как альтернатив продаже
+    // Стейкаем по [_tokenId], период блокировки на выбор [_lockPeriod]
+    //
+    // Безопасность
+    // - Повторный вход [nonReentrant]
+    // - Только владелец токена
+    // - Только если истек период блокировки
+    // - Только зарегестрированный период блокировки
     function reStake(uint256 _tokenId, uint256 _lockPeriod) external nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
         require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
 
-        require(rewardsToWithdrawByUSD(_tokenId) == 0, "RentStaking: claim rewards before sell!");
+        require(
+            availableRewars(_tokenId, block.timestamp) == 0,
+            "RentStaking: claim rewards before restake!"
+        );
 
         uint256 rewardsRate = lockPeriods[_lockPeriod];
         require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
@@ -274,14 +375,14 @@ contract RentStaking is
         TokenInfo storage tokenInfo = tokensInfo[_tokenId];
 
         uint256 sellPrice = calculateSellPrice(tokenInfo.sellPrice);
+        uint256 initialDayTimestamp = TimestampLib.getStartDayTimestamp(block.timestamp);
 
         tokenInfo.lockPeriod = _lockPeriod;
         tokenInfo.rewardsRate = rewardsRate;
         tokenInfo.buyPrice = tokenInfo.sellPrice;
         tokenInfo.sellPrice = sellPrice;
-        tokenInfo.initTimestamp = block.timestamp;
-        tokenInfo.lastRewardTimestamp = block.timestamp;
-        tokenInfo.withdrawnRewards = 0;
+        tokenInfo.initialDayTimestamp = initialDayTimestamp;
+        tokenInfo.lastRewardTimestamp = initialDayTimestamp;
 
         emit ReStake(msg.sender, _tokenId);
     }
@@ -290,6 +391,58 @@ contract RentStaking is
     // ----- VIEW STATE -------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    // Расчитывает точное количество неизрасходованных периодов
+    function calculateNotClaimedPeriodsCount(uint256 _tokenId) public view returns (uint256) {
+        return getTotalPeriodsCount(_tokenId) - tokensInfo[_tokenId].claimedPeriodsCount;
+    }
+
+    // Расчитывает сколько периодов наград прошло для токена, к указанной временной метке
+    // Может вернуть значение превышающее доступное количество наград
+    function calculateAllExpiredPeriodsCount(
+        uint256 _tokenId,
+        uint256 _timestamp
+    ) public view returns (uint256) {
+        return (_timestamp - tokensInfo[_tokenId].initialDayTimestamp) / REWARS_PERIOD;
+    }
+
+    // Расчитывает за сколько периодов можно будет запросить награды к временной метке
+    // Возвращает точное число доступных периодов
+    function calculatePeriodsCountToClaim(
+        uint256 _tokenId,
+        uint256 _timestamp
+    ) public view returns (uint256) {
+        uint256 allExpiredPeriodsCount = calculateAllExpiredPeriodsCount(_tokenId, _timestamp);
+        uint256 notClaimedPeriodsCount = calculateNotClaimedPeriodsCount(_tokenId);
+        return
+            allExpiredPeriodsCount > notClaimedPeriodsCount
+                ? notClaimedPeriodsCount
+                : allExpiredPeriodsCount;
+    }
+
+    function calculatePeriodsCountToClaimNow(uint256 _tokenId) public view returns (uint256) {
+        return calculatePeriodsCountToClaim(_tokenId, block.timestamp);
+    }
+
+    // Расчет количества наград для токена за один период
+    function calculateRewardsForOnePeriod(uint256 _tokenId) public view returns (uint256) {
+        return
+            (tokensInfo[_tokenId].buyPrice * tokensInfo[_tokenId].rewardsRate) / PERCENT_PRECISION;
+    }
+
+    // Сколько наград доступно по токену к временной метке
+    function availableRewars(uint256 _tokenId, uint256 _timestamp) public view returns (uint256) {
+        return
+            calculatePeriodsCountToClaim(_tokenId, _timestamp) *
+            calculateRewardsForOnePeriod(_tokenId);
+    }
+
+    // Расчет количества периодов на период блокировки
+    function getTotalPeriodsCount(uint256 _tokenId) public view returns (uint256) {
+        return tokensInfo[_tokenId].lockPeriod * 12;
+    }
+
+    // Считает сколько средств в USD компания должна внести к дате [_timestamp], что бы расплатиться со всеми юзерами
+    // Работает через пагинацию
     function calculateDepositAmount(
         uint256 _timestamp,
         uint256 _startTokenIndex,
@@ -298,20 +451,17 @@ contract RentStaking is
         uint256 amount;
         for (uint256 i = _startTokenIndex; i < _endTokenIndex; i++) {
             uint256 tokenId = tokenByIndex(i);
-            TokenInfo storage tokenInfo = tokensInfo[tokenId];
-
-            uint256 periodsCount = (_timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
-            uint256 rewardsForOnePeriod = calculateRewarsForOnePeriodUSD(tokenId);
-            uint256 rewards = periodsCount * rewardsForOnePeriod - tokenInfo.withdrawnRewards;
-
+            uint256 rewards = availableRewars(tokenId, _timestamp);
             amount += rewards;
             if (lockPeriodIsExpired(tokenId)) {
-                amount += tokenInfo.sellPrice;
+                amount += tokensInfo[tokenId].sellPrice;
             }
         }
         return amount;
     }
 
+    // Получение массива строк, с названиями зарегестрированных предметов
+    // Работает через пагинацию
     function getItems(
         uint256 _startIndex,
         uint256 _endIndex
@@ -329,6 +479,8 @@ contract RentStaking is
         return result;
     }
 
+    // Получение массива объектов, с названиями зарегестрированных предметов и их ценами
+    // Работает через пагинацию
     function getItemsWithPrice(
         uint256 _startIndex,
         uint256 _endIndex
@@ -346,6 +498,8 @@ contract RentStaking is
         return result;
     }
 
+    // Получение массива чисел, представляющих доступные периоды блокировки
+    // Работает через пагинацию
     function getLockPeriods(
         uint256 _startIndex,
         uint256 _endIndex
@@ -363,6 +517,8 @@ contract RentStaking is
         return result;
     }
 
+    // Получение массива объектов, с доступными периодами блокировки и их процентом наград
+    // Работает через пагинацию
     function getLockPeriodsWithRewardsRates(
         uint256 _startIndex,
         uint256 _endIndex
@@ -383,6 +539,8 @@ contract RentStaking is
         return result;
     }
 
+    // Получение массива адресов, представляющих доступные токены для оплаты/вывода
+    // Работает через пагинацию
     function getSupportedTokens(
         uint256 _startIndex,
         uint256 _endIndex
@@ -400,6 +558,8 @@ contract RentStaking is
         return result;
     }
 
+    // Получение массива объектов, с доступными токенами для оплаты/вывода и адресами их прайсеров
+    // Работает через пагинацию
     function getSupportedTokensWithPricers(
         uint256 _startIndex,
         uint256 _endIndex
@@ -420,22 +580,74 @@ contract RentStaking is
         return result;
     }
 
+    // Получает массив токенов и балансов доступных для вывода пользователей
+    // Работает через пагинацию
+    function getTokensToUserWithdrawBalances(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (TokenAndBalace[] memory) {
+        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > supportedTokensLength) {
+            _endIndex = supportedTokensLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        TokenAndBalace[] memory result = new TokenAndBalace[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            address token = supportedTokens[i];
+            result[index++] = TokenAndBalace({
+                token: token,
+                balance: tokensToUserWithdrawBalances[token]
+            });
+        }
+        return result;
+    }
+
+    // Получает массив токенов и балансов доступных для вывода владельцем
+    // Работает через пагинацию
+    function getTokensToOwnerWithdrawBalances(
+        uint256 _startIndex,
+        uint256 _endIndex
+    ) external view returns (TokenAndBalace[] memory) {
+        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > supportedTokensLength) {
+            _endIndex = supportedTokensLength;
+        }
+        uint256 length = _endIndex - _startIndex;
+        TokenAndBalace[] memory result = new TokenAndBalace[](length);
+        uint256 index;
+        for (uint256 i = _startIndex; i < _endIndex; i++) {
+            address token = supportedTokens[i];
+            result[index++] = TokenAndBalace({
+                token: token,
+                balance: tokensToOwnerWithdrawBalances[token]
+            });
+        }
+        return result;
+    }
+
+    // Проверяет существует ли предмет с таким названием
     function isItemExists(string calldata _itemName) external view returns (bool) {
         return itemsPrices[_itemName] != 0;
     }
 
+    // Проверяет существует ли период блокировки с таким временем
     function isLockPeriodExists(uint256 _lockPeriod) external view returns (bool) {
         return lockPeriodsRewardRates[_lockPeriod] != 0;
     }
 
+    // Проверяет доступен ли токен для вывода или оплаты
     function isSupportedToken(address _token) external view returns (bool) {
         return pricers[_token] != address(0);
     }
 
-    function calculateSellPrice(uint256 _price) public view returns (uint256) {
+    // Функция расчета цены продажи
+    // !!! Требуется формула
+    function calculateSellPrice(uint256 _price) public pure returns (uint256) {
         return (_price * 9) / 10;
     }
 
+    // Получить цену ERC20 токена в USD через зарегестрированный прайсер
     function getTokenPriceUSD(address _token) public view returns (uint256) {
         address pricerAddress = pricers[_token];
         require(pricerAddress != address(0), "RentStaking: token not registered!");
@@ -446,12 +658,36 @@ contract RentStaking is
         return price;
     }
 
+    // Конвертировать сумму в USD к количеству токенов, с учетом цен и decimals
+    function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
+        uint256 decimals = _token == BNB_PLACEHOLDER ? 18 : IERC20Metadata(_token).decimals();
+        return (_usdAmount * 10 ** decimals * getTokenPriceUSD(_token)) / 1e8;
+    }
+
+    // Истек ли период блокировки
+    function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
+        return block.timestamp >= getExpiredTimestamp(_tokenId);
+    }
+
+    // Получить временную метку, когда заканчивается период блокировки
+    function getExpiredTimestamp(uint256 _tokenId) public view returns (uint256) {
+        return
+            tokensInfo[_tokenId].initialDayTimestamp + tokensInfo[_tokenId].lockPeriod * 365 days;
+    }
+
+    // Получить временную метку, когда можно будет запросить награды в следующий раз
+    function getNextRewardTimestamp(uint256 _tokenId) external view returns (uint256) {
+        return tokensInfo[_tokenId].lastRewardTimestamp + REWARS_PERIOD;
+    }
+
+    // Todo: fix legacy function
     function getBuyPriceByUSD(string calldata _itemName) public view returns (uint256) {
         uint256 itemPrice = itemsPrices[_itemName];
         require(itemPrice > 0, "RentStaking: item not exists!");
         return itemPrice;
     }
 
+    // Todo: fix legacy function
     function getBuyPriceByToken(
         string calldata _itemName,
         address _tokenForPay
@@ -462,31 +698,12 @@ contract RentStaking is
         return tokenAmount;
     }
 
-    function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
-        uint256 decimals = _token == BNB_PLACEHOLDER ? 18 : IERC20Metadata(_token).decimals();
-        return (_usdAmount * 10 ** decimals * getTokenPriceUSD(_token)) / 1e8;
-    }
-
-    function calculateRewarsForOnePeriodUSD(uint256 _tokenId) public view returns (uint256) {
-        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        uint256 rewardForOnePeriod = (tokenInfo.buyPrice * tokenInfo.rewardsRate) /
-            PERCENT_PRECISION;
-        return rewardForOnePeriod;
-    }
-
-    function calcaluteAllRewardsPeriodsCount(uint256 _tokenId) public view returns (uint256) {
-        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        return (block.timestamp - tokenInfo.initTimestamp) / REWARS_PERIOD;
-    }
-
-    function calculateAllRewardsByUSD(uint256 _tokenId) public view returns (uint256) {
-        return calcaluteAllRewardsPeriodsCount(_tokenId) * calculateRewarsForOnePeriodUSD(_tokenId);
-    }
-
+    // Todo: fix legacy function
     function rewardsToWithdrawByUSD(uint256 _tokenId) public view returns (uint256) {
-        return calculateAllRewardsByUSD(_tokenId) - tokensInfo[_tokenId].withdrawnRewards;
+        return availableRewars(_tokenId, block.timestamp);
     }
 
+    // Todo: fix legacy function
     function rewardsToWithdrawByToken(
         uint256 _tokenId,
         address _tokenToWithdrawn
@@ -494,104 +711,41 @@ contract RentStaking is
         return usdAmountToToken(rewardsToWithdrawByUSD(_tokenId), _tokenToWithdrawn);
     }
 
-    function lockPeriodIsExpired(uint256 _tokenId) public view returns (bool) {
-        return block.timestamp >= getExpiredTimestamp(_tokenId);
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- OWNER ACTIONS ----------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
-    function getExpiredTimestamp(uint256 _tokenId) public view returns (uint256) {
-        TokenInfo memory tokenInfo = tokensInfo[_tokenId];
-        return tokenInfo.initTimestamp + tokenInfo.lockPeriod * 365 days;
-    }
-
-    function getNextRewardTimestamp(uint256 _tokenId) external view returns (uint256) {
-        return tokensInfo[_tokenId].lastRewardTimestamp + REWARS_PERIOD;
-    }
-
-    function getSellAmoutByUSD(uint256 _tokenId) public view returns (uint256) {
-        return tokensInfo[_tokenId].sellPrice;
-    }
-
-    function getSellAmoutByToken(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (uint256) {
-        return usdAmountToToken(getSellAmoutByUSD(_tokenId), _tokenToWithdrawn);
-    }
-
-    function hasRewards(uint256 _tokenId) public view returns (bool) {
-        uint256 rewardsByUsd = rewardsToWithdrawByUSD(_tokenId);
-        return rewardsByUsd > 0;
-    }
-
-    function hasRewardsByToken(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (bool) {
-        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-        return rewardsByToken > 0;
-    }
-
-    function hasBalanceToClaim(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (bool) {
-        uint256 rewardsByToken = rewardsToWithdrawByToken(_tokenId, _tokenToWithdrawn);
-        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= rewardsByToken;
-    }
-
-    function canClaim(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
-        return
-            hasRewardsByToken(_tokenId, _tokenToWithdrawn) &&
-            hasBalanceToClaim(_tokenId, _tokenToWithdrawn);
-    }
-
-    function hasBalanceToSell(
-        uint256 _tokenId,
-        address _tokenToWithdrawn
-    ) public view returns (bool) {
-        uint256 tokenAmountToWitdrawn = getSellAmoutByToken(_tokenId, _tokenToWithdrawn);
-        return tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn;
-    }
-
-    function canSell(uint256 _tokenId, address _tokenToWithdrawn) external view returns (bool) {
-        return
-            lockPeriodIsExpired(_tokenId) &&
-            !hasRewards(_tokenId) &&
-            hasBalanceToSell(_tokenId, _tokenToWithdrawn);
-    }
-
-    function canReStake(uint256 _tokenId) external view returns (bool) {
-        return lockPeriodIsExpired(_tokenId) && !hasRewards(_tokenId);
-    }
-
-    // // ------------------------------------------------------------------------------------
-    // // ----- OWNER ACTIONS ----------------------------------------------------------------
-    // // ------------------------------------------------------------------------------------
-
+    // Владелец пополняет баланс для рассчетов
     function deposit(address _token, uint256 _amount) external payable onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
-
-        TransferLib.transferFrom(_token, _amount, msg.sender, address(this));
+        require(_amount > 0, "RentStaking: empty deposit!");
 
         tokensToUserWithdrawBalances[_token] += _amount;
+
+        TransferLib.transferFrom(_token, _amount, msg.sender, address(this));
 
         emit Deposit(_token, _amount);
     }
 
+    // Владелец выводит средства пользователей
     function withdraw(address _token, uint256 _amount) public payable onlyOwner {
+        require(_amount > 0, "RentStaking: empty withdrawn!");
         require(
             tokensToOwnerWithdrawBalances[_token] >= _amount,
             "RentStaking: insufficient funds!"
         );
 
-        TransferLib.transfer(_token, _amount, msg.sender);
-
         tokensToOwnerWithdrawBalances[_token] -= _amount;
+
+        TransferLib.transfer(_token, _amount, msg.sender);
 
         emit Withdraw(_token, _amount);
     }
 
+    // Добавить новый предмет
+    // !!! ввиду отсутсвия decimals при расчетах в USD, и PERCENT_PRECESSION = 100 - мы не можем устанавливать цену меньше 100, иначе в расчетах при деление будет 0
     function addItem(string calldata _name, uint256 _price) public onlyOwner {
+        require(_price >= 100, "RentStaking: price can not be less 100!");
         require(itemsPrices[_name] == 0, "RentStaking: item already exists!");
         itemsPrices[_name] = _price;
         items[itemsLength] = _name;
@@ -601,8 +755,12 @@ contract RentStaking is
         emit AddItem(_name, _price);
     }
 
+    // Обвноляет цену предмета
+    // Не влияет на уже выпущенные токены
+    // !!! ввиду отсутсвия decimals при расчетах в USD, и PERCENT_PRECESSION = 100 - мы не можем устанавливать цену меньше 100, иначе в расчетах при деление будет 0
     function updateItemPrice(string calldata _name, uint256 _price) external onlyOwner {
         require(_price > 0, "RentStaking: can not set price 0, use deleteItem");
+        require(_price >= 100, "RentStaking: price can not be less 100!");
         uint256 oldItemPrice = itemsPrices[_name];
         require(oldItemPrice > 0, "RentStaking: item not exists!");
         itemsPrices[_name] = _price;
@@ -610,6 +768,8 @@ contract RentStaking is
         emit UpdateItemPrice(_name, oldItemPrice, _price);
     }
 
+    // Удаляет предмет
+    // Не влияет на уже выпущенные токены
     function deleteItem(string calldata _name) external onlyOwner {
         require(itemsPrices[_name] > 0, "RentStaking: item not exists!");
         delete itemsPrices[_name];
@@ -628,16 +788,19 @@ contract RentStaking is
         emit DeleteItem(_name);
     }
 
+    // Добавляет новый период блокировки
     function addLockPeriod(uint256 _lockTime, uint256 _rewardsRate) public onlyOwner {
         require(lockPeriodsRewardRates[_lockTime] == 0, "RentStaking: lock period already exists!");
         lockPeriodsRewardRates[_lockTime] = _rewardsRate;
         lockPeriods[lockPeriodsLength] = _lockTime;
         lockPeriodsIndexes[_lockTime] = lockPeriodsLength;
-        supportedTokensLength++;
+        lockPeriodsLength++;
 
         emit AddLockPeriod(_lockTime, _rewardsRate);
     }
 
+    // Обновляет % наград для периода блокировки
+    // Не влияет на уже выпущенные токены
     function updateLockPeriodRewardsRate(
         uint256 _lockTime,
         uint256 _rewardsRate
@@ -651,6 +814,8 @@ contract RentStaking is
         emit UpdateLockPeriodRewardsRate(_lockTime, oldRewardsRate, _rewardsRate);
     }
 
+    // Удаляет период блокировки
+    // Не влияет на уже выпущенные токены
     function deleteLockPeriod(uint256 _lockTime) external onlyOwner {
         require(lockPeriodsRewardRates[_lockTime] > 0, "RentStaking: lock period not exists!");
         delete lockPeriodsRewardRates[_lockTime];
@@ -669,10 +834,11 @@ contract RentStaking is
         emit DeleteLockPeriod(_lockTime);
     }
 
+    // Добавить новый токен для расчетов
     function addToken(address _token, address _pricer) public onlyOwner {
         require(pricers[_token] == address(0), "RentStaking: token already exists!");
         _enforceUsdPriserDecimals(_pricer);
-        pricers[_token] = _pricer;        
+        pricers[_token] = _pricer;
         supportedTokens[supportedTokensLength] = _token;
         supportedTokensIndexes[_token] = lockPeriodsLength;
         supportedTokensLength++;
@@ -680,6 +846,7 @@ contract RentStaking is
         emit AddToken(_token, _pricer);
     }
 
+    // Обновить прайсер для токена расчетов
     function updateTokenPricer(address _token, address _pricer) external onlyOwner {
         address oldPricer = pricers[_token];
         require(oldPricer != address(0), "RentStaking: token not exists!");
@@ -689,6 +856,8 @@ contract RentStaking is
         emit UpdateTokenPricer(_token, oldPricer, _pricer);
     }
 
+    // Удалить токен для расчетов
+    // При удалении, все токены на балансе будут переведены владельцу, с tokensToOwnerWithdrawBalances и tokensToUserWithdrawBalances
     function deleteToken(address _token) external onlyOwner {
         require(pricers[_token] != address(0), "RentStaking: token not exists!");
 
@@ -717,9 +886,9 @@ contract RentStaking is
         emit DeleteToken(_token);
     }
 
-    // // ------------------------------------------------------------------------------------
-    // // ----- INTERNAL METHODS -------------------------------------------------------------
-    // // ------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+    // ----- INTERNAL METHODS -------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function _enforseIsTokenOwner(uint256 _tokenId) internal view {
         require(ownerOf(_tokenId) == msg.sender, "RentStaking: not token owner!");

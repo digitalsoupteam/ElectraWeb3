@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+library TimestampLib {
+    int256 internal constant OFFSET19700101 = 2440588;
 
-library TransferLib {
-    
     function getCurrentDate() internal view returns (uint256 year, uint256 month, uint256 day) {
         return timestampToDate(block.timestamp);
     }
 
-    function timestampToDate(uint256 _timestamp) internal view returns (uint256 year, uint256 month, uint256 day) {
+    function timestampToDate(
+        uint256 _timestamp
+    ) internal pure returns (uint256 year, uint256 month, uint256 day) {
         unchecked {
-            int256 OFFSET19700101 = 2440588;
             int256 __days = int256(_timestamp / 1 days);
 
             int256 L = __days + 68569 + OFFSET19700101;
@@ -31,18 +31,34 @@ library TransferLib {
         }
     }
 
-     function getMonthTimestamp(uint256 year, uint256 month) internal pure returns (uint256) {
-        require(year >= 1970);
-        int256 OFFSET19700101 = 2440588;
-        int256 _year = int256(year);
-        int256 _month = int256(month);
-        int256 _day = int256(1);
-
-        int256 __days = _day - 32075 + (1461 * (_year + 4800 + (_month - 14) / 12)) / 4
-            + (367 * (_month - 2 - ((_month - 14) / 12) * 12)) / 12
-            - (3 * ((_year + 4900 + (_month - 14) / 12) / 100)) / 4 - OFFSET19700101;
-
-        return uint256(__days) * 1 days;
+    function getMonthTimestamp(uint256 _year, uint256 _month) internal pure returns (uint256) {
+        return dateToTimestamp(_year, _month, 1);
     }
 
+    function getStartDayTimestamp(uint256 _timestamp) internal pure returns (uint256) {
+        return (_timestamp / 1 days) * 1 days;
+    }
+
+    function dateToTimestamp(
+        uint256 _year,
+        uint256 _month,
+        uint256 _day
+    ) internal pure returns (uint256) {
+        require(_year >= 1970, "TimestampLib: year can not be less 1970!");
+        int256 year = int256(_year);
+        int256 month = int256(_month);
+        int256 day = int256(_day);
+
+        int256 daysCount = day -
+            32075 +
+            (1461 * (year + 4800 + (month - 14) / 12)) /
+            4 +
+            (367 * (month - 2 - ((month - 14) / 12) * 12)) /
+            12 -
+            (3 * ((year + 4900 + (month - 14) / 12) / 100)) /
+            4 -
+            OFFSET19700101;
+
+        return uint256(daysCount) * 1 days;
+    }
 }

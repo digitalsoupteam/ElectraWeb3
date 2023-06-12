@@ -16,30 +16,30 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     },
     {
       name: 'electric moped',
-      price: 1000,
+      price: 2000,
     },
     {
       name: 'electric bike',
-      price: 1000,
+      price: 3000,
     },
     {
       name: 'electric car',
-      price: 1000,
+      price: 5000,
     },
   ]
 
   const lockPeriods = [
     {
       lockTime: 1,
-      rewardsRate: 1000,
+      rewardsRate: 10,
     },
     {
       lockTime: 2,
-      rewardsRate: 2000,
+      rewardsRate: 20,
     },
     {
       lockTime: 3,
-      rewardsRate: 2500,
+      rewardsRate: 25,
     },
   ]
 
