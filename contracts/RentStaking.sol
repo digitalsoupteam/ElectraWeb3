@@ -21,11 +21,11 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
 
     // Один период наград равен 30 дням
-    uint256 public constant REWARS_PERIOD = 30 days; // 360 days in "year"
+    uint256 internal constant REWARS_PERIOD = 30 days; // 360 days in "year"
     // Процентная точность, на данный момент без знаков после запятой
-    uint256 public constant PERCENT_PRECISION = 100; // 1 = 1%, 100 = 100%
+    uint256 internal constant PERCENT_PRECISION = 100; // 1 = 1%, 100 = 100%
     // "Адрес" для BNB, так как у него нет адреса, используется нулевой, для совместимости с функциями работающими с ERC20
-    address public constant BNB_PLACEHOLDER = address(0);
+    address internal constant BNB_PLACEHOLDER = address(0);
 
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
@@ -222,6 +222,7 @@ contract RentStaking is
 
         uint256 tokenAmount = usdAmountToToken(itemPrice, _tokenForPay);
         require(tokenAmount > 0, "RentStaking: tokens amount can not be zero!");
+
         require(
             _getInputAmount(_tokenForPay) >= tokenAmount,
             "RentStaking: insufficient funds to pay!"
@@ -438,7 +439,7 @@ contract RentStaking is
     }
 
     // Расчет количества периодов на период блокировки
-    function getTotalPeriodsCount(uint256 _tokenId) public view returns (uint256) {
+    function getTotalPeriodsCount(uint256 _tokenId) internal view returns (uint256) {
         return tokensInfo[_tokenId].lockPeriod * 12;
     }
 
@@ -461,24 +462,24 @@ contract RentStaking is
         return amount;
     }
 
-    // Получение массива строк, с названиями зарегестрированных предметов
-    // Работает через пагинацию
-    function getItems(
-        uint256 _startIndex,
-        uint256 _endIndex
-    ) external view returns (string[] memory) {
-        require(_startIndex < itemsLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > itemsLength) {
-            _endIndex = itemsLength;
-        }
-        uint256 length = _endIndex - _startIndex;
-        string[] memory result = new string[](length);
-        uint256 index;
-        for (uint256 i = _startIndex; i < _endIndex; i++) {
-            result[index++] = items[i];
-        }
-        return result;
-    }
+    // // Получение массива строк, с названиями зарегестрированных предметов
+    // // Работает через пагинацию
+    // function getItems(
+    //     uint256 _startIndex,
+    //     uint256 _endIndex
+    // ) external view returns (string[] memory) {
+    //     require(_startIndex < itemsLength, "Rent staking: start index out of bounds!");
+    //     if (_endIndex > itemsLength) {
+    //         _endIndex = itemsLength;
+    //     }
+    //     uint256 length = _endIndex - _startIndex;
+    //     string[] memory result = new string[](length);
+    //     uint256 index;
+    //     for (uint256 i = _startIndex; i < _endIndex; i++) {
+    //         result[index++] = items[i];
+    //     }
+    //     return result;
+    // }
 
     // Получение массива объектов, с названиями зарегестрированных предметов и их ценами
     // Работает через пагинацию
@@ -486,8 +487,9 @@ contract RentStaking is
         uint256 _startIndex,
         uint256 _endIndex
     ) external view returns (Item[] memory) {
-        require(_startIndex < itemsLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > itemsLength) {
+        uint256 allLength = itemsLength;
+        require(_startIndex < allLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > allLength) {
             _endIndex = itemsLength;
         }
         uint256 length = _endIndex - _startIndex;
@@ -499,24 +501,24 @@ contract RentStaking is
         return result;
     }
 
-    // Получение массива чисел, представляющих доступные периоды блокировки
-    // Работает через пагинацию
-    function getLockPeriods(
-        uint256 _startIndex,
-        uint256 _endIndex
-    ) external view returns (uint256[] memory) {
-        require(_startIndex < lockPeriodsLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > lockPeriodsLength) {
-            _endIndex = lockPeriodsLength;
-        }
-        uint256 length = _endIndex - _startIndex;
-        uint256[] memory result = new uint256[](length);
-        uint256 index;
-        for (uint256 i = _startIndex; i < _endIndex; i++) {
-            result[index++] = lockPeriods[i];
-        }
-        return result;
-    }
+    // // Получение массива чисел, представляющих доступные периоды блокировки
+    // // Работает через пагинацию
+    // function getLockPeriods(
+    //     uint256 _startIndex,
+    //     uint256 _endIndex
+    // ) external view returns (uint256[] memory) {
+    //     require(_startIndex < lockPeriodsLength, "Rent staking: start index out of bounds!");
+    //     if (_endIndex > lockPeriodsLength) {
+    //         _endIndex = lockPeriodsLength;
+    //     }
+    //     uint256 length = _endIndex - _startIndex;
+    //     uint256[] memory result = new uint256[](length);
+    //     uint256 index;
+    //     for (uint256 i = _startIndex; i < _endIndex; i++) {
+    //         result[index++] = lockPeriods[i];
+    //     }
+    //     return result;
+    // }
 
     // Получение массива объектов, с доступными периодами блокировки и их процентом наград
     // Работает через пагинацию
@@ -524,9 +526,10 @@ contract RentStaking is
         uint256 _startIndex,
         uint256 _endIndex
     ) external view returns (LockPeriod[] memory) {
-        require(_startIndex < lockPeriodsLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > lockPeriodsLength) {
-            _endIndex = lockPeriodsLength;
+        uint256 allLength = lockPeriodsLength;
+        require(_startIndex < allLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > allLength) {
+            _endIndex = allLength;
         }
         uint256 length = _endIndex - _startIndex;
         LockPeriod[] memory result = new LockPeriod[](length);
@@ -540,24 +543,24 @@ contract RentStaking is
         return result;
     }
 
-    // Получение массива адресов, представляющих доступные токены для оплаты/вывода
-    // Работает через пагинацию
-    function getSupportedTokens(
-        uint256 _startIndex,
-        uint256 _endIndex
-    ) external view returns (address[] memory) {
-        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > supportedTokensLength) {
-            _endIndex = supportedTokensLength;
-        }
-        uint256 length = _endIndex - _startIndex;
-        address[] memory result = new address[](length);
-        uint256 index;
-        for (uint256 i = _startIndex; i < _endIndex; i++) {
-            result[index++] = supportedTokens[i];
-        }
-        return result;
-    }
+    // // Получение массива адресов, представляющих доступные токены для оплаты/вывода
+    // // Работает через пагинацию
+    // function getSupportedTokens(
+    //     uint256 _startIndex,
+    //     uint256 _endIndex
+    // ) external view returns (address[] memory) {
+    //     require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
+    //     if (_endIndex > supportedTokensLength) {
+    //         _endIndex = supportedTokensLength;
+    //     }
+    //     uint256 length = _endIndex - _startIndex;
+    //     address[] memory result = new address[](length);
+    //     uint256 index;
+    //     for (uint256 i = _startIndex; i < _endIndex; i++) {
+    //         result[index++] = supportedTokens[i];
+    //     }
+    //     return result;
+    // }
 
     // Получение массива объектов, с доступными токенами для оплаты/вывода и адресами их прайсеров
     // Работает через пагинацию
@@ -565,9 +568,10 @@ contract RentStaking is
         uint256 _startIndex,
         uint256 _endIndex
     ) external view returns (SupportedToken[] memory) {
-        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > supportedTokensLength) {
-            _endIndex = supportedTokensLength;
+        uint256 allLength = supportedTokensLength;
+        require(_startIndex < allLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > allLength) {
+            _endIndex = allLength;
         }
         uint256 length = _endIndex - _startIndex;
         SupportedToken[] memory result = new SupportedToken[](length);
@@ -587,9 +591,10 @@ contract RentStaking is
         uint256 _startIndex,
         uint256 _endIndex
     ) external view returns (TokenAndBalace[] memory) {
-        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > supportedTokensLength) {
-            _endIndex = supportedTokensLength;
+        uint256 allLength = supportedTokensLength;
+        require(_startIndex < allLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > allLength) {
+            _endIndex = allLength;
         }
         uint256 length = _endIndex - _startIndex;
         TokenAndBalace[] memory result = new TokenAndBalace[](length);
@@ -610,9 +615,10 @@ contract RentStaking is
         uint256 _startIndex,
         uint256 _endIndex
     ) external view returns (TokenAndBalace[] memory) {
-        require(_startIndex < supportedTokensLength, "Rent staking: start index out of bounds!");
-        if (_endIndex > supportedTokensLength) {
-            _endIndex = supportedTokensLength;
+        uint256 allLength = supportedTokensLength;
+        require(_startIndex < allLength, "Rent staking: start index out of bounds!");
+        if (_endIndex > allLength) {
+            _endIndex = allLength;
         }
         uint256 length = _endIndex - _startIndex;
         TokenAndBalace[] memory result = new TokenAndBalace[](length);
@@ -627,20 +633,20 @@ contract RentStaking is
         return result;
     }
 
-    // Проверяет существует ли предмет с таким названием
-    function isItemExists(string calldata _itemName) external view returns (bool) {
-        return itemsPrices[_itemName] != 0;
-    }
+    // // Проверяет существует ли предмет с таким названием
+    // function isItemExists(string calldata _itemName) external view returns (bool) {
+    //     return itemsPrices[_itemName] != 0;
+    // }
 
-    // Проверяет существует ли период блокировки с таким временем
-    function isLockPeriodExists(uint256 _lockPeriod) external view returns (bool) {
-        return lockPeriodsRewardRates[_lockPeriod] != 0;
-    }
+    // // Проверяет существует ли период блокировки с таким временем
+    // function isLockPeriodExists(uint256 _lockPeriod) external view returns (bool) {
+    //     return lockPeriodsRewardRates[_lockPeriod] != 0;
+    // }
 
-    // Проверяет доступен ли токен для вывода или оплаты
-    function isSupportedToken(address _token) external view returns (bool) {
-        return pricers[_token] != address(0);
-    }
+    // // Проверяет доступен ли токен для вывода или оплаты
+    // function isSupportedToken(address _token) external view returns (bool) {
+    //     return pricers[_token] != address(0);
+    // }
 
     // Функция расчета цены продажи
     // !!! Требуется формула
