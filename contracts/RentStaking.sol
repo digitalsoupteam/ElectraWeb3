@@ -64,6 +64,9 @@ contract RentStaking is
     // Баланс всех поддерживаемых токенов, которые внес владелец, для расчетов с пользователями
     mapping(address => uint256) public tokensToUserWithdrawBalances;
 
+    // Позволяет приостановить продажи по всем предметам
+    bool public isBuyEnabled;
+
     // ------------------------------------------------------------------------------------
     // ----- STRUCTURES -------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -157,6 +160,7 @@ contract RentStaking is
     event Deposit(address indexed token, uint256 amount);
 
     event Withdraw(address indexed token, uint256 amount);
+    event SetIsBuyEnabled(bool isBuyEnabled);
 
     // ------------------------------------------------------------------------------------
     // ----- CONTRACT INITIALIZE ----------------------------------------------------------
@@ -214,18 +218,20 @@ contract RentStaking is
         uint256 _lockPeriod,
         address _tokenForPay
     ) external payable nonReentrant {
+        require(isBuyEnabled, "buy suspended!");
+
         uint256 itemPrice = itemsPrices[_itemName];
-        require(itemPrice > 0, "RentStaking: item not exists!");
+        require(itemPrice > 0, "item not exists!");
 
         uint256 rewardsRate = lockPeriodsRewardRates[_lockPeriod];
-        require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
+        require(rewardsRate > 0, "lockPeriod not exists!");
 
         uint256 tokenAmount = usdAmountToToken(itemPrice, _tokenForPay);
-        require(tokenAmount > 0, "RentStaking: tokens amount can not be zero!");
+        require(tokenAmount > 0, "tokens amount can not be zero!");
 
         require(
             _getInputAmount(_tokenForPay) >= tokenAmount,
-            "RentStaking: insufficient funds to pay!"
+            "insufficient funds to pay!"
         );
 
         // ~ 38 000 gas
@@ -274,21 +280,21 @@ contract RentStaking is
 
         require(
             calculateNotClaimedPeriodsCount(_tokenId) > 0,
-            "RentStaking: not has available periods! Sell or ReStake your item"
+            "not has available periods! Sell or ReStake your item"
         );
 
         uint256 allExpiredPeriodsCount = calculateAllExpiredPeriodsCount(_tokenId, block.timestamp);
-        require(allExpiredPeriodsCount > 0, "RentStaking: not has expired periods!");
+        require(allExpiredPeriodsCount > 0, "not has expired periods!");
 
         uint256 usdRewards = availableRewars(_tokenId, block.timestamp);
-        require(usdRewards > 0, "RentStaking: not has usd rewards!");
+        require(usdRewards > 0, "not has usd rewards!");
 
         uint256 tokenReards = usdAmountToToken(usdRewards, _tokenToWithdrawn);
-        require(tokenReards > 0, "RentStaking: not has token rewards!");
+        require(tokenReards > 0, "not has token rewards!");
 
         require(
             tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenReards,
-            "RentStaking: not has token balance to claim!"
+            "not has token balance to claim!"
         );
 
         uint256 claimedPeriodsCount = calculatePeriodsCountToClaim(_tokenId, block.timestamp);
@@ -325,11 +331,11 @@ contract RentStaking is
     function sell(uint256 _tokenId, address _tokenToWithdrawn) external nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
-        require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
+        require(lockPeriodIsExpired(_tokenId), "blocking period has not expired!");
 
         require(
             availableRewars(_tokenId, block.timestamp) == 0,
-            "RentStaking: claim rewards before sell!"
+            "claim rewards before sell!"
         );
 
         uint256 tokenAmountToWitdrawn = usdAmountToToken(
@@ -337,11 +343,11 @@ contract RentStaking is
             _tokenToWithdrawn
         );
 
-        require(tokenAmountToWitdrawn > 0, "RentStaking: not enough funds to sell!");
+        require(tokenAmountToWitdrawn > 0, "not enough funds to sell!");
 
         require(
             tokensToUserWithdrawBalances[_tokenToWithdrawn] >= tokenAmountToWitdrawn,
-            "RentStaking: insufficient funds!"
+            "insufficient funds!"
         );
 
         tokensToUserWithdrawBalances[_tokenToWithdrawn] -= tokenAmountToWitdrawn;
@@ -364,15 +370,15 @@ contract RentStaking is
     function reStake(uint256 _tokenId, uint256 _lockPeriod) external nonReentrant {
         _enforseIsTokenOwner(_tokenId);
 
-        require(lockPeriodIsExpired(_tokenId), "RentStaking: blocking period has not expired!");
+        require(lockPeriodIsExpired(_tokenId), "blocking period has not expired!");
 
         require(
             availableRewars(_tokenId, block.timestamp) == 0,
-            "RentStaking: claim rewards before restake!"
+            "claim rewards before restake!"
         );
 
         uint256 rewardsRate = lockPeriods[_lockPeriod];
-        require(rewardsRate > 0, "RentStaking: lockPeriod not exists!");
+        require(rewardsRate > 0, "lockPeriod not exists!");
 
         TokenInfo storage tokenInfo = tokensInfo[_tokenId];
 
@@ -657,11 +663,11 @@ contract RentStaking is
     // Получить цену ERC20 токена в USD через зарегестрированный прайсер
     function getTokenPriceUSD(address _token) public view returns (uint256) {
         address pricerAddress = pricers[_token];
-        require(pricerAddress != address(0), "RentStaking: token not registered!");
+        require(pricerAddress != address(0), "token not registered!");
         IPricerToUSD pricer = IPricerToUSD(pricerAddress);
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         uint256 price = uint256(tokenPrice);
-        require(price > 0, "RentStaking: price from pricer can not be zero!");
+        require(price > 0, "price from pricer can not be zero!");
         return price;
     }
 
@@ -690,7 +696,7 @@ contract RentStaking is
     // Todo: fix legacy function
     function getBuyPriceByUSD(string calldata _itemName) public view returns (uint256) {
         uint256 itemPrice = itemsPrices[_itemName];
-        require(itemPrice > 0, "RentStaking: item not exists!");
+        require(itemPrice > 0, "item not exists!");
         return itemPrice;
     }
 
@@ -701,7 +707,7 @@ contract RentStaking is
     ) public view returns (uint256) {
         uint256 priceByUSD = getBuyPriceByUSD(_itemName);
         uint256 tokenAmount = usdAmountToToken(priceByUSD, _tokenForPay);
-        require(tokenAmount > 0, "RentStaking: token amount can not be zero!");
+        require(tokenAmount > 0, "token amount can not be zero!");
         return tokenAmount;
     }
 
@@ -723,10 +729,18 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
 
     // Владелец пополняет баланс для рассчетов
+    function setIsBuyEnabled(bool _value) external payable onlyOwner {
+        require(_value != isBuyEnabled, "cannot be set to the same value!");
+        isBuyEnabled = _value;
+
+        emit SetIsBuyEnabled(_value);
+    }
+    
+    // Владелец пополняет баланс для рассчетов
     function deposit(address _token, uint256 _amount) external payable onlyOwner {
-        require(pricers[_token] != address(0), "RentStaking: can't deposit unsupported token!");
-        require(_amount > 0, "RentStaking: empty deposit!");
-        require(_getInputAmount(_token) >= _amount, "RentStaking: insufficient input amount!");
+        require(pricers[_token] != address(0), "can't deposit unsupported token!");
+        require(_amount > 0, "empty deposit!");
+        require(_getInputAmount(_token) >= _amount, "insufficient input amount!");
 
         tokensToUserWithdrawBalances[_token] += _amount;
 
@@ -737,10 +751,10 @@ contract RentStaking is
 
     // Владелец выводит средства пользователей
     function withdraw(address _token, uint256 _amount) public payable onlyOwner {
-        require(_amount > 0, "RentStaking: empty withdrawn!");
+        require(_amount > 0, "empty withdrawn!");
         require(
             tokensToOwnerWithdrawBalances[_token] >= _amount,
-            "RentStaking: insufficient funds!"
+            "insufficient funds!"
         );
 
         tokensToOwnerWithdrawBalances[_token] -= _amount;
@@ -753,8 +767,8 @@ contract RentStaking is
     // Добавить новый предмет
     // !!! ввиду отсутсвия decimals при расчетах в USD, и PERCENT_PRECESSION = 100 - мы не можем устанавливать цену меньше 100, иначе в расчетах при деление будет 0
     function addItem(string calldata _name, uint256 _price) public onlyOwner {
-        require(_price >= 100, "RentStaking: price can not be less 100!");
-        require(itemsPrices[_name] == 0, "RentStaking: item already exists!");
+        require(_price >= 100, "price can not be less 100!");
+        require(itemsPrices[_name] == 0, "item already exists!");
         itemsPrices[_name] = _price;
         items[itemsLength] = _name;
         itemsIndexes[_name] = itemsLength;
@@ -767,10 +781,10 @@ contract RentStaking is
     // Не влияет на уже выпущенные токены
     // !!! ввиду отсутсвия decimals при расчетах в USD, и PERCENT_PRECESSION = 100 - мы не можем устанавливать цену меньше 100, иначе в расчетах при деление будет 0
     function updateItemPrice(string calldata _name, uint256 _price) external onlyOwner {
-        require(_price > 0, "RentStaking: can not set price 0, use deleteItem");
-        require(_price >= 100, "RentStaking: price can not be less 100!");
+        require(_price > 0, "can not set price 0, use deleteItem");
+        require(_price >= 100, "price can not be less 100!");
         uint256 oldItemPrice = itemsPrices[_name];
-        require(oldItemPrice > 0, "RentStaking: item not exists!");
+        require(oldItemPrice > 0, "item not exists!");
         itemsPrices[_name] = _price;
 
         emit UpdateItemPrice(_name, oldItemPrice, _price);
@@ -779,7 +793,7 @@ contract RentStaking is
     // Удаляет предмет
     // Не влияет на уже выпущенные токены
     function deleteItem(string calldata _name) external onlyOwner {
-        require(itemsPrices[_name] > 0, "RentStaking: item not exists!");
+        require(itemsPrices[_name] > 0, "item not exists!");
         delete itemsPrices[_name];
 
         // Delete from array
@@ -798,7 +812,7 @@ contract RentStaking is
 
     // Добавляет новый период блокировки
     function addLockPeriod(uint256 _lockTime, uint256 _rewardsRate) public onlyOwner {
-        require(lockPeriodsRewardRates[_lockTime] == 0, "RentStaking: lock period already exists!");
+        require(lockPeriodsRewardRates[_lockTime] == 0, "lock period already exists!");
         lockPeriodsRewardRates[_lockTime] = _rewardsRate;
         lockPeriods[lockPeriodsLength] = _lockTime;
         lockPeriodsIndexes[_lockTime] = lockPeriodsLength;
@@ -813,9 +827,9 @@ contract RentStaking is
         uint256 _lockTime,
         uint256 _rewardsRate
     ) external onlyOwner {
-        require(_rewardsRate > 0, "RentStaking: can not set rewards rate to 0, use deleteItem");
+        require(_rewardsRate > 0, "can not set rewards rate to 0, use deleteItem");
         uint256 oldRewardsRate = lockPeriodsRewardRates[_lockTime];
-        require(oldRewardsRate > 0, "RentStaking: item not exists!");
+        require(oldRewardsRate > 0, "item not exists!");
 
         lockPeriodsRewardRates[_lockTime] = _rewardsRate;
 
@@ -825,7 +839,7 @@ contract RentStaking is
     // Удаляет период блокировки
     // Не влияет на уже выпущенные токены
     function deleteLockPeriod(uint256 _lockTime) external onlyOwner {
-        require(lockPeriodsRewardRates[_lockTime] > 0, "RentStaking: lock period not exists!");
+        require(lockPeriodsRewardRates[_lockTime] > 0, "lock period not exists!");
         delete lockPeriodsRewardRates[_lockTime];
 
         // Delete from array
@@ -844,7 +858,7 @@ contract RentStaking is
 
     // Добавить новый токен для расчетов
     function addToken(address _token, address _pricer) public onlyOwner {
-        require(pricers[_token] == address(0), "RentStaking: token already exists!");
+        require(pricers[_token] == address(0), "token already exists!");
         _enforceUsdPriserDecimals(_pricer);
         pricers[_token] = _pricer;
         supportedTokens[supportedTokensLength] = _token;
@@ -857,7 +871,7 @@ contract RentStaking is
     // Обновить прайсер для токена расчетов
     function updateTokenPricer(address _token, address _pricer) external onlyOwner {
         address oldPricer = pricers[_token];
-        require(oldPricer != address(0), "RentStaking: token not exists!");
+        require(oldPricer != address(0), "token not exists!");
         _enforceUsdPriserDecimals(_pricer);
         pricers[_token] = _pricer;
 
@@ -867,7 +881,7 @@ contract RentStaking is
     // Удалить токен для расчетов
     // При удалении, все токены на балансе будут переведены владельцу, с tokensToOwnerWithdrawBalances и tokensToUserWithdrawBalances
     function deleteToken(address _token) external onlyOwner {
-        require(pricers[_token] != address(0), "RentStaking: token not exists!");
+        require(pricers[_token] != address(0), "token not exists!");
 
         // Witdraw before
         uint256 ownerBalance = tokensToOwnerWithdrawBalances[_token];
@@ -899,13 +913,13 @@ contract RentStaking is
     // ------------------------------------------------------------------------------------
 
     function _enforseIsTokenOwner(uint256 _tokenId) internal view {
-        require(ownerOf(_tokenId) == msg.sender, "RentStaking: not token owner!");
+        require(ownerOf(_tokenId) == msg.sender, "not token owner!");
     }
 
     function _enforceUsdPriserDecimals(address _pricer) internal view {
         require(
             IPricerToUSD(_pricer).decimals() == 8,
-            "RentStaking: usd pricer must be with decimal equal to 8!"
+            "usd pricer must be with decimal equal to 8!"
         );
     }
 

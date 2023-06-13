@@ -401,7 +401,7 @@ describe(`RentStaking`, () => {
     await txApprove.wait()
 
     expect(rentStaking.deposit(token, balance)).to.be.revertedWith(
-      "RentStaking: can't deposit unsupported token!",
+      "can't deposit unsupported token!",
     )
   })
 
@@ -453,7 +453,7 @@ describe(`RentStaking`, () => {
     const balanceToWithdraw = await rentStaking.tokensToOwnerWithdrawBalances(token)
 
     expect(rentStaking.withdraw(token, balanceToWithdraw.mul(2))).to.be.revertedWith(
-      'RentStaking: insufficient funds!',
+      'insufficient funds!',
     )
   })
 
@@ -640,7 +640,7 @@ describe(`RentStaking`, () => {
           // Claim with not expired
 
           const txClaimError = rentStaking.connect(user).claimRewards(tokenId, inputToken)
-          expect(txClaimError).to.be.revertedWith('RentStaking: not has expired periods!')
+          expect(txClaimError).to.be.revertedWith('not has expired periods!')
           console.log('aw1210')
           // Regular claim
           await time.increase(30 * 24 * 60 * 60)
@@ -686,7 +686,7 @@ describe(`RentStaking`, () => {
             await time.increase(15 * 24 * 60 * 60)
 
             const txClaimError = rentStaking.connect(user).claimRewards(tokenId, inputToken)
-            expect(txClaimError).to.be.revertedWith('RentStaking: not has expired periods!')
+            expect(txClaimError).to.be.revertedWith('not has expired periods!')
           }
           console.log('aw1269')
 
@@ -733,10 +733,10 @@ describe(`RentStaking`, () => {
 
           {
             const tokenInfo = await rentStaking.tokensInfo(tokenId)
-            expect(rentStaking.connect(user).sell(tokenId, inputToken)).to.be.revertedWith('RentStaking: blocking period has not expired!')
+            expect(rentStaking.connect(user).sell(tokenId, inputToken)).to.be.revertedWith('blocking period has not expired!')
 
             await time.increase(tokenInfo.lockPeriod.mul(12 * 30 * 24 * 60 * 60))
-            expect(rentStaking.connect(user).sell(tokenId, inputToken)).to.be.revertedWith('RentStaking: claim rewards before sell!')
+            expect(rentStaking.connect(user).sell(tokenId, inputToken)).to.be.revertedWith('claim rewards before sell!')
 
             const token = IERC20Metadata__factory.connect(inputToken, user)
             const claimedPeriodsCount = await rentStaking.calculatePeriodsCountToClaimNow(tokenId)
@@ -819,7 +819,7 @@ return
             errorByPrice,
           )
 
-          await expect(txBuy).to.be.revertedWith('RentStaking: insufficient funds to pay!')
+          await expect(txBuy).to.be.revertedWith('insufficient funds to pay!')
         })
       }
     }
