@@ -8,18 +8,16 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const signers = await ethers.getSigners()
   const deployer = signers[0]
 
-  const initialPrice = ethers.utils.parseUnits('1', 8);
-
-  const deployment = await deploy('EltcPricerToUSD', {
-    contract: 'PricerToUSD',
+  const deployment = await deploy('Governance', {
+    contract: 'Governance',
     from: deployer.address,
     proxy: {
-      proxyContract: 'OpenZeppelinTransparentProxy',
+      proxyContract: 'UUPS',
       execute: {
         init: {
           methodName: 'initialize',
           args: [
-            initialPrice, // _initialPrice
+            deployer.address, // _productOwner
           ],
         },
       },
@@ -27,5 +25,5 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 }
 
-deploy.tags = ['EltcPricerToUSD']
+deploy.tags = ['Governance']
 export default deploy

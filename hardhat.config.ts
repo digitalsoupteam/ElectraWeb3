@@ -36,10 +36,10 @@ const config: HardhatUserConfig = {
         accountsBalance: '1000000000000000000000000000',
       },
       loggingEnabled: true,
-      mining: {
-        auto: false,
-        interval: 2000,
-      }
+      // mining: {
+      //   auto: false,
+      //   interval: 2000,
+      // }
     }
   },
   abiExporter: {
