@@ -10,6 +10,7 @@ import { IItemsFactory } from "./interfaces/IItemsFactory.sol";
 import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { StakingPlatformRole } from "./roles/StakingPlatformRole.sol";
 
+// import "hardhat/console.sol";
 contract ItemsFactory is
     IItemsFactory,
     UUPSUpgradeable,
@@ -25,8 +26,27 @@ contract ItemsFactory is
 
     uint256 public nextItemId;
 
+    mapping(uint256 => bool) public sellDisabled;
+
+    mapping(uint256 => bool) internal _usedItemsIds;
+
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
+    }
+
+    function items()
+        external
+        view
+        returns (uint256[] memory itemsIds_, string[] memory itemsNames_, uint256[] memory prices_)
+    {
+        itemsIds_ = itemsIds;
+        itemsNames_ = new string[](itemsIds_.length);
+        prices_ = new uint256[](itemsIds_.length);
+        for (uint256 i; i < itemsIds_.length; i++) {
+            uint256 itemId = itemsIds_[i];
+            itemsNames_[i] = itemsNames[itemId];
+            prices_[i] = prices[itemId];
+        }
     }
 
     function initialize(address _governance, address _stakingPlatform) public initializer {
@@ -51,10 +71,10 @@ contract ItemsFactory is
         prices[itemId] = _price;
     }
 
-    function stopItemSell(uint256 _itemId) public {
+    function setItemSellDisabled(uint256 _itemId, bool _value) public {
         _enforceIsGovernance();
 
-        prices[_itemId] = 0;
+        sellDisabled[_itemId] = _value;
     }
 
     function enforseIsSupportedItem(uint256 _item) public view {
@@ -63,6 +83,17 @@ contract ItemsFactory is
 
     function newItems(uint256[] memory _ids, uint256[] memory _amounts) external returns (uint256) {
         _enforceIsStakingPlatform();
+
+        for (uint256 i; i < _ids.length; i++) {
+            uint256 itemId = _ids[i];
+            require(sellDisabled[_ids[i]] == false, "ItemsFactory: sell disabled!");
+            require(_amounts[i] > 0, "ItemsFactory: zero item amount!");
+            require(_usedItemsIds[itemId] == false, "ItemsFactory: duplicate item id!");
+            _usedItemsIds[itemId] = true;
+        }
+        for (uint256 i; i < _ids.length; i++) {
+            delete _usedItemsIds[_ids[i]];
+        }
         _mintBatch(address(this), _ids, _amounts, "");
         return totalPrice(_ids, _amounts);
     }

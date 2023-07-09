@@ -2,7 +2,6 @@
 pragma solidity 0.8.18;
 
 interface IStakingPlatform {
-    
     struct StakingInfo {
         uint256[] itemsIds;
         uint256[] itemsAmounts;
@@ -13,7 +12,7 @@ interface IStakingPlatform {
         // uint256 claimedRounds;
         // uint256 finalRound;
         uint256 finalRound;
-        uint256 lastClaimedRound;
+        uint256 claimedRoundsCount;
         bool freezed;
     }
 
@@ -25,7 +24,14 @@ interface IStakingPlatform {
 
     function addRewardsStrategy(address _rewardsStartegy) external;
 
-     function setItemsFactory(address _itemsFactory) external;
+    function setItemsFactory(address _itemsFactory) external;
 
-     function setTreasury(address _treasury) external ;
+    function setTreasury(address _treasury) external;
+
+    function stakeItems(
+        uint256[] calldata _itemsIds,
+        uint256[] calldata _itemsAmounts,
+        address _rewardsStrategy,
+        address _payToken
+    ) external payable;
 }

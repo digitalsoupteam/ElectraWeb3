@@ -28,14 +28,14 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       },
     },
   })
-  
+  4424320527864418087924332236512672186
   const governance = Governance__factory.connect(GovernanceDeployment.address, deployer)
   await (await governance.setItemsFactory(deployment.address)).wait()
 
-  await (await governance.addItem('SCOOTER', 1000)).wait()
-  await (await governance.addItem('SCATE', 2000)).wait()
-  await (await governance.addItem('MOPED', 3000)).wait()
-  await (await governance.addItem('CAR', 5000)).wait()
+  await (await governance.addItem('SCOOTER', ethers.utils.parseUnits('1000', 18))).wait()
+  await (await governance.addItem('SKATE', ethers.utils.parseUnits('2000', 18))).wait()
+  await (await governance.addItem('MOPED', ethers.utils.parseUnits('3000', 18))).wait()
+  await (await governance.addItem('CAR', ethers.utils.parseUnits('5000', 18))).wait()
 }
 
 deploy.tags = ['ItemsFactory']

@@ -14,4 +14,6 @@ interface IRewardsStrategy {
     function disable(uint256 _stakingId) external;
 
     function roundInOnePeriod() external view returns(uint256);
+
+     function name() external pure returns(string memory);
 }

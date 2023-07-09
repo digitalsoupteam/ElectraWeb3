@@ -27,6 +27,10 @@ contract FlexRewardsStrategy is
         return 4;
     }
 
+    function name() external pure returns(string memory) {
+        return "FLEX";
+    }
+
     function updateRounds() public returns (bool needMore_) {
         uint256 currentRound;
         if (currentRound - lastUpdatedRound > 100) {
@@ -100,12 +104,22 @@ contract FlexRewardsStrategy is
         IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
         uint256 lastRound = _stakingPlatform.getRound(block.timestamp) - 1;
         if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
-        uint256 allExpiredRounds = lastRound - stakingInfo.initialRound;
+        uint256 allExpiredRounds = lastRound - stakingInfo.initialRound + 1;
         lastRound -= allExpiredRounds % roundInOnePeriod();
 
         uint256 totalPrice = stakingInfo.totalPrice;
 
-        for (uint256 round = stakingInfo.lastClaimedRound + 1; round <= lastRound; round++) {
+        uint256 percentToOneMonth = 1;
+        uint256 twoMonth = 2 * roundInOnePeriod();
+        if(stakingInfo.claimedRoundsCount < twoMonth) {
+            uint256 roundsCount = twoMonth - stakingInfo.claimedRoundsCount;
+            totalRewards_ += totalRewards_ * roundsCount * percentToOneMonth / 4 / 100;
+            roundsToClaim_ += twoMonth;
+            stakingInfo.claimedRoundsCount += roundsCount;
+        }
+
+        uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
+        for (uint256 round = lastClaimedRound + 1; round <= lastRound; round++) {
             uint256 earnings = earningsPerRound[round];
             if (earnings == 0) break;
 

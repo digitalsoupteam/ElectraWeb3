@@ -8,7 +8,7 @@ import { GovernanceRole } from "../../roles/GovernanceRole.sol";
 import { IRewardsStrategy } from "../../interfaces/IRewardsStrategy.sol";
 import { IStakingPlatform } from "../../interfaces/IStakingPlatform.sol";
 import { ConstantsLib } from "../../libs/ConstantsLib.sol";
-
+import "hardhat/console.sol";
 contract StableRewardsStrategy is
     IRewardsStrategy,
     UUPSUpgradeable,
@@ -17,11 +17,14 @@ contract StableRewardsStrategy is
 {
     mapping(uint256 => bool) public registeredStakings;
 
-    
-    function roundInOnePeriod() public pure returns(uint256) {
+    function roundInOnePeriod() public pure returns (uint256) {
         return 4;
     }
 
+    function name() external pure returns(string memory) {
+        return "STABLE";
+    }
+    
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
     }
@@ -71,27 +74,36 @@ contract StableRewardsStrategy is
         uint256 lastRound = _stakingPlatform.getRound(block.timestamp) - 1;
         if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
 
-        uint256 allExpiredRounds = lastRound - stakingInfo.initialRound;
+        uint256 allExpiredRounds = lastRound - stakingInfo.initialRound + 1;
 
         if (lastRound != stakingInfo.finalRound) {
             lastRound -= allExpiredRounds % roundInOnePeriod();
         }
 
+        uint256 percentForYear = 15;
         uint256 percentByRound = percent / 4;
         uint256 rewardsForOneRound = (stakingInfo.totalPrice * percentByRound) / 100;
 
         uint256 expiredYears = allExpiredRounds / ConstantsLib.ROUNDS_IN_ONE_YEAR;
         uint256 totalPrice = stakingInfo.totalPrice;
-        for (uint256 i; i < expiredYears; i++) {
+        console.log("expiredYears", expiredYears);
+        console.log("lastRound", lastRound);
+        console.log("allExpiredRounds", allExpiredRounds);
+        for (uint256 i; i <= expiredYears; i++) {
             totalPrice -= (totalPrice * i * 10) / 100;
 
             uint256 endRound = stakingInfo.initialRound + (i + 1) * ConstantsLib.ROUNDS_IN_ONE_YEAR;
             if (endRound > lastRound) endRound = lastRound;
+        console.log("endRound", endRound);
 
-            if (stakingInfo.lastClaimedRound < endRound) {
-                uint256 claimedRounds = endRound - stakingInfo.lastClaimedRound;
-                stakingInfo.lastClaimedRound += claimedRounds;
-                totalRewards_ += claimedRounds * rewardsForOneRound;
+            uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
+        console.log("lastClaimedRound", lastClaimedRound);
+
+
+            if (lastClaimedRound < endRound) {
+                uint256 claimedRounds = endRound - lastClaimedRound;
+                stakingInfo.claimedRoundsCount += claimedRounds;
+                totalRewards_ += stakingInfo.totalPrice * claimedRounds * percentForYear / ConstantsLib.ROUNDS_IN_ONE_YEAR / 100;
                 roundsToClaim_ += claimedRounds;
             }
         }

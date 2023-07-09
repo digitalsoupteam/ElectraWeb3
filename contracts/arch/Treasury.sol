@@ -29,6 +29,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
         _enforceIsGovernance();
     }
 
+    receive() external payable {}
+
     function setOnlyGovernanceWithdrawn(bool _value) external {
         _enforceIsGovernance();
         onlyGovernanceWithdrawn = _value;
@@ -83,6 +85,6 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         return
             (_usdAmount * (10 ** TransferLib.tokenDecimals(_token)) * (10 ** PRICERS_DECIMALS)) /
-            uint256(tokenPrice);
+            uint256(tokenPrice) / (10 ** ConstantsLib.USD_DECIMALS);
     }
 }

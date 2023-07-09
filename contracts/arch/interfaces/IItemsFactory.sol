@@ -15,5 +15,10 @@ interface IItemsFactory {
 
     function addItem(string calldata _name, uint256 _price) external;
 
-    function stopItemSell(uint256 _itemId) external;
+    function setItemSellDisabled(uint256 _itemId, bool _value) external;
+
+    function items()
+        external
+        view
+        returns (uint256[] memory itemsIds_, string[] memory itemsNames_, uint256[] memory prices_);
 }
