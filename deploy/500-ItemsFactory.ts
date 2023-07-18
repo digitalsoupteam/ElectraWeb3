@@ -39,5 +39,5 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 }
 
 deploy.tags = ['ItemsFactory']
-deploy.dependencies = ['Governance', 'Item']
+deploy.dependencies = ['Governance', 'StakingPlatform']
 export default deploy

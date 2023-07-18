@@ -19,20 +19,33 @@ contract ItemsFactory is
     GovernanceRole,
     StakingPlatformRole
 {
-    mapping(uint256 => uint256) public prices;
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
+    mapping(uint256 => uint256) public prices;
     uint256[] internal itemsIds;
     mapping(uint256 => string) public itemsNames;
-
     uint256 public nextItemId;
-
     mapping(uint256 => bool) public sellDisabled;
-
     mapping(uint256 => bool) internal _usedItemsIds;
+
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
     }
+
+    function initialize(address _governance, address _stakingPlatform) public initializer {
+        governance = _governance;
+        stakingPlatform = _stakingPlatform;
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW STATE -------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function items()
         external
@@ -49,11 +62,6 @@ contract ItemsFactory is
         }
     }
 
-    function initialize(address _governance, address _stakingPlatform) public initializer {
-        governance = _governance;
-        stakingPlatform = _stakingPlatform;
-    }
-
     function supportsInterface(
         bytes4 interfaceId
     ) public view override(ERC1155Upgradeable, ERC1155ReceiverUpgradeable) returns (bool) {
@@ -61,6 +69,23 @@ contract ItemsFactory is
             ERC1155Upgradeable.supportsInterface(interfaceId) ||
             ERC1155ReceiverUpgradeable.supportsInterface(interfaceId);
     }
+
+    function enforseIsSupportedItem(uint256 _item) public view {
+        require(prices[_item] > 0, "ItemsFactory: unknown item!");
+    }
+
+    function totalPrice(
+        uint256[] memory _ids,
+        uint256[] memory _amounts
+    ) public view returns (uint256 totalPrice_) {
+        for (uint256 i; i < _ids.length; i++) {
+            totalPrice_ += prices[_ids[i]] * _amounts[i];
+        }
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- PROTOCOL ACTIONS  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function addItem(string calldata _name, uint256 _price) public {
         _enforceIsGovernance();
@@ -77,12 +102,9 @@ contract ItemsFactory is
         sellDisabled[_itemId] = _value;
     }
 
-    function enforseIsSupportedItem(uint256 _item) public view {
-        require(prices[_item] > 0, "ItemsFactory: unknown item!");
-    }
-
     function newItems(uint256[] memory _ids, uint256[] memory _amounts) external returns (uint256) {
         _enforceIsStakingPlatform();
+        require(_ids.length > 0, "ItemsFactory: empty items list!");
 
         for (uint256 i; i < _ids.length; i++) {
             uint256 itemId = _ids[i];
@@ -96,14 +118,5 @@ contract ItemsFactory is
         }
         _mintBatch(address(this), _ids, _amounts, "");
         return totalPrice(_ids, _amounts);
-    }
-
-    function totalPrice(
-        uint256[] memory _ids,
-        uint256[] memory _amounts
-    ) public view returns (uint256 totalPrice_) {
-        for (uint256 i; i < _ids.length; i++) {
-            totalPrice_ += prices[_ids[i]] * _amounts[i];
-        }
     }
 }

@@ -6,7 +6,6 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { GovernanceRole } from "./roles/GovernanceRole.sol";
 
 contract Frontend is UUPSUpgradeable, GovernanceRole {
-
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
     }

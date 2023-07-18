@@ -10,30 +10,31 @@ import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { StakingPlatformRole } from "./roles/StakingPlatformRole.sol";
 import { ConstantsLib } from "./libs/ConstantsLib.sol";
 import { TransferLib } from "./libs/TransferLib.sol";
-import "hardhat/console.sol";
+
+// import "hardhat/console.sol";
 
 contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatformRole {
+    // ------------------------------------------------------------------------------------
+    // ----- CONSTANTS --------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     uint256 public constant PRICERS_DECIMALS = 8;
+
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     mapping(address => address) public pricers;
     address[] internal _tokens;
     mapping(address => uint256) internal _tokensIndexes;
-
     bool public onlyGovernanceWithdrawn;
 
-    function tokens() external view returns (address[] memory) {
-        return _tokens;
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
-    }
-
-    receive() external payable {}
-
-    function setOnlyGovernanceWithdrawn(bool _value) external {
-        _enforceIsGovernance();
-        onlyGovernanceWithdrawn = _value;
     }
 
     function initialize(address _governance, address _stakingPlatform) public initializer {
@@ -41,7 +42,22 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
         stakingPlatform = _stakingPlatform;
     }
 
-    function setTokenPricer(address _token, address _pricer) public {
+    // ------------------------------------------------------------------------------------
+    // ----- RECEIVE  ---------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    receive() external payable {}
+
+    // ------------------------------------------------------------------------------------
+    // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function setOnlyGovernanceWithdrawn(bool _value) external {
+        _enforceIsGovernance();
+        onlyGovernanceWithdrawn = _value;
+    }
+
+    function setTokenPricer(address _token, address _pricer) external {
         _enforceIsGovernance();
         if (_pricer == address(0)) {
             // Delete
@@ -64,10 +80,6 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
         pricers[_token] = _pricer;
     }
 
-    function enforceIsSupportedToken(address _token) external view {
-        require(pricers[_token] != address(0), "Treasury: unknown token!");
-    }
-
     function withdraw(address _token, uint256 _amount, address _recipient) external {
         if (onlyGovernanceWithdrawn) {
             _enforceIsGovernance();
@@ -80,11 +92,24 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
         TransferLib.transfer(_token, _recipient, _amount);
     }
 
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW  ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function tokens() external view returns (address[] memory) {
+        return _tokens;
+    }
+
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
         IPricer pricer = IPricer(pricers[_token]);
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         return
             (_usdAmount * (10 ** TransferLib.tokenDecimals(_token)) * (10 ** PRICERS_DECIMALS)) /
-            uint256(tokenPrice) / (10 ** ConstantsLib.USD_DECIMALS);
+            uint256(tokenPrice) /
+            (10 ** ConstantsLib.USD_DECIMALS);
+    }
+
+    function enforceIsSupportedToken(address _token) external view {
+        require(pricers[_token] != address(0), "Treasury: unknown token!");
     }
 }

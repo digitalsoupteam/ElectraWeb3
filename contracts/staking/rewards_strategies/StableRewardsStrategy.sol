@@ -8,23 +8,24 @@ import { GovernanceRole } from "../../roles/GovernanceRole.sol";
 import { IRewardsStrategy } from "../../interfaces/IRewardsStrategy.sol";
 import { IStakingPlatform } from "../../interfaces/IStakingPlatform.sol";
 import { ConstantsLib } from "../../libs/ConstantsLib.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
+
 contract StableRewardsStrategy is
     IRewardsStrategy,
     UUPSUpgradeable,
     GovernanceRole,
     StakingPlatformRole
 {
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     mapping(uint256 => bool) public registeredStakings;
 
-    function roundInOnePeriod() public pure returns (uint256) {
-        return 4;
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
-    function name() external pure returns(string memory) {
-        return "STABLE";
-    }
-    
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
     }
@@ -34,9 +35,21 @@ contract StableRewardsStrategy is
         stakingPlatform = _stakingPlatform;
     }
 
-    function _enfroseIsStakingRegistered(uint256 _stakingId) internal view {
-        require(registeredStakings[_stakingId], "StableRewardsStrategy: staking not exists!");
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW  ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function roundInOnePeriod() public pure returns (uint256) {
+        return 4;
     }
+
+    function name() external pure returns (string memory) {
+        return "STABLE";
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- STAKING PLATFORM ACTIONS  ----------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function registerStaking(uint256 _stakingId) external {
         _enforceIsStakingPlatform();
@@ -86,26 +99,36 @@ contract StableRewardsStrategy is
 
         uint256 expiredYears = allExpiredRounds / ConstantsLib.ROUNDS_IN_ONE_YEAR;
         uint256 totalPrice = stakingInfo.totalPrice;
-        console.log("expiredYears", expiredYears);
-        console.log("lastRound", lastRound);
-        console.log("allExpiredRounds", allExpiredRounds);
+        // console.log("expiredYears", expiredYears);
+        // console.log("lastRound", lastRound);
+        // console.log("allExpiredRounds", allExpiredRounds);
         for (uint256 i; i <= expiredYears; i++) {
             totalPrice -= (totalPrice * i * 10) / 100;
 
             uint256 endRound = stakingInfo.initialRound + (i + 1) * ConstantsLib.ROUNDS_IN_ONE_YEAR;
             if (endRound > lastRound) endRound = lastRound;
-        console.log("endRound", endRound);
+            // console.log("endRound", endRound);
 
             uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
-        console.log("lastClaimedRound", lastClaimedRound);
-
+            // console.log("lastClaimedRound", lastClaimedRound);
 
             if (lastClaimedRound < endRound) {
                 uint256 claimedRounds = endRound - lastClaimedRound;
                 stakingInfo.claimedRoundsCount += claimedRounds;
-                totalRewards_ += stakingInfo.totalPrice * claimedRounds * percentForYear / ConstantsLib.ROUNDS_IN_ONE_YEAR / 100;
+                totalRewards_ +=
+                    (stakingInfo.totalPrice * claimedRounds * percentForYear) /
+                    ConstantsLib.ROUNDS_IN_ONE_YEAR /
+                    100;
                 roundsToClaim_ += claimedRounds;
             }
         }
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- INTERNAL METHODS  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function _enfroseIsStakingRegistered(uint256 _stakingId) internal view {
+        require(registeredStakings[_stakingId], "StableRewardsStrategy: staking not exists!");
     }
 }

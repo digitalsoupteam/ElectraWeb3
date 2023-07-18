@@ -16,6 +16,16 @@ interface IStakingPlatform {
         bool freezed;
     }
 
+    event StakeItems(
+        uint256[] itemsIds,
+        uint256[] itemsAmounts,
+        address rewardsStrategy,
+        address recipient,
+        address payToken,
+        uint256 totalPrice,
+        uint256 payTokenAmount
+    );
+
     function stakingsInfo(uint256 _stakingId) external view returns (StakingInfo memory);
 
     function getRound(uint256 _timestamp) external view returns (uint256);

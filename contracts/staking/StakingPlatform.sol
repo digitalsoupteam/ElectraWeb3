@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import { IStakingPlatform } from "../interfaces/IStakingPlatform.sol";
 import { IItemsFactory } from "../interfaces/IItemsFactory.sol";
@@ -16,7 +17,17 @@ import { TransferLib } from "../libs/TransferLib.sol";
 
 // import "hardhat/console.sol";
 
-contract StakingPlatform is IStakingPlatform, UUPSUpgradeable, ERC721Upgradeable, GovernanceRole {
+contract StakingPlatform is
+    IStakingPlatform,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
+    ERC721Upgradeable,
+    GovernanceRole
+{
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     uint256 public seedRoundTimestamp;
     uint256 public nextStakingId;
     address public itemsFactory;
@@ -24,22 +35,12 @@ contract StakingPlatform is IStakingPlatform, UUPSUpgradeable, ERC721Upgradeable
     mapping(address => bool) public registeredRewardsStrategies;
     mapping(string => address) public rewardsStrategiesByName;
     address[] internal _rewardsStrategies;
-
     mapping(uint256 => StakingInfo) internal _stakingsInfo;
+    bool public isSuspended;
 
-    event StakeItems(
-        uint256[] itemsIds,
-        uint256[] itemsAmounts,
-        address rewardsStrategy,
-        address recipient,
-        address payToken,
-        uint256 totalPrice,
-        uint256 payTokenAmount
-    );
-
-    function stakingsInfo(uint256 _stakingId) external view returns (StakingInfo memory) {
-        return _stakingsInfo[_stakingId];
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
@@ -53,24 +54,123 @@ contract StakingPlatform is IStakingPlatform, UUPSUpgradeable, ERC721Upgradeable
         seedRoundTimestamp = getLastMondayTimestamp(block.timestamp);
     }
 
-    function getLastMondayTimestamp(uint256 _timestamp) public pure returns (uint256) {
-        uint256 dayOfWeek = DateTimeLib.getDayOfWeek(_timestamp);
-        return (_timestamp / 1 days) * 1 days - (dayOfWeek - 1) * 1 days;
+    // ------------------------------------------------------------------------------------
+    // ----- USER ACTIONS -----------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function stakeItems(
+        uint256[] calldata _itemsIds,
+        uint256[] calldata _itemsAmounts,
+        address _rewardsStrategy,
+        address _payToken
+    ) external payable nonReentrant {
+        _enforceIsNotSespended();
+        uint256 stakingId = nextStakingId++;
+        uint256 totalPrice = IItemsFactory(itemsFactory).newItems(_itemsIds, _itemsAmounts);
+
+        uint256 payTokenAmount = ITreasury(treasury).usdAmountToToken(totalPrice, _payToken);
+        TransferLib.transferFrom(_payToken, msg.sender, treasury, payTokenAmount);
+
+        uint256 initialRound = getRound(block.timestamp) + 1;
+        _stakingsInfo[stakingId] = StakingInfo({
+            itemsIds: _itemsIds,
+            itemsAmounts: _itemsAmounts,
+            totalPrice: totalPrice,
+            rewardsStrategy: _rewardsStrategy,
+            initialRound: initialRound,
+            claimedRoundsCount: 0,
+            finalRound: initialRound + 5 * ConstantsLib.ROUNDS_IN_ONE_YEAR - 1,
+            freezed: false
+        });
+        _safeMint(msg.sender, stakingId);
+        IRewardsStrategy rewardsStrategy = IRewardsStrategy(_rewardsStrategy);
+        rewardsStrategy.registerStaking(stakingId);
+        rewardsStrategy.enable(stakingId, initialRound);
+
+        emit StakeItems(
+            _itemsIds,
+            _itemsAmounts,
+            _rewardsStrategy,
+            msg.sender,
+            _payToken,
+            totalPrice,
+            payTokenAmount
+        );
     }
 
-    function getRound(uint256 _timestamp) public view returns (uint256) {
-        return (_timestamp - seedRoundTimestamp) / ConstantsLib.ONE_ROUND;
+    function claimRewards(uint256 _stakingId, address _withdrawnToken) external nonReentrant {
+        _enforceIsNotSespended();
+        _enforceIsTokenOwner(_stakingId);
+        StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
+
+        require(
+            getRound(block.timestamp) > stakingInfo.initialRound,
+            "StakingPlatform: not has rounds to claim!"
+        );
+
+        IRewardsStrategy rewardsStrategy = IRewardsStrategy(stakingInfo.rewardsStrategy);
+        (uint256 rewards, uint256 claimedRoundsCount) = rewardsStrategy.claimRewards(_stakingId);
+
+        require(claimedRoundsCount > 0, "StakingPlatform: not has rounds to claim!");
+
+        stakingInfo.claimedRoundsCount += claimedRoundsCount;
+
+        ITreasury _treasury = ITreasury(treasury);
+        _treasury.withdraw(
+            _withdrawnToken,
+            _treasury.usdAmountToToken(rewards, _withdrawnToken),
+            msg.sender
+        );
+
+        uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
+        uint256 availableRounds = stakingInfo.finalRound - lastClaimedRound;
+        if (stakingInfo.freezed && availableRounds == 0) {
+            rewardsStrategy.disable(_stakingId);
+            rewardsStrategy.removeStaking(_stakingId);
+            _burn(_stakingId);
+        }
     }
 
-    function roundStartTimestamp(uint256 _round) public view returns (uint256) {
-        return _round * ConstantsLib.ONE_ROUND + seedRoundTimestamp;
+    function sellItems(uint256 _stakingId, address _withdrawnToken) external nonReentrant {
+        _enforceIsNotSespended();
+        _enforceIsTokenOwner(_stakingId);
+        _enforceIsNotFreezed(_stakingId);
+
+        StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
+
+        uint256 initialRound = stakingInfo.initialRound;
+        uint256 lastRound = getRound(block.timestamp);
+        if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
+
+        require(
+            lastRound > initialRound &&
+                lastRound - initialRound >= ConstantsLib.MIN_ROUNDS_IN_STAKING,
+            "StakingPlatform: not has expired rounds to sell!"
+        );
+
+        uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
+        uint256 availableRounds = stakingInfo.finalRound - lastClaimedRound;
+        if (availableRounds == 0) {
+            IRewardsStrategy rewardsStrategy = IRewardsStrategy(stakingInfo.rewardsStrategy);
+            rewardsStrategy.disable(_stakingId);
+            rewardsStrategy.removeStaking(_stakingId);
+            _burn(_stakingId);
+        } else {
+            stakingInfo.freezed = true;
+            stakingInfo.finalRound = lastRound;
+        }
+
+        ITreasury _treasury = ITreasury(treasury);
+        _treasury.withdraw(
+            _withdrawnToken,
+            _treasury.usdAmountToToken(getSellPrice(_stakingId), _withdrawnToken),
+            msg.sender
+        );
     }
 
-    function _enforceIsNotFreezed(uint256 _stakingId) internal view {
-        require(_stakingsInfo[_stakingId].freezed == false, "StakingPlatformNew: freezed!");
-    }
-
-    function changeRewardsStrategy(uint256 _stakingId, address _newRewardsStrategy) external {
+    function changeRewardsStrategy(uint256 _stakingId, address _newRewardsStrategy) external nonReentrant {
+        _enforceIsNotSespended();
+        _enforceIsTokenOwner(_stakingId);
         StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
         _enforceIsNotFreezed(_stakingId);
 
@@ -109,133 +209,15 @@ contract StakingPlatform is IStakingPlatform, UUPSUpgradeable, ERC721Upgradeable
         newRewardsStrategy.enable(_stakingId, finalRound);
     }
 
-
-    function stakeItems(
-        uint256[] calldata _itemsIds,
-        uint256[] calldata _itemsAmounts,
-        address _rewardsStrategy,
-        address _payToken
-    ) external payable {
-        uint256 stakingId = nextStakingId++;
-        uint256 totalPrice = IItemsFactory(itemsFactory).newItems(_itemsIds, _itemsAmounts);
-
-        uint256 payTokenAmount = ITreasury(treasury).usdAmountToToken(totalPrice, _payToken);
-        TransferLib.transferFrom(_payToken, msg.sender, treasury, payTokenAmount);
-
-        uint256 initialRound = getRound(block.timestamp) + 1;
-        _stakingsInfo[stakingId] = StakingInfo({
-            itemsIds: _itemsIds,
-            itemsAmounts: _itemsAmounts,
-            totalPrice: totalPrice,
-            rewardsStrategy: _rewardsStrategy,
-            initialRound: initialRound,
-            claimedRoundsCount: 0,
-            finalRound: initialRound + 5 * ConstantsLib.ROUNDS_IN_ONE_YEAR - 1,
-            freezed: false
-        });
-        _safeMint(msg.sender, stakingId);
-        IRewardsStrategy rewardsStrategy = IRewardsStrategy(_rewardsStrategy);
-        rewardsStrategy.registerStaking(stakingId);
-        rewardsStrategy.enable(stakingId, initialRound);
-
-        emit StakeItems(
-            _itemsIds,
-            _itemsAmounts,
-            _rewardsStrategy,
-            msg.sender,
-            _payToken,
-            totalPrice,
-            payTokenAmount
-        );
-    }
-
-    function claimRewards(uint256 _stakingId, address _withdrawnToken) external {
-        StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
-
-        IRewardsStrategy rewardsStrategy = IRewardsStrategy(stakingInfo.rewardsStrategy);
-
-        require(
-            getRound(block.timestamp) > stakingInfo.initialRound,
-            "StakingPlatform: not has rounds to claim!"
-        );
-
-        (uint256 rewards, uint256 claimedRoundsCount) = rewardsStrategy.claimRewards(_stakingId);
-
-        require(claimedRoundsCount > 0, "StakingPlatform: not has rounds to claim!");
-
-        stakingInfo.claimedRoundsCount += claimedRoundsCount;
-
-        ITreasury _treasury = ITreasury(treasury);
-
-        _treasury.withdraw(
-            _withdrawnToken,
-            _treasury.usdAmountToToken(rewards, _withdrawnToken),
-            msg.sender
-        );
-
-        uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
-        uint256 availableRounds = stakingInfo.finalRound - lastClaimedRound;
-        if (stakingInfo.freezed && availableRounds == 0) {
-            rewardsStrategy.disable(_stakingId);
-            rewardsStrategy.removeStaking(_stakingId);
-            _burn(_stakingId);
-        }
-    }
-
-    function getSellPrice(uint256 _stakingId) public view returns (uint256) {
-        StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
-
-        uint256 lastRound = getRound(block.timestamp);
-        if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
-
-        uint256 expiredRounds = lastRound - stakingInfo.initialRound;
-
-        uint256 totalPrice = stakingInfo.totalPrice;
-        return
-            totalPrice -
-            (totalPrice * expiredRounds * ((10 * 1e18) / ConstantsLib.ROUNDS_IN_ONE_YEAR)) /
-            100 /
-            1e18;
-    }
-
-    function sellItems(uint256 _stakingId, address _withdrawnToken) external {
-        StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
-        require(stakingInfo.freezed == false, "cant sell freezed item!");
-
-        uint256 initialRound = stakingInfo.initialRound;
-        uint256 lastRound = getRound(block.timestamp);
-        if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
-
-        require(
-            lastRound - initialRound >= ConstantsLib.MIN_ROUNDS_IN_STAKING,
-            "min rounds to sell!"
-        );
-
-        uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
-        uint256 availableRounds = stakingInfo.finalRound - lastClaimedRound;
-        if (availableRounds == 0) {
-            IRewardsStrategy rewardsStrategy = IRewardsStrategy(stakingInfo.rewardsStrategy);
-            rewardsStrategy.disable(_stakingId);
-            rewardsStrategy.removeStaking(_stakingId);
-            _burn(_stakingId);
-        } else {
-            stakingInfo.freezed = true;
-            stakingInfo.finalRound = lastRound;
-        }
-
-        ITreasury _treasury = ITreasury(treasury);
-        _treasury.withdraw(
-            _withdrawnToken,
-            _treasury.usdAmountToToken(getSellPrice(_stakingId), _withdrawnToken),
-            msg.sender
-        );
-    }
-
     function splitStake(
         uint256 _stakingId,
         uint256[] calldata _secondItemsIds,
         uint256[] calldata _secondItemsAmounts
-    ) external {
+    ) external nonReentrant {
+        _enforceIsNotSespended();
+        _enforceIsTokenOwner(_stakingId);
+        _enforceIsNotFreezed(_stakingId);
+
         StakingInfo memory stakingInfo = _stakingsInfo[_stakingId];
 
         uint256[] memory curentItemsIds = stakingInfo.itemsIds;
@@ -306,6 +288,81 @@ contract StakingPlatform is IStakingPlatform, UUPSUpgradeable, ERC721Upgradeable
         rewardsStrategy.registerStaking(secondStakingId);
     }
 
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW STATE -------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function stakingsInfo(uint256 _stakingId) external view returns (StakingInfo memory) {
+        return _stakingsInfo[_stakingId];
+    }
+
+    function getLastMondayTimestamp(uint256 _timestamp) public pure returns (uint256) {
+        uint256 dayOfWeek = DateTimeLib.getDayOfWeek(_timestamp);
+        return (_timestamp / 1 days) * 1 days - (dayOfWeek - 1) * 1 days;
+    }
+
+    function getRound(uint256 _timestamp) public view returns (uint256) {
+        return (_timestamp - seedRoundTimestamp) / ConstantsLib.ONE_ROUND;
+    }
+
+    function roundStartTimestamp(uint256 _round) public view returns (uint256) {
+        return _round * ConstantsLib.ONE_ROUND + seedRoundTimestamp;
+    }
+
+    function getSellPrice(uint256 _stakingId) public view returns (uint256) {
+        StakingInfo storage stakingInfo = _stakingsInfo[_stakingId];
+
+        uint256 lastRound = getRound(block.timestamp);
+        if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
+
+        if (lastRound <= stakingInfo.initialRound) return 0;
+
+        uint256 expiredRounds = lastRound - stakingInfo.initialRound;
+
+        uint256 totalPrice = stakingInfo.totalPrice;
+        return
+            totalPrice -
+            (totalPrice * expiredRounds * ((10 * 1e18) / ConstantsLib.ROUNDS_IN_ONE_YEAR)) /
+            100 /
+            1e18;
+    }
+
+    function rewardsStrategies() external view returns (address[] memory) {
+        return _rewardsStrategies;
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- INTERNAL METHODS -------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function _enforceIsSupportedRewardsStrategy(address _rewardsStrategy) internal view {
+        require(
+            registeredRewardsStrategies[_rewardsStrategy],
+            "StakingPlatform: unknown rewards startegy!"
+        );
+    }
+
+    function _enforceIsTokenOwner(uint256 _tokenId) internal view {
+        require(ownerOf(_tokenId) == msg.sender, "StakingPlatform: only token owner!");
+    }
+
+    function _enforceIsNotSespended() internal view {
+        require(isSuspended == false, "StakingPlatform: is sespended!");
+    }
+
+    function _enforceIsNotFreezed(uint256 _stakingId) internal view {
+        require(_stakingsInfo[_stakingId].freezed == false, "StakingPlatformNew: freezed!");
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- GOVERNANCE ACTIONS -----------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function setIsSuspended(bool _value) external {
+        _enforceIsGovernance();
+        isSuspended = _value;
+    }
+
     function setItemsFactory(address _itemsFactory) external {
         _enforceIsGovernance();
         require(itemsFactory == address(0), "StakingPlatform: items factory already setted!");
@@ -318,26 +375,11 @@ contract StakingPlatform is IStakingPlatform, UUPSUpgradeable, ERC721Upgradeable
         treasury = _treasury;
     }
 
-    function rewardsStrategies() external view returns (address[] memory) {
-        return _rewardsStrategies;
-    }
-
     function addRewardsStrategy(address _rewardsStartegy) external {
         _enforceIsGovernance();
         registeredRewardsStrategies[_rewardsStartegy] = true;
         _rewardsStrategies.push(_rewardsStartegy);
         string memory strategyName = IRewardsStrategy(_rewardsStartegy).name();
         rewardsStrategiesByName[strategyName] = _rewardsStartegy;
-    }
-
-    function _enforceIsSupportedRewardsStrategy(address _rewardsStrategy) internal view {
-        require(
-            registeredRewardsStrategies[_rewardsStrategy],
-            "StakingPlatform: unknown rewards startegy!"
-        );
-    }
-
-    function _enforceIsTokenOwner(uint256 _tokenId) internal view {
-        require(ownerOf(_tokenId) == msg.sender, "StakingPlatform: unknown rewards startegy!");
     }
 }

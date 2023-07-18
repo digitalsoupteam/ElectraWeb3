@@ -12,9 +12,17 @@ import { IGovernance } from "./interfaces/IGovernance.sol";
 import { IUUPSUpgradeable } from "./interfaces/IUUPSUpgradeable.sol";
 
 contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     address public treasury;
     address public stakingPlatform;
     address public itemsFactory;
+
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function _authorizeUpgrade(address) internal view override {
         _enforceIsProductOwner();
@@ -24,6 +32,10 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
         productOwner = _prodcutOwner;
     }
 
+    // ------------------------------------------------------------------------------------
+    // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+    
     function setTreasury(address _treasury) external {
         _enforceIsProductOwner();
         require(treasury == address(0), "Governance: treasury already setted!");
@@ -96,7 +108,7 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     function stopItemSell(uint256 _itemId) public {
         _enforceIsProductOwner();
 
-        IItemsFactory(itemsFactory).stopItemSell(_itemId);
+        IItemsFactory(itemsFactory).setItemSellDisabled(_itemId, true);
     }
 
     function upgradeItemsFactory(address _implementation) external {

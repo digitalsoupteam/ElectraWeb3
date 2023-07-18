@@ -15,21 +15,48 @@ contract FlexRewardsStrategy is
     GovernanceRole,
     StakingPlatformRole
 {
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     mapping(uint256 => uint256) public earningsPerRound;
     mapping(uint256 => uint256) public depositsToRemoveInRound;
     mapping(uint256 => uint256) public depositsInRound;
-
     uint256 public lastUpdatedRound;
-
     mapping(uint256 => bool) public registeredStakings;
+
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function _authorizeUpgrade(address) internal view override {
+        _enforceIsGovernance();
+    }
+
+    function initialize(address _governance, address _stakingPlatform) public initializer {
+        governance = _governance;
+        stakingPlatform = _stakingPlatform;
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW  ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function roundInOnePeriod() public pure returns (uint256) {
         return 4;
     }
 
-    function name() external pure returns(string memory) {
+    function name() external pure returns (string memory) {
         return "FLEX";
     }
+
+    function _enfroseIsStakingRegistered(uint256 _stakingId) internal view {
+        require(registeredStakings[_stakingId], "FlexRewardsStrategy: staking not exists!");
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- COMMON ACTIONS  --------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function updateRounds() public returns (bool needMore_) {
         uint256 currentRound;
@@ -44,9 +71,19 @@ contract FlexRewardsStrategy is
         lastUpdatedRound = currentRound - 1;
     }
 
-    function _enfroseIsStakingRegistered(uint256 _stakingId) internal view {
-        require(registeredStakings[_stakingId], "FlexRewardsStrategy: staking not exists!");
+    // ------------------------------------------------------------------------------------
+    // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function setEarningsPerRound(uint256 _round, uint256 _earnings) public {
+        _enforceIsGovernance();
+
+        earningsPerRound[_round] = _earnings;
     }
+
+    // ------------------------------------------------------------------------------------
+    // ----- STAKING PLATFORM ACTIONS  ----------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function registerStaking(uint256 _stakingId) external {
         _enforceIsStakingPlatform();
@@ -60,12 +97,6 @@ contract FlexRewardsStrategy is
         _enfroseIsStakingRegistered(_stakingId);
 
         delete registeredStakings[_stakingId];
-    }
-
-    function setEarningsPerRound(uint256 _round, uint256 _earnings) public {
-        _enforceIsGovernance();
-
-        earningsPerRound[_round] = _earnings;
     }
 
     function enable(uint256 _stakingId, uint256 _startRound) public {
@@ -111,9 +142,9 @@ contract FlexRewardsStrategy is
 
         uint256 percentToOneMonth = 1;
         uint256 twoMonth = 2 * roundInOnePeriod();
-        if(stakingInfo.claimedRoundsCount < twoMonth) {
+        if (stakingInfo.claimedRoundsCount < twoMonth) {
             uint256 roundsCount = twoMonth - stakingInfo.claimedRoundsCount;
-            totalRewards_ += totalRewards_ * roundsCount * percentToOneMonth / 4 / 100;
+            totalRewards_ += (totalRewards_ * roundsCount * percentToOneMonth) / 4 / 100;
             roundsToClaim_ += twoMonth;
             stakingInfo.claimedRoundsCount += roundsCount;
         }
@@ -129,14 +160,5 @@ contract FlexRewardsStrategy is
             totalRewards_ += rewards;
             roundsToClaim_++;
         }
-    }
-
-    function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
-    }
-
-    function initialize(address _governance, address _stakingPlatform) public initializer {
-        governance = _governance;
-        stakingPlatform = _stakingPlatform;
     }
 }

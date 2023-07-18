@@ -25,6 +25,7 @@ import {
   stakeItems,
   tokenBalance,
   tokenDecimals,
+  tokenTransfer,
 } from './StakingPlatform.utils'
 import {
   BNB_PLACEHOLDER,
@@ -37,6 +38,7 @@ import {
 import { BigNumber } from 'ethers'
 import { pricerUpdater } from '../scripts/EltcPricerUpdater/pricerUpdater'
 import ERC20Minter from './utils/ERC20Minter'
+import { INITIAL_DATA } from './data/initialData'
 
 const CONFIG = {
   strategies: [
@@ -160,153 +162,102 @@ describe(`StakingPlatform`, () => {
   //   }
   // })
 
-  // it('Initial data test: tokens', async () => {
-  //   assert(tokens.length == CONFIG.tokens.length, `tokens.length != CONFIG.tokens.length. ${tokens.length} != ${CONFIG.tokens.length}`)
-
-  //   for(let i = 0; i < tokens.length; i++) {
-  //     const token = tokens[i]
-  //     assert(token.address == CONFIG.tokens[i].address, `token.address != CONFIG.tokens[i].address. ${token.address} != ${CONFIG.tokens[i].address}`)
-  //     const pricer = await treasury.pricers(token.address)
-  //     assert(pricer == CONFIG.tokens[i].pricer, `pricer != CONFIG.tokens[i].pricer. ${pricer} != ${CONFIG.tokens[i].pricer}`)
-  //   }
-  // })
-
-  // it('Initial data test: items', async () => {
-  //   assert(items.length == CONFIG.items.length, `items.length != CONFIG.items.length. ${items.length} != ${CONFIG.items.length}`)
-
-  //   for(let i = 0; i < items.length; i++) {
-  //     const item = items[i]
-  //     assert(item.id == CONFIG.items[i].id, `item.id != CONFIG.items[i].id. ${item.id} != ${CONFIG.items[i].id}`)
-  //     assert(item.price.eq(CONFIG.items[i].price), `item.price != CONFIG.items[i].price. ${item.price} != ${CONFIG.items[i].price}`)
-  //     assert(item.name == CONFIG.items[i].name, `item.name != CONFIG.items[i].name. ${item.name} != ${CONFIG.items[i].name}`)
-  //   }
-  // })
-
   // for (const token of CONFIG.tokens) {
-  //   it(`Regular unit: usdAmountToToken. ${JSON.stringify(token)}`, async () => {
-  //     const usdAmount = ethers.utils.parseUnits('1000', 18)
-  //     const pricer = IPricer__factory.connect(token.pricer, user)
-  //     const { answer: tokenPrice } = await pricer.latestRoundData()
-  //     const tokenAmount = await treasury.usdAmountToToken(usdAmount, token.address)
-  //     const decimals = await tokenDecimals(token.address)
-  //     let calculatedAmount = usdAmount
-  //       .mul(`${10 ** decimals}`)
-  //       .mul(`${1e8}`)
-  //       .div(tokenPrice)
-  //       .div(`${1e18}`)
-  //     assert(
-  //       tokenAmount.eq(calculatedAmount),
-  //       `tokenAmount != calculatedAmount. ${tokenAmount} != ${calculatedAmount}`,
-  //     )
-  //   })
+  //   for (const strategy of CONFIG.strategies) {
+  //     for (const item of CONFIG.items) {
+  //       it(`Regular unit: stake single item. token = ${JSON.stringify(
+  //         token,
+  //       )}; strategy = ${JSON.stringify(strategy)}; item = ${JSON.stringify(item)};`, async () => {
+  //         const itemsIds = [item.id]
+  //         const itemsAmounts = [1]
+  //         const rewardsStrategy = await stakingPlatform.rewardsStrategiesByName(strategy.name)
+  //         const tokenAddress = token.address
+  //         const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //         const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //         const slippage = 10
+  //         const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+  //         await ERC20Minter.mint(tokenAddress, user.address, 100000)
+  //         const treasuryBalanceBefore = await tokenBalance(treasury.address, tokenAddress)
+  //         const userBalanceBefore = await tokenBalance(user.address, tokenAddress)
+  //         await stakeItems(stakingPlatform, user, itemsIds, itemsAmounts, rewardsStrategy, tokenAddress, tokensAmountWithSlippage)
+  //         const userBalanceAfter =  await tokenBalance(user.address, tokenAddress)
+  //         assert(
+  //           userBalanceAfter.gt(userBalanceBefore.sub(tokensAmountWithSlippage)),
+  //           `Stake not return change! ${userBalanceAfter} > ${userBalanceBefore} - ${tokensAmountWithSlippage} (${userBalanceBefore.sub(
+  //             tokensAmountWithSlippage,
+  //           )})`,
+  //         )
+  //         const treasureBalanceAfter = await tokenBalance(treasury.address, tokenAddress)
+  //         assert(
+  //           treasureBalanceAfter.eq(treasuryBalanceBefore.add(tokensAmount)),
+  //           `treasureBalanceAfter != treasuryBalanceBefore + tokensAmount . ${treasureBalanceAfter} != ${treasuryBalanceBefore} + ${tokensAmount} (${treasuryBalanceBefore.add(
+  //             tokensAmount,
+  //           )})`,
+  //         )
+  //       })
+  //     }
+
+  //     const cases = [
+  //       {
+  //         itemsIds: [0, 1],
+  //         itemsAmounts: [1, 1],
+  //       },
+  //       {
+  //         itemsIds: [0, 1, 3],
+  //         itemsAmounts: [10, 1, 7],
+  //       },
+  //       {
+  //         itemsIds: [2, 0],
+  //         itemsAmounts: [3, 3],
+  //       },
+  //     ]
+  //     for (const testCase of cases) {
+  //         it(`Regular unit: stake multiply item. token = ${JSON.stringify(
+  //           token,
+  //         )}; strategy = ${JSON.stringify(strategy)}; case = ${JSON.stringify(
+  //           testCase,
+  //         )};`, async () => {
+  //           const itemsIds = testCase.itemsIds
+  //           const itemsAmounts = testCase.itemsAmounts
+  //           const rewardsStrategy = await stakingPlatform.rewardsStrategiesByName(strategy.name)
+  //           const tokenAddress = token.address
+  //           const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //           const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //           const slippage = 10
+  //           const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+  //           await ERC20Minter.mint(tokenAddress, user.address, 100000)
+  //           const treasuryBalanceBefore = await tokenBalance(treasury.address, tokenAddress)
+  //           const userBalanceBefore = await tokenBalance(user.address, tokenAddress)
+  //           await stakeItems(
+  //             stakingPlatform,
+  //             user,
+  //             itemsIds,
+  //             itemsAmounts,
+  //             rewardsStrategy,
+  //             tokenAddress,
+  //             tokensAmountWithSlippage,
+  //           )
+  //           const userBalanceAfter = await tokenBalance(user.address, tokenAddress)
+  //           assert(
+  //             userBalanceAfter.gt(userBalanceBefore.sub(tokensAmountWithSlippage)),
+  //             `Stake not return change! ${userBalanceAfter} > ${userBalanceBefore} - ${tokensAmountWithSlippage} (${userBalanceBefore.sub(
+  //               tokensAmountWithSlippage,
+  //             )})`,
+  //           )
+  //           const treasureBalanceAfter = await tokenBalance(treasury.address, tokenAddress)
+  //           assert(
+  //             treasureBalanceAfter.eq(treasuryBalanceBefore.add(tokensAmount)),
+  //             `treasureBalanceAfter != treasuryBalanceBefore + tokensAmount . ${treasureBalanceAfter} != ${treasuryBalanceBefore} + ${tokensAmount} (${treasuryBalanceBefore.add(
+  //               tokensAmount,
+  //             )})`,
+  //           )
+  //         })
+  //     }
+  //   }
   // }
 
-  for (const token of CONFIG.tokens) {
-    for (const strategy of CONFIG.strategies) {
-      for (const item of CONFIG.items) {
-        // it(`Regular unit: stake single item. token = ${JSON.stringify(
-        //   token,
-        // )}; strategy = ${JSON.stringify(strategy)}; item = ${JSON.stringify(item)};`, async () => {
-        //   const itemsIds = [item.id]
-        //   const itemsAmounts = [1]
-        //   const rewardsStrategy = await stakingPlatform.rewardsStrategiesByName(strategy.name)
-        //   const tokenAddress = token.address
-        //   const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
-        //   const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
-        //   const slippage = 10
-        //   const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
-        //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
-        //   const treasuryBalanceBefore = await tokenBalance(treasury.address, tokenAddress)
-        //   const userBalanceBefore = await tokenBalance(user.address, tokenAddress)
-        //   await stakeItems(stakingPlatform, user, itemsIds, itemsAmounts, rewardsStrategy, tokenAddress, tokensAmountWithSlippage)
-        //   const userBalanceAfter =  await tokenBalance(user.address, tokenAddress)
-        //   assert(
-        //     userBalanceAfter.gt(userBalanceBefore.sub(tokensAmountWithSlippage)),
-        //     `Stake not return change! ${userBalanceAfter} > ${userBalanceBefore} - ${tokensAmountWithSlippage} (${userBalanceBefore.sub(
-        //       tokensAmountWithSlippage,
-        //     )})`,
-        //   )
-        //   const treasureBalanceAfter = await tokenBalance(treasury.address, tokenAddress)
-        //   assert(
-        //     treasureBalanceAfter.eq(treasuryBalanceBefore.add(tokensAmount)),
-        //     `treasureBalanceAfter != treasuryBalanceBefore + tokensAmount . ${treasureBalanceAfter} != ${treasuryBalanceBefore} + ${tokensAmount} (${treasuryBalanceBefore.add(
-        //       tokensAmount,
-        //     )})`,
-        //   )
-        // })
-      }
-
-      const cases = [
-        {
-          itemsIds: [0, 1],
-          itemsAmounts: [1, 1],
-        },
-        {
-          itemsIds: [0, 1, 3],
-          itemsAmounts: [10, 1, 7],
-        },
-        {
-          itemsIds: [2, 0],
-          itemsAmounts: [3, 3],
-        },
-      ]
-
-      for (const testCase of cases) {
-      //   it(`Regular unit: stake multiply item. token = ${JSON.stringify(
-      //     token,
-      //   )}; strategy = ${JSON.stringify(strategy)}; case = ${JSON.stringify(
-      //     testCase,
-      //   )};`, async () => {
-      //     const itemsIds = testCase.itemsIds
-      //     const itemsAmounts = testCase.itemsAmounts
-      //     const rewardsStrategy = await stakingPlatform.rewardsStrategiesByName(strategy.name)
-      //     const tokenAddress = token.address
-
-      //     const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
-      //     const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
-
-      //     const slippage = 10
-
-      //     const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
-
-      //     await ERC20Minter.mint(tokenAddress, user.address, 100000)
-
-      //     const treasuryBalanceBefore = await tokenBalance(treasury.address, tokenAddress)
-      //     const userBalanceBefore = await tokenBalance(user.address, tokenAddress)
-
-      //     await stakeItems(
-      //       stakingPlatform,
-      //       user,
-      //       itemsIds,
-      //       itemsAmounts,
-      //       rewardsStrategy,
-      //       tokenAddress,
-      //       tokensAmountWithSlippage,
-      //     )
-
-      //     const userBalanceAfter = await tokenBalance(user.address, tokenAddress)
-      //     assert(
-      //       userBalanceAfter.gt(userBalanceBefore.sub(tokensAmountWithSlippage)),
-      //       `Stake not return change! ${userBalanceAfter} > ${userBalanceBefore} - ${tokensAmountWithSlippage} (${userBalanceBefore.sub(
-      //         tokensAmountWithSlippage,
-      //       )})`,
-      //     )
-
-      //     const treasureBalanceAfter = await tokenBalance(treasury.address, tokenAddress)
-
-      //     assert(
-      //       treasureBalanceAfter.eq(treasuryBalanceBefore.add(tokensAmount)),
-      //       `treasureBalanceAfter != treasuryBalanceBefore + tokensAmount . ${treasureBalanceAfter} != ${treasuryBalanceBefore} + ${tokensAmount} (${treasuryBalanceBefore.add(
-      //         tokensAmount,
-      //       )})`,
-      //     )
-      //   })
-      }
-    }
-  }
-
   // it(`Error unit: stake duplicate item`, async () => {
-  //   const itemsIds = [0, 1,0]
+  //   const itemsIds = [0, 1, 0]
   //   const itemsAmounts = [1, 1, 1]
   //   const rewardsStrategy = rewardsStrategies[0].address
   //   const tokenAddress = tokens[0].address
@@ -320,38 +271,323 @@ describe(`StakingPlatform`, () => {
 
   //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
 
-  //   const treasuryBalanceBefore = await tokenBalance(treasury.address, tokenAddress)
-  //   const userBalanceBefore = await tokenBalance(user.address, tokenAddress)
-
-  //   const txPromise = stakeItems(stakingPlatform, user, itemsIds, itemsAmounts, rewardsStrategy, tokenAddress, tokensAmountWithSlippage)
-  //   await expect( txPromise).to.be.revertedWith('StakingPlatform: duplicate item id!');
+  //   const txPromise = stakeItems(
+  //     stakingPlatform,
+  //     user,
+  //     itemsIds,
+  //     itemsAmounts,
+  //     rewardsStrategy,
+  //     tokenAddress,
+  //     tokensAmountWithSlippage,
+  //   )
+  //   await expect(txPromise).to.be.revertedWith('StakingPlatform: duplicate item id!')
   // })
 
-  it(`Error unit: stake zero amount`, async () => {
-    const itemsIds = [0, 1]
-    const itemsAmounts = [1, 0]
-    const rewardsStrategy = rewardsStrategies[0].address
-    const tokenAddress = tokens[0].address
+  // it(`Error unit: stake zero amount`, async () => {
+  //   const itemsIds = [0, 1]
+  //   const itemsAmounts = [1, 0]
+  //   const rewardsStrategy = rewardsStrategies[0].address
+  //   const tokenAddress = tokens[0].address
+  //   const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //   const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //   const slippage = 10
+  //   const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
 
+  //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+  //   const txPromise = stakeItems(
+  //     stakingPlatform,
+  //     user,
+  //     itemsIds,
+  //     itemsAmounts,
+  //     rewardsStrategy,
+  //     tokenAddress,
+  //     tokensAmountWithSlippage,
+  //   )
+  //   await expect(txPromise).to.be.revertedWith('StakingPlatform: zero item amount!')
+  // })
+
+  // it(`Error unit: stake empty items`, async () => {
+  //   const itemsIds = []
+  //   const itemsAmounts = []
+  //   const rewardsStrategy = rewardsStrategies[0].address
+  //   const tokenAddress = tokens[0].address
+  //   const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //   const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //   const slippage = 10
+  //   const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+  //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+  //   const txPromise = stakeItems(
+  //     stakingPlatform,
+  //     user,
+  //     itemsIds,
+  //     itemsAmounts,
+  //     rewardsStrategy,
+  //     tokenAddress,
+  //     tokensAmountWithSlippage,
+  //   )
+  //   await expect(txPromise).to.be.revertedWith('ItemsFactory: empty items list!')
+  // })
+
+  // it(`Error unit: stake itemsIds.length != itemsAmounts.length`, async () => {
+  //   const itemsIds = [1]
+  //   const itemsAmounts = [1, 1]
+  //   const rewardsStrategy = rewardsStrategies[0].address
+  //   const tokenAddress = tokens[0].address
+  //   const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //   const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //   const slippage = 10
+  //   const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+  //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+  //   const txPromise = stakeItems(
+  //     stakingPlatform,
+  //     user,
+  //     itemsIds,
+  //     itemsAmounts,
+  //     rewardsStrategy,
+  //     tokenAddress,
+  //     tokensAmountWithSlippage,
+  //   )
+  //   await expect(txPromise).to.be.revertedWith('ERC1155: ids and amounts length mismatch')
+  // })
+
+  // for(const token of INITIAL_DATA.tokens) {
+  //   it(`Error unit: stake not funds. token ${token.address}`, async () => {
+  //     const itemsIds = [1]
+  //     const itemsAmounts = [1]
+  //     const rewardsStrategy = rewardsStrategies[0].address
+  //     const tokenAddress = token.address
+  //     const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //     const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //     const slippage = 10
+  //     const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+  //     await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+  //     try {
+  //       await stakeItems(
+  //         stakingPlatform,
+  //         user,
+  //         itemsIds,
+  //         itemsAmounts,
+  //         rewardsStrategy,
+  //         tokenAddress,
+  //         tokensAmountWithSlippage.div(2),
+  //       )
+  //       assert(false, "stake items without balance")
+  //     } catch(e){}
+  //   })
+  // }
+
+  // it(`Error unit: addRewardsStrategy not governance.`, async () => {
+  //   await expect(
+  //     stakingPlatform.connect(user).addRewardsStrategy(ethers.constants.AddressZero),
+  //   ).to.be.revertedWith('GovernanceRole: not authorized!')
+  // })
+
+  // it(`Regular unit: sell 2 years`, async () => {
+  //   const itemsIds = [1]
+  //   const itemsAmounts = [1]
+  //   const rewardsStrategy = rewardsStrategies[0].address
+  //   const tokenAddress = INITIAL_DATA.tokens[0].address
+  //   const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //   const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //   const slippage = 10
+  //   const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+  //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+  //   await stakeItems(
+  //     stakingPlatform,
+  //     user,
+  //     itemsIds,
+  //     itemsAmounts,
+  //     rewardsStrategy,
+  //     tokenAddress,
+  //     tokensAmountWithSlippage,
+  //   )
+
+  //   for(let i = 0; i < 105; i++) {
+  //     await setTimeToNextMonday()
+  //   }
+
+  //   const stakingsBalanceBefore = await stakingPlatform.balanceOf(user.address)
+  //   const balanceBefore = await tokenBalance(user.address, tokenAddress)
+
+  //   await stakingPlatform.connect(user).sellItems(0, tokenAddress)
+
+  //   const stakingsBalanceAfter = await stakingPlatform.balanceOf(user.address)
+  //   const balanceAfter = await tokenBalance(user.address, tokenAddress)
+
+  //   assert(balanceAfter.gt(balanceBefore), 'Not wthdrawn tokens')
+  //   assert(stakingsBalanceBefore.eq(stakingsBalanceAfter), 'staking counts fail')
+
+  //   const stakingInfo = await stakingPlatform.connect(user).stakingsInfo(0)
+
+  //   assert(stakingInfo.freezed == true, "Not freezed staking");
+  // })
+
+ it(`Regular unit: sell 2.5 years`, async () => {
+    const itemsIds = [1]
+    const itemsAmounts = [1]
+    const rewardsStrategy = rewardsStrategies[0].address
+    const tokenAddress = INITIAL_DATA.tokens[0].address
     const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
     const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
-
     const slippage = 10
-
     const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
 
     await ERC20Minter.mint(tokenAddress, user.address, 100000)
 
-    const treasuryBalanceBefore = await tokenBalance(treasury.address, tokenAddress)
-    const userBalanceBefore = await tokenBalance(user.address, tokenAddress)
+    await stakeItems(
+      stakingPlatform,
+      user,
+      itemsIds,
+      itemsAmounts,
+      rewardsStrategy,
+      tokenAddress,
+      tokensAmountWithSlippage,
+    )
 
-    const txPromise = stakeItems(stakingPlatform, user, itemsIds, itemsAmounts, rewardsStrategy, tokenAddress, tokensAmountWithSlippage)
-    await expect( txPromise).to.be.revertedWith('StakingPlatform: zero item amount!');
+    for(let i = 0; i < 105 + 26; i++) {
+      await setTimeToNextMonday()
+    }
+
+    const stakingsBalanceBefore = await stakingPlatform.balanceOf(user.address)
+    const balanceBefore = await tokenBalance(user.address, tokenAddress)
+
+    await stakingPlatform.connect(user).sellItems(0, tokenAddress)
+
+    const stakingsBalanceAfter = await stakingPlatform.balanceOf(user.address)
+    const balanceAfter = await tokenBalance(user.address, tokenAddress)
+
+    assert(balanceAfter.gt(balanceBefore), 'Not wthdrawn tokens')
+    assert(stakingsBalanceBefore.eq(stakingsBalanceAfter), 'staking counts fail')
+
+    const stakingInfo = await stakingPlatform.connect(user).stakingsInfo(0)
+
+    assert(stakingInfo.freezed == true, "Not freezed staking");
   })
 
-  // for (const item of CONFIG.items) {
-  //   it(`Regular unit: stake single item. ${JSON.stringify(item)}`, async () => {})
-  // }
+  it(`Regular unit: sell 5 years`, async () => {
+    const itemsIds = [1]
+    const itemsAmounts = [1]
+    const rewardsStrategy = rewardsStrategies[0].address
+    const tokenAddress = INITIAL_DATA.tokens[0].address
+    const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+    const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+    const slippage = 10
+    const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+    await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+    await stakeItems(
+      stakingPlatform,
+      user,
+      itemsIds,
+      itemsAmounts,
+      rewardsStrategy,
+      tokenAddress,
+      tokensAmountWithSlippage,
+    )
+
+    for(let i = 0; i < 105 + 52 * 4; i++) {
+      await setTimeToNextMonday()
+    }
+
+    const stakingsBalanceBefore = await stakingPlatform.balanceOf(user.address)
+    const balanceBefore = await tokenBalance(user.address, tokenAddress)
+
+    await stakingPlatform.connect(user).sellItems(0, tokenAddress)
+
+    const stakingsBalanceAfter = await stakingPlatform.balanceOf(user.address)
+    const balanceAfter = await tokenBalance(user.address, tokenAddress)
+
+    assert(balanceAfter.gt(balanceBefore), 'Not wthdrawn tokens')
+    assert(stakingsBalanceBefore.eq(stakingsBalanceAfter), 'staking counts fail')
+
+    const stakingInfo = await stakingPlatform.connect(user).stakingsInfo(0)
+
+    assert(stakingInfo.freezed == true, "Not freezed staking");
+  })
+
+  
+  it(`Regular unit: sell 6 years`, async () => {
+    const itemsIds = [1]
+    const itemsAmounts = [1]
+    const rewardsStrategy = rewardsStrategies[0].address
+    const tokenAddress = INITIAL_DATA.tokens[0].address
+    const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+    const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+    const slippage = 10
+    const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+    await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+    await stakeItems(
+      stakingPlatform,
+      user,
+      itemsIds,
+      itemsAmounts,
+      rewardsStrategy,
+      tokenAddress,
+      tokensAmountWithSlippage,
+    )
+
+    for(let i = 0; i < 105 + 52 * 5; i++) {
+      await setTimeToNextMonday()
+    }
+
+    const stakingsBalanceBefore = await stakingPlatform.balanceOf(user.address)
+    const balanceBefore = await tokenBalance(user.address, tokenAddress)
+
+    await stakingPlatform.connect(user).sellItems(0, tokenAddress)
+
+    const stakingsBalanceAfter = await stakingPlatform.balanceOf(user.address)
+    const balanceAfter = await tokenBalance(user.address, tokenAddress)
+
+    assert(balanceAfter.gt(balanceBefore), 'Not wthdrawn tokens')
+    assert(stakingsBalanceBefore.eq(stakingsBalanceAfter), 'staking counts fail')
+
+    console.log(`${balanceAfter.sub(balanceBefore)}`)
+
+    const stakingInfo = await stakingPlatform.connect(user).stakingsInfo(0)
+
+    assert(stakingInfo.freezed == true, "Not freezed staking");
+  })
+
+  // it(`Error unit: early sell (< 2 years)`, async () => {
+  //   const itemsIds = [1]
+  //   const itemsAmounts = [1]
+  //   const rewardsStrategy = rewardsStrategies[0].address
+  //   const tokenAddress = INITIAL_DATA.tokens[0].address
+  //   const totalPrice = await itemsFactory.totalPrice(itemsIds, itemsAmounts)
+  //   const tokensAmount = await treasury.usdAmountToToken(totalPrice, tokenAddress)
+  //   const slippage = 10
+  //   const tokensAmountWithSlippage = tokensAmount.mul(100 + slippage).div(100)
+
+  //   await ERC20Minter.mint(tokenAddress, user.address, 100000)
+
+  //   await stakeItems(
+  //     stakingPlatform,
+  //     user,
+  //     itemsIds,
+  //     itemsAmounts,
+  //     rewardsStrategy,
+  //     tokenAddress,
+  //     tokensAmountWithSlippage,
+  //   )
+
+  //   for(let i = 0; i < 105; i++) {
+  //     console.log(`round ${i}`)
+  //     await expect(stakingPlatform.connect(user).sellItems(0, tokenAddress)).to.be.revertedWith("StakingPlatform: not has expired rounds to sell!")
+  //     await setTimeToNextMonday()
+  //   }
+  // })
 
   return
   it('Regular unit', async () => {
