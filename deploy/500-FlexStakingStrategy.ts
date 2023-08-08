@@ -10,9 +10,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const deployer = signers[0]
 
   const GovernanceDeployment = await get('Governance')
+  const TreasuryDeployment = await get('Treasury')
+  const AddressBookDeployment = await get('AddressBook')
 
-  const deployment = await deploy('StakingPlatform', {
-    contract: 'StakingPlatform',
+  const deployment = await deploy('FlexStakingStrategy', {
+    contract: 'FlexStakingStrategy',
     from: deployer.address,
     proxy: {
       proxyContract: 'UUPS',
@@ -21,16 +23,25 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           methodName: 'initialize',
           args: [
             GovernanceDeployment.address, // _governance
+            TreasuryDeployment.address, // _treasury
+            AddressBookDeployment.address, // _addressBook
+            2, // _minLockYears
+            5, // _maxLockYears
+            4, // _initialMonths
+            100, // _initialRewardsRate
+            1500, // _yearDeprecationRate
           ],
         },
       },
     },
   })
+  
 
   const governance = Governance__factory.connect(GovernanceDeployment.address, deployer)
-  await (await governance.setStakingPlatform(deployment.address)).wait()
+
+  await (await governance.addStakingStrategy(deployment.address)).wait()
 }
 
-deploy.tags = ['StakingPlatform']
-deploy.dependencies = ['Governance']
+deploy.tags = ['FlexStakingStrategy']
+deploy.dependencies = ['Governance', 'Treasury', 'AddressBook']
 export default deploy

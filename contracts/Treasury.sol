@@ -4,16 +4,14 @@ pragma solidity 0.8.18;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 import { ITreasury } from "./interfaces/ITreasury.sol";
 import { IPricer } from "./interfaces/IPricer.sol";
 import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { StakingPlatformRole } from "./roles/StakingPlatformRole.sol";
 import { ConstantsLib } from "./libs/ConstantsLib.sol";
-import { TransferLib } from "./libs/TransferLib.sol";
-
-// import "hardhat/console.sol";
-
-contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatformRole {
+import "hardhat/console.sol";
+contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     // ------------------------------------------------------------------------------------
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -24,6 +22,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    address public addressBook;
     mapping(address => address) public pricers;
     address[] internal _tokens;
     mapping(address => uint256) internal _tokensIndexes;
@@ -37,16 +36,10 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
         _enforceIsGovernance();
     }
 
-    function initialize(address _governance, address _stakingPlatform) public initializer {
+    function initialize(address _governance, address _addressBook) public initializer {
         governance = _governance;
-        stakingPlatform = _stakingPlatform;
+        addressBook = _addressBook;
     }
-
-    // ------------------------------------------------------------------------------------
-    // ----- RECEIVE  ---------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
-
-    receive() external payable {}
 
     // ------------------------------------------------------------------------------------
     // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
@@ -81,15 +74,22 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
     }
 
     function withdraw(address _token, uint256 _amount, address _recipient) external {
+        console.log("ww1");
         if (onlyGovernanceWithdrawn) {
             _enforceIsGovernance();
         } else {
+        console.log("ww12");
             require(
-                _isGovernance(msg.sender) || _isStakingPlatform(msg.sender),
+                _isGovernance(msg.sender) || IAddressBook(addressBook).stakingStrategies(msg.sender),
                 "Treasury: withdraw not authorized!"
             );
+        console.log("ww13");
         }
-        TransferLib.transfer(_token, _recipient, _amount);
+        
+        console.log("ww14");
+        IERC20Metadata(_token).transfer(_recipient, _amount);
+        
+        console.log("ww15");
     }
 
     // ------------------------------------------------------------------------------------
@@ -102,11 +102,12 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole, StakingPlatform
 
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
         IPricer pricer = IPricer(pricers[_token]);
+        require(address(pricer) != address(0), "not supported token!");
+        
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         return
-            (_usdAmount * (10 ** TransferLib.tokenDecimals(_token)) * (10 ** PRICERS_DECIMALS)) /
-            uint256(tokenPrice) /
-            (10 ** ConstantsLib.USD_DECIMALS);
+            (_usdAmount * (10 ** IERC20Metadata(_token).decimals()) * (10 ** PRICERS_DECIMALS)) /
+            uint256(tokenPrice);
     }
 
     function enforceIsSupportedToken(address _token) external view {

@@ -1,164 +1,164 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.18;
+// // SPDX-License-Identifier: UNLICENSED
+// pragma solidity 0.8.18;
 
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+// import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import { StakingPlatformRole } from "../../roles/StakingPlatformRole.sol";
-import { GovernanceRole } from "../../roles/GovernanceRole.sol";
-import { IRewardsStrategy } from "../../interfaces/IRewardsStrategy.sol";
-import { IStakingPlatform } from "../../interfaces/IStakingPlatform.sol";
-import { ConstantsLib } from "../../libs/ConstantsLib.sol";
+// import { StakingPlatformRole } from "../../roles/StakingPlatformRole.sol";
+// import { GovernanceRole } from "../../roles/GovernanceRole.sol";
+// import { IRewardsStrategy } from "../../interfaces/IRewardsStrategy.sol";
+// import { IStakingPlatform } from "../../interfaces/IStakingPlatform.sol";
+// import { ConstantsLib } from "../../libs/ConstantsLib.sol";
 
-contract FlexRewardsStrategy is
-    IRewardsStrategy,
-    UUPSUpgradeable,
-    GovernanceRole,
-    StakingPlatformRole
-{
-    // ------------------------------------------------------------------------------------
-    // ----- STORAGE ----------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+// contract FlexRewardsStrategy is
+//     IRewardsStrategy,
+//     UUPSUpgradeable,
+//     GovernanceRole,
+//     StakingPlatformRole
+// {
+//     // ------------------------------------------------------------------------------------
+//     // ----- STORAGE ----------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
 
-    mapping(uint256 => uint256) public earningsPerRound;
-    mapping(uint256 => uint256) public depositsToRemoveInRound;
-    mapping(uint256 => uint256) public depositsInRound;
-    uint256 public lastUpdatedRound;
-    mapping(uint256 => bool) public registeredStakings;
+//     mapping(uint256 => uint256) public earningsPerRound;
+//     mapping(uint256 => uint256) public depositsToRemoveInRound;
+//     mapping(uint256 => uint256) public depositsInRound;
+//     uint256 public lastUpdatedRound;
+//     mapping(uint256 => bool) public registeredStakings;
 
-    // ------------------------------------------------------------------------------------
-    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
+//     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
 
-    function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
-    }
+//     function _authorizeUpgrade(address) internal view override {
+//         _enforceIsGovernance();
+//     }
 
-    function initialize(address _governance, address _stakingPlatform) public initializer {
-        governance = _governance;
-        stakingPlatform = _stakingPlatform;
-    }
+//     function initialize(address _governance, address _stakingPlatform) public initializer {
+//         governance = _governance;
+//         stakingPlatform = _stakingPlatform;
+//     }
 
-    // ------------------------------------------------------------------------------------
-    // ----- VIEW  ------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
+//     // ----- VIEW  ------------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
 
-    function roundInOnePeriod() public pure returns (uint256) {
-        return 4;
-    }
+//     function roundInOnePeriod() public pure returns (uint256) {
+//         return 4;
+//     }
 
-    function name() external pure returns (string memory) {
-        return "FLEX";
-    }
+//     function name() external pure returns (string memory) {
+//         return "FLEX";
+//     }
 
-    function _enfroseIsStakingRegistered(uint256 _stakingId) internal view {
-        require(registeredStakings[_stakingId], "FlexRewardsStrategy: staking not exists!");
-    }
+//     function _enfroseIsStakingRegistered(uint256 _stakingId) internal view {
+//         require(registeredStakings[_stakingId], "FlexRewardsStrategy: staking not exists!");
+//     }
 
-    // ------------------------------------------------------------------------------------
-    // ----- COMMON ACTIONS  --------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
+//     // ----- COMMON ACTIONS  --------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
 
-    function updateRounds() public returns (bool needMore_) {
-        uint256 currentRound;
-        if (currentRound - lastUpdatedRound > 100) {
-            needMore_ = true;
-            currentRound = lastUpdatedRound + 100;
-        }
-        for (uint256 round = lastUpdatedRound + 1; round < currentRound; round++) {
-            depositsInRound[round] += depositsInRound[round - 1];
-            depositsInRound[round] -= depositsToRemoveInRound[round];
-        }
-        lastUpdatedRound = currentRound - 1;
-    }
+//     function updateRounds() public returns (bool needMore_) {
+//         uint256 currentRound;
+//         if (currentRound - lastUpdatedRound > 100) {
+//             needMore_ = true;
+//             currentRound = lastUpdatedRound + 100;
+//         }
+//         for (uint256 round = lastUpdatedRound + 1; round < currentRound; round++) {
+//             depositsInRound[round] += depositsInRound[round - 1];
+//             depositsInRound[round] -= depositsToRemoveInRound[round];
+//         }
+//         lastUpdatedRound = currentRound - 1;
+//     }
 
-    // ------------------------------------------------------------------------------------
-    // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
-    // ------------------------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
+//     // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
 
-    function setEarningsPerRound(uint256 _round, uint256 _earnings) public {
-        _enforceIsGovernance();
+//     function setEarningsPerRound(uint256 _round, uint256 _earnings) public {
+//         _enforceIsGovernance();
 
-        earningsPerRound[_round] = _earnings;
-    }
+//         earningsPerRound[_round] = _earnings;
+//     }
 
-    // ------------------------------------------------------------------------------------
-    // ----- STAKING PLATFORM ACTIONS  ----------------------------------------------------
-    // ------------------------------------------------------------------------------------
+//     // ------------------------------------------------------------------------------------
+//     // ----- STAKING PLATFORM ACTIONS  ----------------------------------------------------
+//     // ------------------------------------------------------------------------------------
 
-    function registerStaking(uint256 _stakingId) external {
-        _enforceIsStakingPlatform();
-        require(registeredStakings[_stakingId] == false, "FlexRewardsStrategy: staking exists!");
+//     function registerStaking(uint256 _stakingId) external {
+//         _enforceIsStakingPlatform();
+//         require(registeredStakings[_stakingId] == false, "FlexRewardsStrategy: staking exists!");
 
-        registeredStakings[_stakingId] = true;
-    }
+//         registeredStakings[_stakingId] = true;
+//     }
 
-    function removeStaking(uint256 _stakingId) external {
-        _enforceIsStakingPlatform();
-        _enfroseIsStakingRegistered(_stakingId);
+//     function removeStaking(uint256 _stakingId) external {
+//         _enforceIsStakingPlatform();
+//         _enfroseIsStakingRegistered(_stakingId);
 
-        delete registeredStakings[_stakingId];
-    }
+//         delete registeredStakings[_stakingId];
+//     }
 
-    function enable(uint256 _stakingId, uint256 _startRound) public {
-        _enforceIsStakingPlatform();
-        _enfroseIsStakingRegistered(_stakingId);
+//     function enable(uint256 _stakingId, uint256 _startRound) public {
+//         _enforceIsStakingPlatform();
+//         _enfroseIsStakingRegistered(_stakingId);
 
-        IStakingPlatform _stakingPlatform = IStakingPlatform(stakingPlatform);
-        IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
+//         IStakingPlatform _stakingPlatform = IStakingPlatform(stakingPlatform);
+//         IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
 
-        uint256 totalPrice = stakingInfo.totalPrice;
-        depositsInRound[_startRound] += totalPrice;
-        depositsToRemoveInRound[stakingInfo.finalRound] += totalPrice;
-    }
+//         uint256 totalPrice = stakingInfo.totalPrice;
+//         depositsInRound[_startRound] += totalPrice;
+//         depositsToRemoveInRound[stakingInfo.finalRound] += totalPrice;
+//     }
 
-    function disable(uint256 _stakingId) public {
-        _enforceIsStakingPlatform();
-        _enfroseIsStakingRegistered(_stakingId);
+//     function disable(uint256 _stakingId) public {
+//         _enforceIsStakingPlatform();
+//         _enfroseIsStakingRegistered(_stakingId);
 
-        IStakingPlatform _stakingPlatform = IStakingPlatform(stakingPlatform);
-        IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
+//         IStakingPlatform _stakingPlatform = IStakingPlatform(stakingPlatform);
+//         IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
 
-        uint256 totalPrice = stakingInfo.totalPrice;
-        uint256 round = _stakingPlatform.getRound(block.timestamp);
+//         uint256 totalPrice = stakingInfo.totalPrice;
+//         uint256 round = _stakingPlatform.getRound(block.timestamp);
 
-        depositsInRound[round] -= totalPrice;
-        depositsToRemoveInRound[stakingInfo.finalRound] -= totalPrice;
-    }
+//         depositsInRound[round] -= totalPrice;
+//         depositsToRemoveInRound[stakingInfo.finalRound] -= totalPrice;
+//     }
 
-    function claimRewards(
-        uint256 _stakingId
-    ) external view returns (uint256 totalRewards_, uint256 roundsToClaim_) {
-        _enforceIsStakingPlatform();
-        _enfroseIsStakingRegistered(_stakingId);
+//     function claimRewards(
+//         uint256 _stakingId
+//     ) external view returns (uint256 totalRewards_, uint256 roundsToClaim_) {
+//         _enforceIsStakingPlatform();
+//         _enfroseIsStakingRegistered(_stakingId);
 
-        IStakingPlatform _stakingPlatform = IStakingPlatform(stakingPlatform);
-        IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
-        uint256 lastRound = _stakingPlatform.getRound(block.timestamp) - 1;
-        if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
-        uint256 allExpiredRounds = lastRound - stakingInfo.initialRound + 1;
-        lastRound -= allExpiredRounds % roundInOnePeriod();
+//         IStakingPlatform _stakingPlatform = IStakingPlatform(stakingPlatform);
+//         IStakingPlatform.StakingInfo memory stakingInfo = _stakingPlatform.stakingsInfo(_stakingId);
+//         uint256 lastRound = _stakingPlatform.getRound(block.timestamp) - 1;
+//         if (lastRound > stakingInfo.finalRound) lastRound = stakingInfo.finalRound;
+//         uint256 allExpiredRounds = lastRound - stakingInfo.initialRound + 1;
+//         lastRound -= allExpiredRounds % roundInOnePeriod();
 
-        uint256 totalPrice = stakingInfo.totalPrice;
+//         uint256 totalPrice = stakingInfo.totalPrice;
 
-        uint256 percentToOneMonth = 1;
-        uint256 twoMonth = 2 * roundInOnePeriod();
-        if (stakingInfo.claimedRoundsCount < twoMonth) {
-            uint256 roundsCount = twoMonth - stakingInfo.claimedRoundsCount;
-            totalRewards_ += (totalRewards_ * roundsCount * percentToOneMonth) / 4 / 100;
-            roundsToClaim_ += twoMonth;
-            stakingInfo.claimedRoundsCount += roundsCount;
-        }
+//         uint256 percentToOneMonth = 1;
+//         uint256 twoMonth = 2 * roundInOnePeriod();
+//         if (stakingInfo.claimedRoundsCount < twoMonth) {
+//             uint256 roundsCount = twoMonth - stakingInfo.claimedRoundsCount;
+//             totalRewards_ += (totalRewards_ * roundsCount * percentToOneMonth) / 4 / 100;
+//             roundsToClaim_ += twoMonth;
+//             stakingInfo.claimedRoundsCount += roundsCount;
+//         }
 
-        uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
-        for (uint256 round = lastClaimedRound + 1; round <= lastRound; round++) {
-            uint256 earnings = earningsPerRound[round];
-            if (earnings == 0) break;
+//         uint256 lastClaimedRound = stakingInfo.initialRound + stakingInfo.claimedRoundsCount;
+//         for (uint256 round = lastClaimedRound + 1; round <= lastRound; round++) {
+//             uint256 earnings = earningsPerRound[round];
+//             if (earnings == 0) break;
 
-            uint256 deposits = depositsInRound[round];
-            uint256 k = (earnings * 1e18) / deposits;
-            uint256 rewards = (totalPrice * k) / 1e18;
-            totalRewards_ += rewards;
-            roundsToClaim_++;
-        }
-    }
-}
+//             uint256 deposits = depositsInRound[round];
+//             uint256 k = (earnings * 1e18) / deposits;
+//             uint256 rewards = (totalPrice * k) / 1e18;
+//             totalRewards_ += rewards;
+//             roundsToClaim_++;
+//         }
+//     }
+// }

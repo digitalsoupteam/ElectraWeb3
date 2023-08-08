@@ -27,7 +27,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 1337,
       forking: {
-        url: 'https://bsc-dataseed2.binance.org',
+        url: 'https://rpc.ankr.com/bsc',
         blockNumber: 28951238,
       },
       blockGasLimit: 30000000,

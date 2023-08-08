@@ -1,7 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { Governance__factory } from '../typechain-types'
-import { BNB_PLACEHOLDER, BUSD, CHAINLINK_BNB_USD, CHAINLINK_BUSD_USD, CHAINLINK_USDT_USD, USDT } from '../constants/addresses'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
@@ -11,10 +10,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const deployer = signers[0]
 
   const GovernanceDeployment = await get('Governance')
-  const StakingPlatformDeployment = await get('StakingPlatform')
+  const TreasuryDeployment = await get('Treasury')
+  const AddressBookDeployment = await get('AddressBook')
 
-  const deployment = await deploy('Treasury', {
-    contract: 'Treasury',
+  const deployment = await deploy('ThreeYearsFixStakingStrategy', {
+    contract: 'FixStakingStrategy',
     from: deployer.address,
     proxy: {
       proxyContract: 'UUPS',
@@ -23,22 +23,22 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           methodName: 'initialize',
           args: [
             GovernanceDeployment.address, // _governance
-            StakingPlatformDeployment.address, // _stakingPlatform
+            TreasuryDeployment.address, // _treasury
+            AddressBookDeployment.address, // _addressBook
+            800, // _rewardsRate
+            3, // _lockYears
           ],
         },
       },
     },
   })
+  
 
   const governance = Governance__factory.connect(GovernanceDeployment.address, deployer)
 
-  await (await governance.setTreasury(deployment.address)).wait()
-  
-  await (await governance.addToken(BNB_PLACEHOLDER, CHAINLINK_BNB_USD)).wait()
-  await (await governance.addToken(BUSD, CHAINLINK_BUSD_USD)).wait()
-  await (await governance.addToken(USDT, CHAINLINK_USDT_USD)).wait()
+  await (await governance.addStakingStrategy(deployment.address)).wait()
 }
 
-deploy.tags = ['Treasury']
-deploy.dependencies = ['Governance', 'StakingPlatform']
+deploy.tags = ['ThreeYearsFixStakingStrategy']
+deploy.dependencies = ['Governance', 'AddressBook']
 export default deploy

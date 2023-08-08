@@ -3,12 +3,14 @@ pragma solidity 0.8.18;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import { ProductOwnerRole } from "./roles/ProductOwnerRole.sol";
 import { ITreasury } from "./interfaces/ITreasury.sol";
-import { IStakingPlatform } from "./interfaces/IStakingPlatform.sol";
-import { IItemsFactory } from "./interfaces/IItemsFactory.sol";
 import { IGovernance } from "./interfaces/IGovernance.sol";
+import { IFlexStakingStrategy } from "./interfaces/IFlexStakingStrategy.sol";
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
+import { IItem } from "./interfaces/IItem.sol";
 import { IUUPSUpgradeable } from "./interfaces/IUUPSUpgradeable.sol";
 
 contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
@@ -16,9 +18,9 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    address public addressBook;
     address public treasury;
-    address public stakingPlatform;
-    address public itemsFactory;
+    address public itemImplementation;
 
     // ------------------------------------------------------------------------------------
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
@@ -35,28 +37,25 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
-    
+
     function setTreasury(address _treasury) external {
         _enforceIsProductOwner();
         require(treasury == address(0), "Governance: treasury already setted!");
 
         treasury = _treasury;
-        IStakingPlatform(stakingPlatform).setTreasury(_treasury);
     }
 
-    function setStakingPlatform(address _stakingPlatform) external {
+    function setAddressBook(address _addressBook) external {
         _enforceIsProductOwner();
-        require(stakingPlatform == address(0), "Governance: staking platform already setted!");
+        require(addressBook == address(0), "Governance: address book already setted!");
 
-        stakingPlatform = _stakingPlatform;
+        addressBook = _addressBook;
     }
 
-    function setItemsFactory(address _itemsFactory) external {
+    function setItemImplementation(address _itemImplementation) external {
         _enforceIsProductOwner();
-        require(itemsFactory == address(0), "Governance: items factory already setted!");
 
-        itemsFactory = _itemsFactory;
-        IStakingPlatform(stakingPlatform).setItemsFactory(_itemsFactory);
+        itemImplementation = _itemImplementation;
     }
 
     function withdraw(address _token, uint256 _amount, address _recipient) external {
@@ -93,39 +92,47 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
         ITreasury(treasury).setTokenPricer(_token, address(0));
     }
 
-    function addRewardsStrategy(address _rewardsStartegy) external {
+    function addItem(
+        string calldata _name,
+        string calldata _symbol,
+        uint256 _price,
+        uint256 _maxSupply
+    ) public {
         _enforceIsProductOwner();
 
-        IStakingPlatform(stakingPlatform).addRewardsStrategy(_rewardsStartegy);
+        IAddressBook(addressBook).addItem(
+            address(
+                new ERC1967Proxy(
+                    itemImplementation,
+                    abi.encodeWithSelector(
+                        IItem.initialize.selector,
+                        address(this),
+                        treasury,
+                        addressBook,
+                        _name,
+                        _symbol,
+                        _price,
+                        _maxSupply
+                    )
+                )
+            )
+        );
     }
 
-    function addItem(string calldata _name, uint256 _price) public {
+    function addStakingStrategy(address _stakingStrategy) public {
         _enforceIsProductOwner();
 
-        IItemsFactory(itemsFactory).addItem(_name, _price);
-    }
-
-    function stopItemSell(uint256 _itemId) public {
-        _enforceIsProductOwner();
-
-        IItemsFactory(itemsFactory).setItemSellDisabled(_itemId, true);
-    }
-
-    function upgradeItemsFactory(address _implementation) external {
-        _enforceIsProductOwner();
-
-        IUUPSUpgradeable(itemsFactory).upgradeTo(_implementation);
-    }
-
-    function upgradeStakingPlatform(address _implementation) external {
-        _enforceIsProductOwner();
-
-        IUUPSUpgradeable(stakingPlatform).upgradeTo(_implementation);
+        IAddressBook(addressBook).addStakingStrategy(_stakingStrategy);
     }
 
     function upgradeTreasury(address _implementation) external {
         _enforceIsProductOwner();
 
         IUUPSUpgradeable(treasury).upgradeTo(_implementation);
+    }
+
+    function setFlexStrategyEarningsPeriod(address _flexStrategy, uint256 _month, uint256 _year, uint256 _sharedEarnings) external {
+        _enforceIsProductOwner();
+        IFlexStakingStrategy(_flexStrategy).setEarnings(_month, _year, _sharedEarnings);
     }
 }

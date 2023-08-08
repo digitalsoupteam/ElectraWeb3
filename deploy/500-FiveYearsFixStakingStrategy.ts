@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { Governance__factory, StakingPlatform__factory } from '../typechain-types'
+import { Governance__factory } from '../typechain-types'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
@@ -10,10 +10,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const deployer = signers[0]
 
   const GovernanceDeployment = await get('Governance')
-  const StakingPlatformDeployment = await get('StakingPlatform')
+  const TreasuryDeployment = await get('Treasury')
+  const AddressBookDeployment = await get('AddressBook')
 
-  const deployment = await deploy('StableRewardsStrategy', {
-    contract: 'StableRewardsStrategy',
+  const deployment = await deploy('FiveYearsFixStakingStrategy', {
+    contract: 'FixStakingStrategy',
     from: deployer.address,
     proxy: {
       proxyContract: 'UUPS',
@@ -21,18 +22,23 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         init: {
           methodName: 'initialize',
           args: [
-            GovernanceDeployment.address, // _governance,
-            StakingPlatformDeployment.address, // _stakingPlatform,
+            GovernanceDeployment.address, // _governance
+            TreasuryDeployment.address, // _treasury
+            AddressBookDeployment.address, // _addressBook
+            1200, // _rewardsRate
+            5, // _lockYears
           ],
         },
       },
     },
   })
+  
 
   const governance = Governance__factory.connect(GovernanceDeployment.address, deployer)
-  await (await governance.addRewardsStrategy(deployment.address)).wait()
+
+  await (await governance.addStakingStrategy(deployment.address)).wait()
 }
 
-deploy.tags = ['StableRewardsStrategy']
-deploy.dependencies = ['Governance', 'StakingPlatform']
+deploy.tags = ['FiveYearsFixStakingStrategy']
+deploy.dependencies = ['Governance', 'AddressBook']
 export default deploy

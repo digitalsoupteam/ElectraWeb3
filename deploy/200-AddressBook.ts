@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { Governance__factory, StakingPlatform__factory } from '../typechain-types'
+import { Governance__factory } from '../typechain-types'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
@@ -10,10 +10,9 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const deployer = signers[0]
 
   const GovernanceDeployment = await get('Governance')
-  const StakingPlatformDeployment = await get('StakingPlatform')
 
-  const deployment = await deploy('FlexRewardsStrategy', {
-    contract: 'FlexRewardsStrategy',
+  const deployment = await deploy('AddressBook', {
+    contract: 'AddressBook',
     from: deployer.address,
     proxy: {
       proxyContract: 'UUPS',
@@ -21,8 +20,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         init: {
           methodName: 'initialize',
           args: [
-            GovernanceDeployment.address, // _governance,
-            StakingPlatformDeployment.address, // _stakingPlatform,
+            GovernanceDeployment.address, // _governance
           ],
         },
       },
@@ -30,9 +28,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   const governance = Governance__factory.connect(GovernanceDeployment.address, deployer)
-  await (await governance.addRewardsStrategy(deployment.address)).wait()
+
+  await (await governance.setAddressBook(deployment.address)).wait()
+
 }
 
-deploy.tags = ['FlexRewardsStrategy']
-deploy.dependencies = ['Governance', 'StakingPlatform']
+deploy.tags = ['AddressBook']
+deploy.dependencies = ['Governance']
 export default deploy
