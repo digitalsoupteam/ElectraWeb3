@@ -42,6 +42,14 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       0, // _yearDeprecationRate
     )
   ).wait()
+
+  await (
+    await governance.addFixStakingStrategy(
+      3000, // _rewardsRate
+      5, // _lockYears
+      10000, // _yearDeprecationRate
+    )
+  ).wait()
 }
 
 deploy.tags = ['FixStakingStrategyImplementation']
