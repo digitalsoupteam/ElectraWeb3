@@ -1,22 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IPricer } from "./interfaces/IPricer.sol";
 
-contract Pricer is IPricer, UUPSUpgradeable, OwnableUpgradeable {
+contract Pricer is IPricer, UUPSUpgradeable, GovernanceRole {
     int256 public currentPrice;
-    
+    string public description;
+
     event SetPrice(int256 oldPrice, int256 newPrice);
 
-    function _authorizeUpgrade(address) internal view override {
-        _checkOwner();
+    function initialize(
+        address _governance,
+        int256 _initialPrice,
+        string calldata _description
+    ) public initializer {
+        governance = _governance;
+        currentPrice = _initialPrice;
+        description = _description;
     }
 
-    function initialize(address _owner, int256 _initialPrice) public initializer {
-        _transferOwnership(_owner);
-        currentPrice = _initialPrice;
+    function _authorizeUpgrade(address) internal view override {
+        _enforceIsGovernance();
     }
 
     function decimals() external pure returns (uint8) {
@@ -37,7 +43,9 @@ contract Pricer is IPricer, UUPSUpgradeable, OwnableUpgradeable {
         answer = currentPrice;
     }
 
-    function setCurrentPrice(int256 _newPrice) external onlyOwner {
+    function setCurrentPrice(int256 _newPrice) external {
+        _enforceIsGovernance();
+        
         require(_newPrice > 0, "PricerToUSD: price must be greater than zero!");
         int256 oldPrice = currentPrice;
         currentPrice = _newPrice;

@@ -51,18 +51,18 @@ const TEST_DATA = {
     USDT,
   ],
   items: [
-    '0x0B64544C18b6727B8a135C7Afe24727E5C3975bE', // SCT
-    '0x9b3C40545BF8b9A44a003a81D0dbc67d5841175d', // BKE
-    '0xc5F14627A22F8F19e79a4F7CfA3802DbC48D2473', // MPD
-    '0x6F3d61B3843E775caf42DA95E344Ee0046Cd19AD', // CAR
+    '0x9b3c40545bf8b9a44a003a81d0dbc67d5841175d', // SCT
+    '0xc5f14627a22f8f19e79a4f7cfa3802dbc48d2473', // BKE
+    '0x6f3d61b3843e775caf42da95e344ee0046cd19ad', // MPD
+    '0xc35b15f8f7588ed34dd7c19339d3ba421fc8b1fc', // CAR
   ],
   fixStakingStrategies: [
-    '0xD2F3F79699D0Bbb5c3Ce24328cfAcb87b08e6DC5', // TwoYearsFixStakingStrategy
-    '0x6FFEf4dbC2ad773e383F0C604181B62Ee3F64F6E', // ThreeYearsFixStakingStrategy
-    '0x6567cc6e5D7e6b6384268A70dD2E9D7b9aa5A6f9', // FiveYearsFixStakingStrategy
+    '0xedf68694f6e6cee33cdb4cf1e7c43a3e9046b011', // TwoYearsFixStakingStrategy
+    '0xb67b8206a2341c4527d1103dbb195f9369160961', // ThreeYearsFixStakingStrategy
+    '0xb9f55d5bf46c6dbc6c178c3173b92384a98504c0', // FiveYearsFixStakingStrategy
   ],
   flexStakingStrategies: [
-    '0x70c74940097e7c1946263a0D471Bf47AF97a5C5A', // FlexStakingStrategy
+    '0x313722181698b822e252d25f4fe453a7bb4c6846', // FlexStakingStrategy
   ],
 }
 
