@@ -131,20 +131,20 @@ describe(`New`, () => {
             tokenId,
             12 * lockYears,
           )
-          console.log('aw1')
+
           await time.increaseTo(nextClaimTimestamp)
           await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
           await expect(
             stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
           ).to.be.revertedWith('rewards!')
 
-          console.log('aw12')
+
           await time.increase(1 * 12 * 30 * 24 * 60 * 60)
           await expect(
             stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
           ).to.be.revertedWith('rewards!')
 
-          console.log('aw13')
+
           let balanceAfter = await token.balanceOf(user.address)
           let estimatedBalance = ethers.utils.parseUnits(
             rewardsRate.mul(lockYears).mul(tokenPrice).div(10000).toString(),
@@ -205,7 +205,6 @@ describe(`New`, () => {
 
           const minLockYears = (await stakingStrategy.minLockYears()).toNumber()
           for (let i = 0; i < 12 * minLockYears; i++) {
-            console.log(`MONTH ${i}`)
             await expect(
               stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
             ).to.be.revertedWith("can't sell!")
@@ -215,7 +214,7 @@ describe(`New`, () => {
               1,
             )
             let [month, year] = await stakingStrategy.currentPeriod()
-            console.log(`MONTH ${month}, YEAR ${year}`)
+
             await time.increaseTo(nextClaimTimestamp)
             const earnings = 1000
             await stakingStrategy.updateDeposits()
@@ -304,7 +303,6 @@ describe(`New`, () => {
           const minLockYears = (await stakingStrategy.minLockYears()).toNumber()
           const maxLockYears = (await stakingStrategy.maxLockYears()).toNumber()
           for (let i = 0; i < 12 * maxLockYears; i++) {
-            console.log(`MONTH ${i}`)
             if(i < 12 * minLockYears) {
               await expect(
                 stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
@@ -316,7 +314,7 @@ describe(`New`, () => {
               1,
             )
             let [month, year] = await stakingStrategy.currentPeriod()
-            console.log(`MONTH ${month}, YEAR ${year}`)
+
             await time.increaseTo(nextClaimTimestamp)
             const earnings = 1000
             await stakingStrategy.updateDeposits()

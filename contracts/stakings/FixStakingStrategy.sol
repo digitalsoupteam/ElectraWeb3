@@ -12,7 +12,7 @@ import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { DateTimeLib } from "../libs/DateTimeLib.sol";
 
 import { GovernanceRole } from "../roles/GovernanceRole.sol";
-import "hardhat/console.sol";
+
 // IStakingStrategy,
 contract FixStakingStrategy is
     IStakingStrategy,
@@ -82,22 +82,18 @@ contract FixStakingStrategy is
         address _itemAddress,
         uint256 _itemId
     ) public view returns (uint256 rewards_, uint256 expiredPeriods_) {
-        console.log("aw21", "aw21");
         uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
 
         uint256 currentTime = block.timestamp;
         if (currentTime > _finalTimestamp) currentTime = _finalTimestamp;
 
-        console.log("aw22", "aw22");
         expiredPeriods_ = DateTimeLib.diffMonths(_lastClaimTimestamp, currentTime);
 
         rewards_ =
             (expiredPeriods_ * IItem(_itemAddress).tokenPrice(_itemId) * rewardsRate) /
             12 /
             10000;
-            
-        console.log("aw23", "aw23");
     }
 
     function claim(
@@ -105,28 +101,20 @@ contract FixStakingStrategy is
         uint256 _itemId,
         address _withdrawToken
     ) external nonReentrant {
-        console.log("aw1", "aw1");
         _enforceIsTokenOwner(_itemAddress, _itemId);
 
-        console.log("aw2", "aw2");
         (uint256 rewards, uint256 expiredPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "rewards!");
 
-        console.log("aw3", "aw3");
         uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
 
-        console.log("aw4", "aw4");
         lastClaimTimestamp[_itemAddress][_itemId] = DateTimeLib.addMonths(
             _lastClaimTimestamp,
             expiredPeriods
         );
 
-        console.log("aw5", "aw5");
-        console.log("rewards", rewards);
         uint256 withdrawTokenAmount = ITreasury(treasury).usdAmountToToken(rewards, _withdrawToken);
-        console.log("aw6", "aw6");
         ITreasury(treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
-        console.log("aw7", "aw7");
     }
 
     function sell(

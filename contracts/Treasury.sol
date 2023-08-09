@@ -10,7 +10,7 @@ import { IPricer } from "./interfaces/IPricer.sol";
 import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { StakingPlatformRole } from "./roles/StakingPlatformRole.sol";
 import { ConstantsLib } from "./libs/ConstantsLib.sol";
-import "hardhat/console.sol";
+
 contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     // ------------------------------------------------------------------------------------
     // ----- CONSTANTS --------------------------------------------------------------------
@@ -74,22 +74,16 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     }
 
     function withdraw(address _token, uint256 _amount, address _recipient) external {
-        console.log("ww1");
         if (onlyGovernanceWithdrawn) {
             _enforceIsGovernance();
         } else {
-        console.log("ww12");
             require(
                 _isGovernance(msg.sender) || IAddressBook(addressBook).stakingStrategies(msg.sender),
                 "Treasury: withdraw not authorized!"
             );
-        console.log("ww13");
         }
         
-        console.log("ww14");
         IERC20Metadata(_token).transfer(_recipient, _amount);
-        
-        console.log("ww15");
     }
 
     // ------------------------------------------------------------------------------------

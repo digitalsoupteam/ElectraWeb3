@@ -12,7 +12,6 @@ import { DateTimeLib } from "../libs/DateTimeLib.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import { GovernanceRole } from "../roles/GovernanceRole.sol";
-import "hardhat/console.sol";
 
 contract FlexStakingStrategy is
     IStakingStrategy,
@@ -77,11 +76,8 @@ contract FlexStakingStrategy is
     function updateDeposits() public {
         uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
 
-        console.log("deff");
         uint256 monthToUpdate = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp);
-        console.log("monthToUpdate", monthToUpdate);
         for (uint256 i; i < monthToUpdate; ++i) {
-            console.log("i", i);
             (uint256 prevYear, uint256 prevMonth, ) = DateTimeLib.timestampToDate(
                 _lastUpdatedTimestamp
             );
@@ -89,10 +85,6 @@ contract FlexStakingStrategy is
             (uint256 year, uint256 month, ) = DateTimeLib.timestampToDate(_lastUpdatedTimestamp);
             deposits[year][month] += deposits[prevYear][prevMonth];
             deposits[year][month] -= depositsToRemove[year][month];
-
-            console.log("year", year);
-            console.log("month", month);
-            console.log(" deposits[year][month]", deposits[year][month]);
         }
         lastUpdatedTimestamp = _lastUpdatedTimestamp;
     }
@@ -158,35 +150,22 @@ contract FlexStakingStrategy is
         address _itemAddress,
         uint256 _itemId
     ) public view returns (uint256 rewards_, uint256 expiredPeriods_) {
-        console.log("aw21");
         uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
         uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
 
-        console.log("aw22");
         uint256 currentTimestamp = block.number;
         if (currentTimestamp > _finalTimestamp) currentTimestamp = _finalTimestamp;
 
-        console.log("aw23");
         uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
 
-        console.log("aw24");
         uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, block.timestamp);
         uint256 claimedMonths = DateTimeLib.diffMonths(_initialTimestamp, _lastClaimTimestamp);
 
-        console.log("allExpiredMonths", allExpiredMonths);
-        console.log("claimedMonths", claimedMonths);
-        console.log("aw25");
         for (uint256 i = claimedMonths; i < allExpiredMonths; ++i) {
-            console.log("aw26");
-            console.log("i", i);
             if (i < initialMonths) {
-                console.log("aw27");
                 rewards_ += (totalPrice * initialRewardsRate) / 10000;
-
-                console.log("add_rewards", (totalPrice * initialRewardsRate) / 10000);
             } else {
-                console.log("aw28");
                 uint256 itemsPrice = totalPrice;
                 (uint256 year, uint256 month, ) = DateTimeLib.timestampToDate(
                     DateTimeLib.addMonths(_initialTimestamp, i)
@@ -201,20 +180,9 @@ contract FlexStakingStrategy is
 
                 uint256 _deposits = deposits[year][month];
                 rewards_ += (itemsPrice * _earnings) / _deposits;
-                // 1000 100 5000
-
-                console.log("_earnings", _earnings);
-                console.log("_deposits", _deposits);
-                console.log("add_rewards", (itemsPrice * _earnings) / _deposits);
-                console.log("itemsPrice", itemsPrice);
             }
-            console.log("i", i);
-            console.log("total_rewards", rewards_);
-
             ++expiredPeriods_;
         }
-
-        console.log("aw29");
     }
 
     function _enforceIsTokenOwner(address _tokenAddress, uint256 _tokenId) internal view {
@@ -222,13 +190,9 @@ contract FlexStakingStrategy is
     }
 
     function claim(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
-        console.log("aw1");
         _enforceIsTokenOwner(_itemAddress, _itemId);
 
-        console.log("aw12");
         (uint256 rewards, uint256 expiredPeriods) = estimateRewards(_itemAddress, _itemId);
-        console.log("rewards", rewards);
-        console.log("expiredPeriods", expiredPeriods);
         require(rewards > 0, "rewards!");
 
         uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
@@ -244,32 +208,24 @@ contract FlexStakingStrategy is
 
     function sell(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
         _enforceIsTokenOwner(_itemAddress, _itemId);
-        console.log("aw3");
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
-        console.log("aw32");
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
 
-        console.log("aw31");
         delete initialTimestamp[_itemAddress][_itemId];
         delete lastClaimTimestamp[_itemAddress][_itemId];
         delete startSellTimestamp[_itemAddress][_itemId];
         delete finalTimestamp[_itemAddress][_itemId];
 
-        console.log("aw33");
         uint256 withdrawTokenAmount = ITreasury(treasury).usdAmountToToken(
             sellAmount,
             _withdrawToken
         );
 
-        console.log("aw34");
         require(withdrawTokenAmount > 0, "zero amount!");
 
-        console.log("aw35");
         IItem(_itemAddress).burn(_itemId);
-        console.log("aw36");
         ITreasury(treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
-        console.log("aw37");
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
@@ -283,14 +239,9 @@ contract FlexStakingStrategy is
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
         uint256 timestamp = block.timestamp;
 
-console.log("timestamp", timestamp);
         if(timestamp > _finalTimestamp) timestamp = _finalTimestamp;
         uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, timestamp);
 
-console.log("_initialTimestamp", _initialTimestamp);
-console.log("timestamp", timestamp);
-console.log("allExpiredMonths", allExpiredMonths);
-console.log("minLockYears * 12", minLockYears * 12);
         if(allExpiredMonths < minLockYears * 12) return 0;
 
         uint256 maxMonths = maxLockYears * 12;
@@ -298,11 +249,6 @@ console.log("minLockYears * 12", minLockYears * 12);
 
         uint256 tokenPrice = IItem(_itemAddress).tokenPrice(_itemId);
         uint256 deprecation = tokenPrice * allExpiredMonths * yearDeprecationRate / 12 / 10000;
-
-        console.log("allExpiredMonths2", allExpiredMonths);
-        console.log("tokenPrice", tokenPrice);
-        console.log("deprecation", deprecation);
-        console.log("tokenPrice - deprecation", tokenPrice - deprecation);
 
         if(deprecation > tokenPrice) return 0;
         return tokenPrice - deprecation;
