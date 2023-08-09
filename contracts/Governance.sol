@@ -116,7 +116,7 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
                 _description
             )
         ));
-        
+
         addToken(_token, pricer);
     }
 
@@ -162,7 +162,7 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
         );
     }
 
-    function addFixStakingStrategy(uint256 _rewardsRate, uint256 _lockYears) public {
+    function addFixStakingStrategy(uint256 _rewardsRate, uint256 _lockYears, uint256 _yearDeprecationRate) public {
         _enforceIsProductOwner();
 
         IAddressBook(addressBook).addStakingStrategy(
@@ -175,7 +175,8 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
                         treasury,
                         addressBook,
                         _rewardsRate,
-                        _lockYears
+                        _lockYears,
+                        _yearDeprecationRate
                     )
                 )
             )

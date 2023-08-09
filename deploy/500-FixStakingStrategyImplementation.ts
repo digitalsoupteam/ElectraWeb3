@@ -23,6 +23,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await governance.addFixStakingStrategy(
       400, // _rewardsRate
       2, // _lockYears
+      0, // _yearDeprecationRate
     )
   ).wait()
 
@@ -30,6 +31,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await governance.addFixStakingStrategy(
       800, // _rewardsRate
       3, // _lockYears
+      0, // _yearDeprecationRate
     )
   ).wait()
 
@@ -37,6 +39,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await governance.addFixStakingStrategy(
       1200, // _rewardsRate
       5, // _lockYears
+      0, // _yearDeprecationRate
     )
   ).wait()
 }

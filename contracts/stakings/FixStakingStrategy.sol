@@ -24,6 +24,7 @@ contract FixStakingStrategy is
     address public treasury;
     uint256 public rewardsRate;
     uint256 public lockYears;
+    uint256 public yearDeprecationRate;
 
     mapping(address => mapping(uint256 => uint256)) public initialTimestamp;
     mapping(address => mapping(uint256 => uint256)) public lastClaimTimestamp;
@@ -34,13 +35,15 @@ contract FixStakingStrategy is
         address _treasury,
         address _addressBook,
         uint256 _rewardsRate,
-        uint256 _lockYears
+        uint256 _lockYears,
+        uint256 _yearDeprecationRate
     ) public initializer {
         governance = _governance;
         treasury = _treasury;
         addressBook = _addressBook;
         rewardsRate = _rewardsRate;
         lockYears = _lockYears;
+        yearDeprecationRate = _yearDeprecationRate;
     }
 
     function _authorizeUpgrade(address) internal view override {
@@ -157,6 +160,9 @@ contract FixStakingStrategy is
     }
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
-        return IItem(_itemAddress).tokenPrice(_itemId);
+        uint256 tokenPrice = IItem(_itemAddress).tokenPrice(_itemId);
+        uint256 deprecation = tokenPrice * lockYears * yearDeprecationRate / 10000;
+        if(deprecation > tokenPrice) return 0;
+        return tokenPrice - deprecation;
     }
 }
