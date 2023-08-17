@@ -2,14 +2,6 @@
 pragma solidity 0.8.18;
 
 interface IItem {
-    function initialize(
-        address _governance,
-        string calldata _name,
-        string calldata _symbol,
-        uint256 _price,
-        uint256 _maxSupply
-    ) external;
-
     function burn(uint256 _tokenId) external;
 
     function price() external view returns (uint256);

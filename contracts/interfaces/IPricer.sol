@@ -2,12 +2,6 @@
 pragma solidity 0.8.18;
 
 interface IPricer {
-    function initialize(
-        address _owner,
-        int256 _initialPrice,
-        string calldata _description
-    ) external;
-
     function decimals() external view returns (uint8);
 
     function latestRoundData()

@@ -5,20 +5,18 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { ITreasury } from "../interfaces/ITreasury.sol";
+import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { IItem } from "../interfaces/IItem.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
 import { DateTimeLib } from "../libs/DateTimeLib.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { IGovernance } from "../interfaces/IGovernance.sol";
-
-import { GovernanceRole } from "../roles/GovernanceRole.sol";
 
 contract FlexStakingStrategy is
     IStakingStrategy,
     ReentrancyGuardUpgradeable,
-    UUPSUpgradeable,
-    GovernanceRole
+    UUPSUpgradeable
 {
+    address public addressBook;
     uint256 public minLockYears;
     uint256 public maxLockYears;
     uint256 public initialMonths;
@@ -38,19 +36,19 @@ contract FlexStakingStrategy is
     mapping(address => mapping(uint256 => uint256)) public remainder;
 
     function setEarnings(uint256 _month, uint256 _year, uint256 _earning) external {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         earnings[_year][_month] = _earning;
     }
 
     function initialize(
-        address _governance,
+        address _addressBook,
         uint256 _minLockYears,
         uint256 _maxLockYears,
         uint256 _initialMonths,
         uint256 _initialRewardsRate,
         uint256 _yearDeprecationRate
     ) public initializer {
-        governance = _governance;
+        addressBook = _addressBook;
         minLockYears = _minLockYears;
         maxLockYears = _maxLockYears;
         lastUpdatedTimestamp = block.timestamp;
@@ -60,7 +58,7 @@ contract FlexStakingStrategy is
     }
 
     function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
     }
 
 
@@ -97,7 +95,7 @@ contract FlexStakingStrategy is
     }
 
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
-        IGovernance(governance).enforceIsItemContract(msg.sender);
+        IAddressBook(addressBook).enforceIsItemContract(msg.sender);
         
         uint256 _initialTimestamp = block.timestamp;
         uint256 _finalTimestamp = DateTimeLib.addYears(_initialTimestamp, maxLockYears);
@@ -194,7 +192,7 @@ contract FlexStakingStrategy is
             expiredPeriods
         );
 
-        address _treasury = IGovernance(governance).treasury();
+        address _treasury = IAddressBook(addressBook).treasury();
 
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             rewards,
@@ -214,7 +212,7 @@ contract FlexStakingStrategy is
         delete startSellTimestamp[_itemAddress][_itemId];
         delete finalTimestamp[_itemAddress][_itemId];
 
-        address _treasury = IGovernance(governance).treasury();
+        address _treasury = IAddressBook(addressBook).treasury();
 
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             sellAmount,

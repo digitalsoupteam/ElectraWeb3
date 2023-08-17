@@ -5,13 +5,10 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import { ITreasury } from "./interfaces/ITreasury.sol";
-import { IGovernance } from "./interfaces/IGovernance.sol";
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 import { IPricer } from "./interfaces/IPricer.sol";
-import { GovernanceRole } from "./roles/GovernanceRole.sol";
-import { StakingPlatformRole } from "./roles/StakingPlatformRole.sol";
-import { ConstantsLib } from "./libs/ConstantsLib.sol";
 
-contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
+contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -22,6 +19,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    address public addressBook;
     mapping(address => address) public pricers;
     address[] internal _tokens;
     mapping(address => uint256) internal _tokensIndexes;
@@ -37,25 +35,24 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function initialize(address _governance) public initializer {
-        governance = _governance;
+    function initialize(address _addressBook) public initializer {
+        addressBook = _addressBook;
     }
 
     function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
     }
 
     // ------------------------------------------------------------------------------------
-    // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
+    // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
-
     function setOnlyGovernanceWithdrawn(bool _value) external {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         onlyGovernanceWithdrawn = _value;
     }
 
     function setTokenPricer(address _token, address _pricer) external {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         if (_pricer == address(0)) {
             // Delete
             uint256 lastIndex = _tokens.length - 1;
@@ -78,15 +75,17 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     }
 
     // ------------------------------------------------------------------------------------
-    // ----- GOVERNANCE & PROTOCOL ACTIONS  -----------------------------------------------
+    // ----- PRODUCT OWNER & PROTOCOL ACTIONS  --------------------------------------------
     // ------------------------------------------------------------------------------------
 
     function withdraw(address _token, uint256 _amount, address _recipient) external {
+        IAddressBook _addressBook = IAddressBook(addressBook);
         if (onlyGovernanceWithdrawn) {
-            _enforceIsGovernance();
+            _addressBook.enforceIsProductOwner(msg.sender);
         } else {
             require(
-                _isGovernance(msg.sender) || IGovernance(governance).stakingStrategies(msg.sender),
+                _addressBook.productOwner() == msg.sender ||
+                    _addressBook.stakingStrategies(msg.sender),
                 "Treasury: withdraw not authorized!"
             );
         }

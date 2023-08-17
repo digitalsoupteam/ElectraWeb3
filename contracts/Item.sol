@@ -6,16 +6,16 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 import { ITreasury } from "./interfaces/ITreasury.sol";
 import { IStakingStrategy } from "./interfaces/IStakingStrategy.sol";
-import { IGovernance } from "./interfaces/IGovernance.sol";
-import { GovernanceRole } from "./roles/GovernanceRole.sol";
 
-contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable, GovernanceRole {
+contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    address public addressBook;
     uint256 public price;
     uint256 public maxSupply;
     uint256 public totalMintedAmount;
@@ -39,20 +39,20 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable,
     // ------------------------------------------------------------------------------------
 
     function initialize(
-        address _governance,
+        address _addressBook,
         string calldata _name,
         string calldata _symbol,
         uint256 _price,
         uint256 _maxSupply
     ) public initializer {
         __ERC721_init(_name, _symbol);
-        governance = _governance;
+        addressBook = _addressBook;
         price = _price;
         maxSupply = _maxSupply;
     }
 
     function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
     }
 
     // ------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable,
         address _payToken,
         bytes memory _payload
     ) external nonReentrant {
-        IGovernance(governance).enforceIsStakingStrategyContract(_stakingStrategy);
+        IAddressBook(addressBook).enforceIsStakingStrategyContract(_stakingStrategy);
 
         require(_amount > 0, "amount!");
 
@@ -73,7 +73,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable,
 
         require(maxSupply >= totalMintedAmount, "maxSupply!");
 
-        address _treasury = IGovernance(governance).treasury();
+        address _treasury = IAddressBook(addressBook).treasury();
         uint256 totalPrice = _amount * price;
         uint256 payTokenAmount = ITreasury(_treasury).usdAmountToToken(totalPrice, _payToken);
 
@@ -99,21 +99,21 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable,
     // ------------------------------------------------------------------------------------
 
     function burn(uint256 _tokenId) external {
-        IGovernance(governance).enforceIsStakingStrategyContract(msg.sender);
+        IAddressBook(addressBook).enforceIsStakingStrategyContract(msg.sender);
         _burn(_tokenId);
     }
 
     // ------------------------------------------------------------------------------------
-    // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
+    // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
     function stopSell() external {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         maxSupply = totalMintedAmount;
     }
 
     function setNewMaxSupply(uint256 _maxSupply) external {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         require(_maxSupply > maxSupply, "max supply less!");
         maxSupply = _maxSupply;
     }

@@ -3,14 +3,15 @@ pragma solidity 0.8.18;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { IPricer } from "./interfaces/IPricer.sol";
+import { IAddressBook } from "./interfaces/IAddressBook.sol";
 
-contract Pricer is IPricer, UUPSUpgradeable, GovernanceRole {
+contract Pricer is IPricer, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    address public addressBook;
     int256 public currentPrice;
     string public description;
 
@@ -25,25 +26,24 @@ contract Pricer is IPricer, UUPSUpgradeable, GovernanceRole {
     // ------------------------------------------------------------------------------------
 
     function initialize(
-        address _governance,
+        address _addressBook,
         int256 _initialPrice,
         string calldata _description
     ) public initializer {
-        governance = _governance;
+        addressBook = _addressBook;
         currentPrice = _initialPrice;
         description = _description;
     }
 
     function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
     }
 
     // ------------------------------------------------------------------------------------
-    // ----- GOVERNANCE ACTIONS  ----------------------------------------------------------
+    // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
-
     function setCurrentPrice(int256 _newPrice) external {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
         require(_newPrice > 0, "PricerToUSD: price must be greater than zero!");
 

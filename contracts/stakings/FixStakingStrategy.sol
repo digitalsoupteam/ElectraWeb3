@@ -9,17 +9,10 @@ import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IItem } from "../interfaces/IItem.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
 import { DateTimeLib } from "../libs/DateTimeLib.sol";
-import { IGovernance } from "../interfaces/IGovernance.sol";
+import { IAddressBook } from "../interfaces/IAddressBook.sol";
 
-import { GovernanceRole } from "../roles/GovernanceRole.sol";
-
-// IStakingStrategy,
-contract FixStakingStrategy is
-    IStakingStrategy,
-    ReentrancyGuardUpgradeable,
-    UUPSUpgradeable,
-    GovernanceRole
-{
+contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+    address public addressBook;
     uint256 public rewardsRate;
     uint256 public lockYears;
     uint256 public yearDeprecationRate;
@@ -29,19 +22,19 @@ contract FixStakingStrategy is
     mapping(address => mapping(uint256 => uint256)) public finalTimestamp;
 
     function initialize(
-        address _governance,
+        address _addressBook,
         uint256 _rewardsRate,
         uint256 _lockYears,
         uint256 _yearDeprecationRate
     ) public initializer {
-        governance = _governance;
+        addressBook = _addressBook;
         rewardsRate = _rewardsRate;
         lockYears = _lockYears;
         yearDeprecationRate = _yearDeprecationRate;
     }
 
     function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
+        IAddressBook(addressBook).enforceIsStakingStrategyContract(msg.sender);
     }
 
     function _enforceIsTokenOwner(address _tokenAddress, uint256 _tokenId) internal view {
@@ -61,8 +54,8 @@ contract FixStakingStrategy is
     }
 
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
-        IGovernance(governance).enforceIsItemContract(msg.sender);
-        
+        IAddressBook(addressBook).enforceIsItemContract(msg.sender);
+
         uint256 _initialTimestamp = block.timestamp;
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         lastClaimTimestamp[_itemAddress][_itemId] = _initialTimestamp;
@@ -104,9 +97,12 @@ contract FixStakingStrategy is
             expiredPeriods
         );
 
-        address _treasury = IGovernance(governance).treasury();
+        address _treasury = IAddressBook(addressBook).treasury();
 
-        uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(rewards, _withdrawToken);
+        uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
+            rewards,
+            _withdrawToken
+        );
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
@@ -122,7 +118,7 @@ contract FixStakingStrategy is
         delete initialTimestamp[_itemAddress][_itemId];
         delete lastClaimTimestamp[_itemAddress][_itemId];
 
-        address _treasury = IGovernance(governance).treasury();
+        address _treasury = IAddressBook(addressBook).treasury();
 
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
@@ -144,8 +140,8 @@ contract FixStakingStrategy is
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
         uint256 tokenPrice = IItem(_itemAddress).tokenPrice(_itemId);
-        uint256 deprecation = tokenPrice * lockYears * yearDeprecationRate / 10000;
-        if(deprecation > tokenPrice) return 0;
+        uint256 deprecation = (tokenPrice * lockYears * yearDeprecationRate) / 10000;
+        if (deprecation > tokenPrice) return 0;
         return tokenPrice - deprecation;
     }
 }

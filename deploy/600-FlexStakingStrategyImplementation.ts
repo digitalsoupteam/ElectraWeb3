@@ -8,11 +8,11 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const signers = await ethers.getSigners()
   const deployer = signers[0]
 
-  const deployment = await deploy('ItemImplementation', {
-    contract: 'Item',
+  const deployment = await deploy('FlexStakingStrategyImplementation', {
+    contract: 'FlexStakingStrategy',
     from: deployer.address,
   })
 }
 
-deploy.tags = ['ItemImplementation']
+deploy.tags = ['FlexStakingStrategyImplementation']
 export default deploy

@@ -2,8 +2,6 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  Governance,
-  Governance__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IPricer__factory,
@@ -47,18 +45,18 @@ const TEST_DATA = {
     USDT,
   ],
   items: [
-    '0xB33a21CB82b69e6948e381D25DE6Df583F34082A', // SCT
-    // '0x34ce4b44ceF4D28C3B8E3a1F439803048E8d85F5', // BKE
-    // '0x831e8E2Db56282c8334D809a1f04b6ab75e8Ac2a', // MPD
-    // '0xb45BB6248511Fc0F8f346B6817463DDc73D79274', // CAR
+    'ScooterItem',
+    'BikeItem',
+    'MopedItem',
+    'CarItem',
   ],
   fixStakingStrategies: [
-    // '0x59d3C3Efe9A7c8460F6bC977BE0E942dFfbbCEB9', // TwoYearsFixStakingStrategy
-    // '0x099496C6cC76F818A079367a8A3FF81Bc9BaEaE4', // ThreeYearsFixStakingStrategy
-    // '0x1b4E6c50089B41329d71a5bb17feaB039D003E85', // FiveYearsFixStakingStrategy
+   'TwoYearsFixStakingStrategy',
+   'ThreeYearsFixStakingStrategy',
+   'FiveYearsFixStakingStrategy',
   ],
   flexStakingStrategies: [
-    '0xC793B78a57b11C1155107c108b8048fe0ac263b9', // FlexStakingStrategy
+    'FiveYearsFlexStakingStrategy'
   ],
 }
 
@@ -66,7 +64,6 @@ describe(`New`, () => {
   let initSnapshot: string
   let productOwner: SignerWithAddress
   let user: SignerWithAddress
-  let governance: Governance
   let treasury: Treasury
   let items: Item[] = []
 
@@ -77,10 +74,8 @@ describe(`New`, () => {
 
     await deployments.fixture()
 
-    const GovernanceDeployment = await deployments.get('Governance')
     const TreasuryDeployment = await deployments.get('Treasury')
 
-    governance = Governance__factory.connect(GovernanceDeployment.address, productOwner)
     treasury = Treasury__factory.connect(TreasuryDeployment.address, productOwner)
 
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
@@ -92,10 +87,12 @@ describe(`New`, () => {
   })
 
   for (const tokenAddress of TEST_DATA.tokens) {
-    for (const itemAddress of TEST_DATA.items) {
-      for (const stakingStrategyAddress of TEST_DATA.fixStakingStrategies) {
-        it(`Regular fix token=${tokenAddress} item=${itemAddress} strategy=${stakingStrategyAddress}`, async () => {
+    for (const itemContract of TEST_DATA.items) {
+      for (const stakingStrategyContract of TEST_DATA.fixStakingStrategies) {
+        it(`Regular fix token=${tokenAddress} item=${itemContract} strategy=${stakingStrategyContract}`, async () => {
           let tokenId = 0
+          const itemAddress = (await deployments.get(itemContract)).address
+          const stakingStrategyAddress = (await deployments.get(stakingStrategyContract)).address
           const item = IItem__factory.connect(itemAddress, productOwner)
           const stakingStrategy = FixStakingStrategy__factory.connect(
             stakingStrategyAddress,
@@ -171,9 +168,12 @@ describe(`New`, () => {
         })
       }
 
-      for (const stakingStrategyAddress of TEST_DATA.flexStakingStrategies) {
-        it(`Regular min sell flex token=${tokenAddress} item=${itemAddress} strategy=${stakingStrategyAddress}`, async () => {
+      for (const stakingStrategyContract of TEST_DATA.flexStakingStrategies) {
+        it(`Regular min sell flex token=${tokenAddress} item=${itemContract} strategy=${stakingStrategyContract}`, async () => {
           let tokenId = 1
+          
+          const itemAddress = (await deployments.get(itemContract)).address
+          const stakingStrategyAddress = (await deployments.get(stakingStrategyContract)).address
           const item = IItem__factory.connect(itemAddress, productOwner)
           const stakingStrategy: FlexStakingStrategy = FlexStakingStrategy__factory.connect(
             stakingStrategyAddress,
@@ -213,8 +213,7 @@ describe(`New`, () => {
             await time.increaseTo(nextClaimTimestamp)
             const earnings = 1000
             await stakingStrategy.updateDeposits()
-            await governance.setFlexStrategyEarningsPeriod(
-              stakingStrategyAddress,
+            await stakingStrategy.setEarnings(
               month,
               year,
               earnings,
@@ -269,8 +268,12 @@ describe(`New`, () => {
           ).to.be.revertedWith('ERC721: invalid token ID')
         })
 
-        it(`Regular max sell flex token=${tokenAddress} item=${itemAddress} strategy=${stakingStrategyAddress}`, async () => {
+        it(`Regular max sell flex token=${tokenAddress} item=${itemContract} strategy=${stakingStrategyContract}`, async () => {
           let tokenId = 1
+          
+          const itemAddress = (await deployments.get(itemContract)).address
+          const stakingStrategyAddress = (await deployments.get(stakingStrategyContract)).address
+
           const item = IItem__factory.connect(itemAddress, productOwner)
           const stakingStrategy: FlexStakingStrategy = FlexStakingStrategy__factory.connect(
             stakingStrategyAddress,
@@ -313,8 +316,7 @@ describe(`New`, () => {
             await time.increaseTo(nextClaimTimestamp)
             const earnings = 1000
             await stakingStrategy.updateDeposits()
-            await governance.setFlexStrategyEarningsPeriod(
-              stakingStrategyAddress,
+            await stakingStrategy.setEarnings(
               month,
               year,
               earnings,
