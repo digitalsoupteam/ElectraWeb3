@@ -7,9 +7,9 @@ import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IItem } from "../interfaces/IItem.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
-import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { DateTimeLib } from "../libs/DateTimeLib.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { IGovernance } from "../interfaces/IGovernance.sol";
 
 import { GovernanceRole } from "../roles/GovernanceRole.sol";
 
@@ -19,15 +19,13 @@ contract FlexStakingStrategy is
     UUPSUpgradeable,
     GovernanceRole
 {
-    address public treasury;
-    address public addressBook;
     uint256 public minLockYears;
     uint256 public maxLockYears;
     uint256 public initialMonths;
     uint256 public initialRewardsRate;
     uint256 public yearDeprecationRate;
 
-    mapping(uint256 => mapping(uint256 => uint256)) earnings;
+    mapping(uint256 => mapping(uint256 => uint256)) public earnings;
 
     mapping(uint256 => mapping(uint256 => uint256)) public depositsToRemove;
     mapping(uint256 => mapping(uint256 => uint256)) public deposits;
@@ -46,8 +44,6 @@ contract FlexStakingStrategy is
 
     function initialize(
         address _governance,
-        address _treasury,
-        address _addressBook,
         uint256 _minLockYears,
         uint256 _maxLockYears,
         uint256 _initialMonths,
@@ -55,8 +51,6 @@ contract FlexStakingStrategy is
         uint256 _yearDeprecationRate
     ) public initializer {
         governance = _governance;
-        treasury = _treasury;
-        addressBook = _addressBook;
         minLockYears = _minLockYears;
         maxLockYears = _maxLockYears;
         lastUpdatedTimestamp = block.timestamp;
@@ -69,9 +63,6 @@ contract FlexStakingStrategy is
         _enforceIsGovernance();
     }
 
-    function _enforceIsCallFromItemContract() internal view {
-        require(IAddressBook(addressBook).items(msg.sender), "only item!");
-    }
 
     function updateDeposits() public {
         uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
@@ -106,7 +97,8 @@ contract FlexStakingStrategy is
     }
 
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
-        _enforceIsCallFromItemContract();
+        IGovernance(governance).enforceIsItemContract(msg.sender);
+        
         uint256 _initialTimestamp = block.timestamp;
         uint256 _finalTimestamp = DateTimeLib.addYears(_initialTimestamp, maxLockYears);
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
@@ -202,8 +194,13 @@ contract FlexStakingStrategy is
             expiredPeriods
         );
 
-        uint256 withdrawTokenAmount = ITreasury(treasury).usdAmountToToken(rewards, _withdrawToken);
-        ITreasury(treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        address _treasury = IGovernance(governance).treasury();
+
+        uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
+            rewards,
+            _withdrawToken
+        );
+        ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
     function sell(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
@@ -217,7 +214,9 @@ contract FlexStakingStrategy is
         delete startSellTimestamp[_itemAddress][_itemId];
         delete finalTimestamp[_itemAddress][_itemId];
 
-        uint256 withdrawTokenAmount = ITreasury(treasury).usdAmountToToken(
+        address _treasury = IGovernance(governance).treasury();
+
+        uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             sellAmount,
             _withdrawToken
         );
@@ -225,7 +224,7 @@ contract FlexStakingStrategy is
         require(withdrawTokenAmount > 0, "zero amount!");
 
         IItem(_itemAddress).burn(_itemId);
-        ITreasury(treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
@@ -239,18 +238,18 @@ contract FlexStakingStrategy is
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
         uint256 timestamp = block.timestamp;
 
-        if(timestamp > _finalTimestamp) timestamp = _finalTimestamp;
+        if (timestamp > _finalTimestamp) timestamp = _finalTimestamp;
         uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, timestamp);
 
-        if(allExpiredMonths < minLockYears * 12) return 0;
+        if (allExpiredMonths < minLockYears * 12) return 0;
 
         uint256 maxMonths = maxLockYears * 12;
-        if(allExpiredMonths > maxMonths) allExpiredMonths = maxMonths;
+        if (allExpiredMonths > maxMonths) allExpiredMonths = maxMonths;
 
         uint256 tokenPrice = IItem(_itemAddress).tokenPrice(_itemId);
-        uint256 deprecation = tokenPrice * allExpiredMonths * yearDeprecationRate / 12 / 10000;
+        uint256 deprecation = (tokenPrice * allExpiredMonths * yearDeprecationRate) / 12 / 10000;
 
-        if(deprecation > tokenPrice) return 0;
+        if (deprecation > tokenPrice) return 0;
         return tokenPrice - deprecation;
     }
 }

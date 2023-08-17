@@ -4,8 +4,6 @@ pragma solidity 0.8.18;
 interface IItem {
     function initialize(
         address _governance,
-        address _treasury,
-        address _addressBook,
         string calldata _name,
         string calldata _symbol,
         uint256 _price,

@@ -11,8 +11,8 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const GovernanceDeployment = await get('Governance')
 
-  const deployment = await deploy('AddressBook', {
-    contract: 'AddressBook',
+  const deployment = await deploy('Treasury', {
+    contract: 'Treasury',
     from: deployer.address,
     proxy: {
       proxyContract: 'UUPS',
@@ -28,11 +28,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   const governance = Governance__factory.connect(GovernanceDeployment.address, deployer)
-
-  await (await governance.setAddressBook(deployment.address)).wait()
+  await (await governance.setTreasury(deployment.address)).wait()
 
 }
 
-deploy.tags = ['AddressBook']
+deploy.tags = ['Treasury']
 deploy.dependencies = ['Governance']
 export default deploy

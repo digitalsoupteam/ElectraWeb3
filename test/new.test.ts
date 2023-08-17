@@ -2,8 +2,6 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  AddressBook,
-  AddressBook__factory,
   Governance,
   Governance__factory,
   IERC20Metadata,
@@ -46,23 +44,21 @@ import { INITIAL_DATA } from './data/initialData'
 
 const TEST_DATA = {
   tokens: [
-    // BNB_PLACEHOLDER,
-    // BUSD,
     USDT,
   ],
   items: [
-    '0x9b3c40545bf8b9a44a003a81d0dbc67d5841175d', // SCT
-    '0xc5f14627a22f8f19e79a4f7cfa3802dbc48d2473', // BKE
-    '0x6f3d61b3843e775caf42da95e344ee0046cd19ad', // MPD
-    '0xc35b15f8f7588ed34dd7c19339d3ba421fc8b1fc', // CAR
+    '0xB33a21CB82b69e6948e381D25DE6Df583F34082A', // SCT
+    // '0x34ce4b44ceF4D28C3B8E3a1F439803048E8d85F5', // BKE
+    // '0x831e8E2Db56282c8334D809a1f04b6ab75e8Ac2a', // MPD
+    // '0xb45BB6248511Fc0F8f346B6817463DDc73D79274', // CAR
   ],
   fixStakingStrategies: [
-    '0xedf68694f6e6cee33cdb4cf1e7c43a3e9046b011', // TwoYearsFixStakingStrategy
-    '0xb67b8206a2341c4527d1103dbb195f9369160961', // ThreeYearsFixStakingStrategy
-    '0xb9f55d5bf46c6dbc6c178c3173b92384a98504c0', // FiveYearsFixStakingStrategy
+    // '0x59d3C3Efe9A7c8460F6bC977BE0E942dFfbbCEB9', // TwoYearsFixStakingStrategy
+    // '0x099496C6cC76F818A079367a8A3FF81Bc9BaEaE4', // ThreeYearsFixStakingStrategy
+    // '0x1b4E6c50089B41329d71a5bb17feaB039D003E85', // FiveYearsFixStakingStrategy
   ],
   flexStakingStrategies: [
-    '0x313722181698b822e252d25f4fe453a7bb4c6846', // FlexStakingStrategy
+    '0xC793B78a57b11C1155107c108b8048fe0ac263b9', // FlexStakingStrategy
   ],
 }
 
@@ -72,7 +68,6 @@ describe(`New`, () => {
   let user: SignerWithAddress
   let governance: Governance
   let treasury: Treasury
-  let addressBook: AddressBook
   let items: Item[] = []
 
   before(async () => {

@@ -8,8 +8,8 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IItem } from "../interfaces/IItem.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
-import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { DateTimeLib } from "../libs/DateTimeLib.sol";
+import { IGovernance } from "../interfaces/IGovernance.sol";
 
 import { GovernanceRole } from "../roles/GovernanceRole.sol";
 
@@ -20,8 +20,6 @@ contract FixStakingStrategy is
     UUPSUpgradeable,
     GovernanceRole
 {
-    address public addressBook;
-    address public treasury;
     uint256 public rewardsRate;
     uint256 public lockYears;
     uint256 public yearDeprecationRate;
@@ -32,15 +30,11 @@ contract FixStakingStrategy is
 
     function initialize(
         address _governance,
-        address _treasury,
-        address _addressBook,
         uint256 _rewardsRate,
         uint256 _lockYears,
         uint256 _yearDeprecationRate
     ) public initializer {
         governance = _governance;
-        treasury = _treasury;
-        addressBook = _addressBook;
         rewardsRate = _rewardsRate;
         lockYears = _lockYears;
         yearDeprecationRate = _yearDeprecationRate;
@@ -48,10 +42,6 @@ contract FixStakingStrategy is
 
     function _authorizeUpgrade(address) internal view override {
         _enforceIsGovernance();
-    }
-
-    function _enforceIsCallFromItemContract() internal view {
-        require(IAddressBook(addressBook).items(msg.sender), "only item!");
     }
 
     function _enforceIsTokenOwner(address _tokenAddress, uint256 _tokenId) internal view {
@@ -71,7 +61,8 @@ contract FixStakingStrategy is
     }
 
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
-        _enforceIsCallFromItemContract();
+        IGovernance(governance).enforceIsItemContract(msg.sender);
+        
         uint256 _initialTimestamp = block.timestamp;
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         lastClaimTimestamp[_itemAddress][_itemId] = _initialTimestamp;
@@ -113,8 +104,10 @@ contract FixStakingStrategy is
             expiredPeriods
         );
 
-        uint256 withdrawTokenAmount = ITreasury(treasury).usdAmountToToken(rewards, _withdrawToken);
-        ITreasury(treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        address _treasury = IGovernance(governance).treasury();
+
+        uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(rewards, _withdrawToken);
+        ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
     function sell(
@@ -129,8 +122,10 @@ contract FixStakingStrategy is
         delete initialTimestamp[_itemAddress][_itemId];
         delete lastClaimTimestamp[_itemAddress][_itemId];
 
+        address _treasury = IGovernance(governance).treasury();
+
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
-        uint256 withdrawTokenAmount = ITreasury(treasury).usdAmountToToken(
+        uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             sellAmount,
             _withdrawToken
         );
@@ -138,7 +133,7 @@ contract FixStakingStrategy is
         require(withdrawTokenAmount > 0, "zero amount!");
 
         IItem(_itemAddress).burn(_itemId);
-        ITreasury(treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {

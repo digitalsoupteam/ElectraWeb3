@@ -10,9 +10,9 @@ import { ITreasury } from "./interfaces/ITreasury.sol";
 import { IGovernance } from "./interfaces/IGovernance.sol";
 import { IFixStakingStrategy } from "./interfaces/IFixStakingStrategy.sol";
 import { IFlexStakingStrategy } from "./interfaces/IFlexStakingStrategy.sol";
-import { IAddressBook } from "./interfaces/IAddressBook.sol";
 import { IItem } from "./interfaces/IItem.sol";
 import { IPricer } from "./interfaces/IPricer.sol";
+import { IFactory } from "./interfaces/IFactory.sol";
 import { IUUPSUpgradeable } from "./interfaces/IUUPSUpgradeable.sol";
 
 contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
@@ -20,28 +20,44 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    address public addressBook;
     address public treasury;
-    address public itemImplementation;
-    address public fixStakingStrategyImplementation;
-    address public flexStakingStrategyImplementation;
-    address public pricerImplementation;
+    address public factory;
+    mapping(address => bool) public items;
+    mapping(address => bool) public stakingStrategies;
 
     // ------------------------------------------------------------------------------------
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function _authorizeUpgrade(address) internal view override {
-        _enforceIsProductOwner();
-    }
-
     function initialize(address _prodcutOwner) public initializer {
         productOwner = _prodcutOwner;
+    }
+
+    function _authorizeUpgrade(address) internal view override {
+        _enforceIsProductOwner();
     }
 
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
+
+    function enforceIsItemContract(address _contract) external view {
+        require(items[_contract], "only item!");
+    }
+
+    function enforceIsStakingStrategyContract(address _contract) external view {
+        require(stakingStrategies[_contract], "only item!");
+    }
+
+    function addStakingStrategy(address _stakingStrategy) external {
+        _enforceIsProductOwner();
+        stakingStrategies[_stakingStrategy] = true;
+    }
+
+    function deleteStakingStrategy(address _stakingStrategy) external {
+        _enforceIsProductOwner();
+        delete stakingStrategies[_stakingStrategy];
+    }
 
     function setTreasury(address _treasury) external {
         _enforceIsProductOwner();
@@ -50,17 +66,18 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
         treasury = _treasury;
     }
 
-    function setAddressBook(address _addressBook) external {
+    function setFactory(address _factory) external {
         _enforceIsProductOwner();
-        require(addressBook == address(0), "Governance: address book already setted!");
+        require(factory == address(0), "Governance: factory already setted!");
 
-        addressBook = _addressBook;
+        factory = _factory;
     }
 
+    
     function setItemImplementation(address _itemImplementation) external {
         _enforceIsProductOwner();
-
-        itemImplementation = _itemImplementation;
+        
+        IFactory(factory).setItemImplementation(_itemImplementation);
     }
 
     function setFixStakingStrategyImplementation(
@@ -68,7 +85,7 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     ) external {
         _enforceIsProductOwner();
 
-        fixStakingStrategyImplementation = _fixStakingStrategyImplementation;
+        IFactory(factory).setFixStakingStrategyImplementation(_fixStakingStrategyImplementation);
     }
 
     function setFlexStakingStrategyImplementation(
@@ -76,13 +93,13 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     ) external {
         _enforceIsProductOwner();
 
-        flexStakingStrategyImplementation = _flexStakingStrategyImplementation;
+        IFactory(factory).setFlexStakingStrategyImplementation(_flexStakingStrategyImplementation);
     }
 
     function setPricerImplementation(address _pricerImplementation) external {
         _enforceIsProductOwner();
 
-        pricerImplementation = _pricerImplementation;
+        IFactory(factory).setPricerImplementation(_pricerImplementation);
     }
 
     function withdraw(address _token, uint256 _amount, address _recipient) external {
@@ -104,18 +121,14 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
         ITreasury(treasury).setTokenPricer(_token, _pricer);
     }
 
-    function addTokenWithCustomPricer(address _token, int256 _initialPrice, string calldata _description) public {
+    function addTokenWithCustomPricer(
+        address _token,
+        int256 _initialPrice,
+        string calldata _description
+    ) public {
         _enforceIsProductOwner();
 
-        address pricer = address(new ERC1967Proxy(
-            pricerImplementation,
-            abi.encodeWithSelector(
-                IPricer.initialize.selector,
-                address(this),
-                _initialPrice,
-                _description
-            )
-        ));
+        address pricer = IFactory(factory).deployPricer(_initialPrice, _description);
 
         addToken(_token, pricer);
     }
@@ -143,44 +156,23 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     ) public {
         _enforceIsProductOwner();
 
-        IAddressBook(addressBook).addItem(
-            address(
-                new ERC1967Proxy(
-                    itemImplementation,
-                    abi.encodeWithSelector(
-                        IItem.initialize.selector,
-                        address(this),
-                        treasury,
-                        addressBook,
-                        _name,
-                        _symbol,
-                        _price,
-                        _maxSupply
-                    )
-                )
-            )
-        );
+        address newItem = IFactory(factory).deployItem(_name, _symbol, _price, _maxSupply);
+        items[newItem] = true;
     }
 
-    function addFixStakingStrategy(uint256 _rewardsRate, uint256 _lockYears, uint256 _yearDeprecationRate) public {
+    function addFixStakingStrategy(
+        uint256 _rewardsRate,
+        uint256 _lockYears,
+        uint256 _yearDeprecationRate
+    ) public {
         _enforceIsProductOwner();
 
-        IAddressBook(addressBook).addStakingStrategy(
-            address(
-                new ERC1967Proxy(
-                    fixStakingStrategyImplementation,
-                    abi.encodeWithSelector(
-                        IFixStakingStrategy.initialize.selector,
-                        address(this),
-                        treasury,
-                        addressBook,
-                        _rewardsRate,
-                        _lockYears,
-                        _yearDeprecationRate
-                    )
-                )
-            )
+        address newSakingStrategy = IFactory(factory).deployFixStakingStrategy(
+            _rewardsRate,
+            _lockYears,
+            _yearDeprecationRate
         );
+        stakingStrategies[newSakingStrategy] = true;
     }
 
     function addFlexStakingStrategy(
@@ -192,24 +184,14 @@ contract Governance is IGovernance, UUPSUpgradeable, ProductOwnerRole {
     ) public {
         _enforceIsProductOwner();
 
-        IAddressBook(addressBook).addStakingStrategy(
-            address(
-                new ERC1967Proxy(
-                    flexStakingStrategyImplementation,
-                    abi.encodeWithSelector(
-                        IFlexStakingStrategy.initialize.selector,
-                        address(this),
-                        treasury,
-                        addressBook,
-                        _minLockYears,
-                        _maxLockYears,
-                        _initialMonths,
-                        _initialRewardsRate,
-                        _yearDeprecationRate
-                    )
-                )
-            )
+        address newSakingStrategy = IFactory(factory).deployFlexStakingStrategy(
+            _minLockYears,
+            _maxLockYears,
+            _initialMonths,
+            _initialRewardsRate,
+            _yearDeprecationRate
         );
+        stakingStrategies[newSakingStrategy] = true;
     }
 
     function setCurrentPriceToPricer(address _pricer, int256 _currentPrice) external {

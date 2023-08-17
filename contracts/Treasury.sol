@@ -4,8 +4,8 @@ pragma solidity 0.8.18;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import { IAddressBook } from "./interfaces/IAddressBook.sol";
 import { ITreasury } from "./interfaces/ITreasury.sol";
+import { IGovernance } from "./interfaces/IGovernance.sol";
 import { IPricer } from "./interfaces/IPricer.sol";
 import { GovernanceRole } from "./roles/GovernanceRole.sol";
 import { StakingPlatformRole } from "./roles/StakingPlatformRole.sol";
@@ -22,23 +22,27 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    address public addressBook;
     mapping(address => address) public pricers;
     address[] internal _tokens;
     mapping(address => uint256) internal _tokensIndexes;
     bool public onlyGovernanceWithdrawn;
 
     // ------------------------------------------------------------------------------------
+    // ----- EVENTS -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    event Withdraw(address indexed from, address indexed to, address indexed token, uint256 amount);
+
+    // ------------------------------------------------------------------------------------
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function _authorizeUpgrade(address) internal view override {
-        _enforceIsGovernance();
+    function initialize(address _governance) public initializer {
+        governance = _governance;
     }
 
-    function initialize(address _governance, address _addressBook) public initializer {
-        governance = _governance;
-        addressBook = _addressBook;
+    function _authorizeUpgrade(address) internal view override {
+        _enforceIsGovernance();
     }
 
     // ------------------------------------------------------------------------------------
@@ -73,17 +77,23 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
         pricers[_token] = _pricer;
     }
 
+    // ------------------------------------------------------------------------------------
+    // ----- GOVERNANCE & PROTOCOL ACTIONS  -----------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     function withdraw(address _token, uint256 _amount, address _recipient) external {
         if (onlyGovernanceWithdrawn) {
             _enforceIsGovernance();
         } else {
             require(
-                _isGovernance(msg.sender) || IAddressBook(addressBook).stakingStrategies(msg.sender),
+                _isGovernance(msg.sender) || IGovernance(governance).stakingStrategies(msg.sender),
                 "Treasury: withdraw not authorized!"
             );
         }
-        
+
         IERC20Metadata(_token).transfer(_recipient, _amount);
+
+        emit Withdraw(msg.sender, _recipient, _token, _amount);
     }
 
     // ------------------------------------------------------------------------------------
@@ -97,7 +107,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, GovernanceRole {
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
         IPricer pricer = IPricer(pricers[_token]);
         require(address(pricer) != address(0), "not supported token!");
-        
+
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         return
             (_usdAmount * (10 ** IERC20Metadata(_token).decimals()) * (10 ** PRICERS_DECIMALS)) /

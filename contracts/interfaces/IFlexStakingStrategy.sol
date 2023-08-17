@@ -4,8 +4,6 @@ pragma solidity 0.8.18;
 interface IFlexStakingStrategy {
      function initialize(
         address _governance,
-        address _treasury,
-        address _addressBook,
         uint256 _minLockYears,
         uint256 _maxLockYears,
         uint256 _initialMonths,
