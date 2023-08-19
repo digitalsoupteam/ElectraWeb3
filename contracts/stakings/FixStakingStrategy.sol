@@ -12,14 +12,21 @@ import { DateTimeLib } from "../libs/DateTimeLib.sol";
 import { IAddressBook } from "../interfaces/IAddressBook.sol";
 
 contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+    // ------------------------------------------------------------------------------------
+    // ----- STORAGE ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
     address public addressBook;
     uint256 public rewardsRate;
     uint256 public lockYears;
     uint256 public yearDeprecationRate;
-
     mapping(address => mapping(uint256 => uint256)) public initialTimestamp;
     mapping(address => mapping(uint256 => uint256)) public lastClaimTimestamp;
     mapping(address => mapping(uint256 => uint256)) public finalTimestamp;
+
+    // ------------------------------------------------------------------------------------
+    // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function initialize(
         address _addressBook,
@@ -37,21 +44,9 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         IAddressBook(addressBook).enforceIsStakingStrategyContract(msg.sender);
     }
 
-    function _enforceIsTokenOwner(address _tokenAddress, uint256 _tokenId) internal view {
-        require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "only token owner!");
-    }
-
-    function nextClaimTimestamp(
-        address _itemAddress,
-        uint256 _itemId,
-        uint256 _monthsCount
-    ) external view returns (uint256) {
-        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
-        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-        uint256 _nextClaimTimestamp = DateTimeLib.addMonths(_lastClaimTimestamp, _monthsCount);
-        if (_nextClaimTimestamp > _finalTimestamp) _nextClaimTimestamp = _finalTimestamp;
-        return _nextClaimTimestamp;
-    }
+    // ------------------------------------------------------------------------------------
+    // -----  PROTOCOL ACTIONS  -----------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
         IAddressBook(addressBook).enforceIsItemContract(msg.sender);
@@ -62,23 +57,9 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         finalTimestamp[_itemAddress][_itemId] = DateTimeLib.addYears(_initialTimestamp, lockYears);
     }
 
-    function estimateRewards(
-        address _itemAddress,
-        uint256 _itemId
-    ) public view returns (uint256 rewards_, uint256 expiredPeriods_) {
-        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
-        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-
-        uint256 currentTime = block.timestamp;
-        if (currentTime > _finalTimestamp) currentTime = _finalTimestamp;
-
-        expiredPeriods_ = DateTimeLib.diffMonths(_lastClaimTimestamp, currentTime);
-
-        rewards_ =
-            (expiredPeriods_ * IItem(_itemAddress).tokenPrice(_itemId) * rewardsRate) /
-            12 /
-            10000;
-    }
+    // ------------------------------------------------------------------------------------
+    // ----- USER ACTIONS  ----------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
 
     function claim(
         address _itemAddress,
@@ -90,15 +71,12 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         (uint256 rewards, uint256 expiredPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "rewards!");
 
-        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
-
         lastClaimTimestamp[_itemAddress][_itemId] = DateTimeLib.addMonths(
-            _lastClaimTimestamp,
+            lastClaimTimestamp[_itemAddress][_itemId],
             expiredPeriods
         );
 
         address _treasury = IAddressBook(addressBook).treasury();
-
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             rewards,
             _withdrawToken
@@ -115,9 +93,6 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
-        delete initialTimestamp[_itemAddress][_itemId];
-        delete lastClaimTimestamp[_itemAddress][_itemId];
-
         address _treasury = IAddressBook(addressBook).treasury();
 
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
@@ -132,6 +107,28 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
+    // ------------------------------------------------------------------------------------
+    // ----- VIEW  ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    function estimateRewards(
+        address _itemAddress,
+        uint256 _itemId
+    ) public view returns (uint256 rewards_, uint256 expiredPeriods_) {
+        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
+        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
+
+        uint256 estimateTimestamp = block.timestamp;
+        if (estimateTimestamp > _finalTimestamp) estimateTimestamp = _finalTimestamp;
+
+        expiredPeriods_ = DateTimeLib.diffMonths(_lastClaimTimestamp, estimateTimestamp);
+
+        rewards_ =
+            (expiredPeriods_ * IItem(_itemAddress).tokenPrice(_itemId) * rewardsRate) /
+            12 /
+            10000;
+    }
+
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
         (uint256 rewards, ) = estimateRewards(_itemAddress, _itemId);
@@ -143,5 +140,25 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 deprecation = (tokenPrice * lockYears * yearDeprecationRate) / 10000;
         if (deprecation > tokenPrice) return 0;
         return tokenPrice - deprecation;
+    }
+
+    function nextClaimTimestamp(
+        address _itemAddress,
+        uint256 _itemId,
+        uint256 _monthsCount
+    ) external view returns (uint256) {
+        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
+        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
+        uint256 _nextClaimTimestamp = DateTimeLib.addMonths(_lastClaimTimestamp, _monthsCount);
+        if (_nextClaimTimestamp > _finalTimestamp) _nextClaimTimestamp = _finalTimestamp;
+        return _nextClaimTimestamp;
+    }
+
+    // ------------------------------------------------------------------------------------
+    // ----- INTERNAL  --------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+    
+    function _enforceIsTokenOwner(address _tokenAddress, uint256 _tokenId) internal view {
+        require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "only token owner!");
     }
 }

@@ -90,7 +90,8 @@ contract Treasury is ITreasury, UUPSUpgradeable {
             );
         }
 
-        IERC20Metadata(_token).transfer(_recipient, _amount);
+        bool success = IERC20Metadata(_token).transfer(_recipient, _amount);
+        require(success, "ERC20 transfer failed!");
 
         emit Withdraw(msg.sender, _recipient, _token, _amount);
     }

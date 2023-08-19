@@ -2,45 +2,16 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  Governance,
-  Governance__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IPricer__factory,
-  IRewardsStrategy,
-  IRewardsStrategy__factory,
-  ITreasury__factory,
-  ItemsFactory,
-  ItemsFactory__factory,
-  PricerToUSD,
-  PricerToUSD__factory,
-  StakingPlatform,
-  StakingPlatform__factory,
   Treasury,
   Treasury__factory,
 } from '../typechain-types'
-import { time } from '@nomicfoundation/hardhat-network-helpers'
 import {
-  getCurrentRound,
-  getTimestamp,
-  setTimeToNextMonday,
-  stakeItems,
-  tokenBalance,
-  tokenDecimals,
-  tokenTransfer,
-} from './StakingPlatform.utils'
-import {
-  BNB_PLACEHOLDER,
-  BUSD,
-  CHAINLINK_BNB_USD,
-  CHAINLINK_BUSD_USD,
   CHAINLINK_LINK_USD,
-  CHAINLINK_USDT_USD,
   LINK,
-  USDT,
 } from '../constants/addresses'
-import { BigNumber } from 'ethers'
-import { pricerUpdater } from '../scripts/EltcPricerUpdater/pricerUpdater'
 import ERC20Minter from './utils/ERC20Minter'
 import { INITIAL_DATA } from './data/initialData'
 
@@ -121,7 +92,7 @@ describe(`Treasury`, () => {
       const pricer = IPricer__factory.connect(token.pricer, user)
       const { answer: tokenPrice } = await pricer.latestRoundData()
       const tokenAmount = await treasury.usdAmountToToken(usdAmount, token.address)
-      const decimals = await tokenDecimals(token.address)
+      const decimals = await IERC20Metadata__factory.connect(token.address, user).decimals()
       let calculatedAmount = usdAmount
         .mul(`${10 ** decimals}`)
         .mul(`${1e8}`)
@@ -135,9 +106,12 @@ describe(`Treasury`, () => {
 
     it(`Regular unit: Treasury deposit. ${JSON.stringify(token)}`, async () => {
       const amount = await ERC20Minter.mint(token.address, user.address, 1000)
-      const treasuryBalanceBefore = await tokenBalance(treasury.address, token.address)
-      await tokenTransfer(token.address, amount, user, treasury.address)
-      const treasuryBalanceAfter = await tokenBalance(treasury.address, token.address)
+      
+      const _token = IERC20Metadata__factory.connect(token.address, user)
+      const treasuryBalanceBefore = await _token.balanceOf(treasury.address)
+      _token.connect(user).transfer(treasury.address, amount)
+      const treasuryBalanceAfter = await _token.balanceOf(treasury.address)
+
       assert(
         treasuryBalanceAfter.sub(amount).eq(treasuryBalanceBefore),
         `treasuryBalanceAfter - amount != treasuryBalanceBefore. ${treasuryBalanceAfter} + ${amount} != ${treasuryBalanceBefore}`,

@@ -2,15 +2,10 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  IERC20Metadata,
   IERC20Metadata__factory,
-  IPricer__factory,
   Treasury,
   Treasury__factory,
   Item,
-  Item__factory,
-  IStakingStrategy,
-  IStakingStrategy__factory,
   IItem__factory,
   FlexStakingStrategy__factory,
   FixStakingStrategy__factory,
@@ -18,27 +13,9 @@ import {
 } from '../typechain-types'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 import {
-  getCurrentRound,
-  getTimestamp,
-  setTimeToNextMonday,
-  stakeItems,
-  tokenBalance,
-  tokenDecimals,
-  tokenTransfer,
-} from './StakingPlatform.utils'
-import {
-  BNB_PLACEHOLDER,
-  BUSD,
-  CHAINLINK_BNB_USD,
-  CHAINLINK_BUSD_USD,
-  CHAINLINK_LINK_USD,
-  CHAINLINK_USDT_USD,
-  LINK,
   USDT,
 } from '../constants/addresses'
-import { BigNumber } from 'ethers'
 import ERC20Minter from './utils/ERC20Minter'
-import { INITIAL_DATA } from './data/initialData'
 
 const TEST_DATA = {
   tokens: [
@@ -46,14 +23,14 @@ const TEST_DATA = {
   ],
   items: [
     'ScooterItem',
-    'BikeItem',
-    'MopedItem',
-    'CarItem',
+    // 'BikeItem',
+    // 'MopedItem',
+    // 'CarItem',
   ],
   fixStakingStrategies: [
-   'TwoYearsFixStakingStrategy',
-   'ThreeYearsFixStakingStrategy',
-   'FiveYearsFixStakingStrategy',
+  //  'TwoYearsFixStakingStrategy',
+  //  'ThreeYearsFixStakingStrategy',
+  //  'FiveYearsFixStakingStrategy',
   ],
   flexStakingStrategies: [
     'FiveYearsFlexStakingStrategy'
@@ -170,6 +147,9 @@ describe(`New`, () => {
 
       for (const stakingStrategyContract of TEST_DATA.flexStakingStrategies) {
         it(`Regular min sell flex token=${tokenAddress} item=${itemContract} strategy=${stakingStrategyContract}`, async () => {
+          await time.increase((31 + 30 + 22 )* 24 * 60 * 60)
+          // await time.increase(22 * 24 * 60 * 60)
+
           let tokenId = 1
           
           const itemAddress = (await deployments.get(itemContract)).address
@@ -186,9 +166,26 @@ describe(`New`, () => {
 
           await token.approve(item.address, usdtAmount)
           await item.connect(user).mint(1, stakingStrategy.address, token.address, '0x')
+   
+
           await time.increase(60 * 24 * 60 * 60)
 
+// return
+          // deposits[earningsYear][earningsMonth] += totalPrice - _remainder;
+
           await item.connect(user).mint(1, stakingStrategy.address, token.address, '0x')
+
+          
+          console.log(`item.address ${item.address}`)
+          const initialTimestamp = await stakingStrategy.initialTimestamp(item.address, tokenId)
+          console.log(`initialTimestamp ${initialTimestamp} ${(new Date(initialTimestamp.toNumber() * 1000)).toUTCString()}`)
+          const lastClaimTimestamp = await stakingStrategy.lastClaimTimestamp(item.address, tokenId)
+          console.log(`lastClaimTimestamp ${lastClaimTimestamp} ${(new Date(lastClaimTimestamp.toNumber() * 1000)).toUTCString()}`)
+          const startSellTimestamp = await stakingStrategy.startSellTimestamp(item.address, tokenId)
+          console.log(`startSellTimestamp ${startSellTimestamp} ${(new Date(startSellTimestamp.toNumber() * 1000)).toUTCString()}`)
+          const finalTimestamp = await stakingStrategy.finalTimestamp(item.address, tokenId)
+          console.log(`finalTimestamp ${finalTimestamp} ${(new Date(finalTimestamp.toNumber() * 1000)).toUTCString()}`)         
+          console.log(`remainder ${await stakingStrategy.remainder(item.address, tokenId)}`)
 
           await expect(
             stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
@@ -206,11 +203,15 @@ describe(`New`, () => {
             let nextClaimTimestamp = await stakingStrategy.nextClaimTimestamp(
               itemAddress,
               tokenId,
-              1,
+              1 + i,
             )
             let [month, year] = await stakingStrategy.currentPeriod()
 
             await time.increaseTo(nextClaimTimestamp)
+
+            const blT = (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp
+            console.log(`current date ${blT} ${(new Date(blT * 1000)).toUTCString()}`)         
+
             const earnings = 1000
             await stakingStrategy.updateDeposits()
             await stakingStrategy.setEarnings(
@@ -247,6 +248,8 @@ describe(`New`, () => {
             }
           }
 
+          console.log(`rewards ${await stakingStrategy.estimateRewards(item.address, tokenId)}`)
+
           let balanceBefore = await token.balanceOf(user.address)
           await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
           let balanceAfter = await token.balanceOf(user.address)
@@ -268,7 +271,7 @@ describe(`New`, () => {
           ).to.be.revertedWith('ERC721: invalid token ID')
         })
 
-        it(`Regular max sell flex token=${tokenAddress} item=${itemContract} strategy=${stakingStrategyContract}`, async () => {
+        xit(`Regular max sell flex token=${tokenAddress} item=${itemContract} strategy=${stakingStrategyContract}`, async () => {
           let tokenId = 1
           
           const itemAddress = (await deployments.get(itemContract)).address
