@@ -6,9 +6,9 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 
-import { IAddressBook } from "./interfaces/IAddressBook.sol";
-import { ITreasury } from "./interfaces/ITreasury.sol";
-import { IStakingStrategy } from "./interfaces/IStakingStrategy.sol";
+import { IAddressBook } from "../interfaces/IAddressBook.sol";
+import { ITreasury } from "../interfaces/ITreasury.sol";
+import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
 
 contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
     // ------------------------------------------------------------------------------------
@@ -65,32 +65,34 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         address _payToken,
         bytes memory _payload
     ) external nonReentrant {
-        IAddressBook(addressBook).enforceIsStakingStrategyContract(_stakingStrategy);
+        // Load deps
+        IAddressBook _addressBook = IAddressBook(addressBook);
+        ITreasury treasury = ITreasury(_addressBook.treasury());
 
+        // Check args
         require(_amount > 0, "amount!");
-
         totalMintedAmount += _amount;
-
         require(maxSupply >= totalMintedAmount, "maxSupply!");
+        _addressBook.enforceIsStakingStrategyContract(_stakingStrategy);
+        treasury.enforceIsSupportedToken(_payToken);
 
-        address _treasury = IAddressBook(addressBook).treasury();
+        // Recieve pay tokens
         uint256 totalPrice = _amount * price;
-        uint256 payTokenAmount = ITreasury(_treasury).usdAmountToToken(totalPrice, _payToken);
-
+        uint256 payTokenAmount = treasury.usdAmountToToken(totalPrice, _payToken);
         bool success = IERC20Metadata(_payToken).transferFrom(
             msg.sender,
-            _treasury,
+            address(treasury),
             payTokenAmount
         );
         require(success, "ERC20 transferFrom failed!");
 
+        // Mint item
         uint256 tokenId = nextTokenId++;
         amountInToken[tokenId] = _amount;
         tokenStakingStrategy[tokenId] = _stakingStrategy;
-
         _safeMint(msg.sender, tokenId);
         emit Mint(msg.sender, _payToken, tokenId, _amount);
-
+        // Enable staking
         IStakingStrategy(_stakingStrategy).stake(address(this), tokenId, _payload);
     }
 

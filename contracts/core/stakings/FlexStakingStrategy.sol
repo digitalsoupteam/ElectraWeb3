@@ -3,14 +3,13 @@ pragma solidity 0.8.18;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import { ITreasury } from "../interfaces/ITreasury.sol";
-import { IAddressBook } from "../interfaces/IAddressBook.sol";
-import { IItem } from "../interfaces/IItem.sol";
-import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
-import { DateTimeLib } from "../libs/DateTimeLib.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "hardhat/console.sol";
+
+import { ITreasury } from "../../interfaces/ITreasury.sol";
+import { IAddressBook } from "../../interfaces/IAddressBook.sol";
+import { IItem } from "../../interfaces/IItem.sol";
+import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
+import { DateTimeLib } from "../../utils/DateTimeLib.sol";
 
 contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
@@ -25,7 +24,6 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     uint256 public yearDeprecationRate;
 
     mapping(uint256 year => mapping(uint256 month => uint256)) public earnings;
-
     mapping(uint256 year => mapping(uint256 month => uint256 depositToRemove))
         public depositsToRemove;
     mapping(uint256 year => mapping(uint256 month => uint256 deposit)) public deposits;
@@ -36,6 +34,18 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     mapping(address item => mapping(uint256 tokenId => uint256)) public startSellTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public finalTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public remainder;
+
+    struct DepositsDate {
+        uint256 earningsYear;
+        uint256 earningsMonth;
+        uint256 nextEarningsYear;
+        uint256 nextEarningsMonth;
+        uint256 finalYear;
+        uint256 finalMonth;
+        uint256 prevFinalYear;
+        uint256 prevFinalMonth;
+    }
+    mapping(address item => mapping(uint256 tokenId => DepositsDate)) public depostitsDate;
 
     // ------------------------------------------------------------------------------------
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
@@ -78,11 +88,8 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
         IAddressBook(addressBook).enforceIsItemContract(msg.sender);
 
-        console.log("_itemAddress", _itemAddress);
-        console.log("_itemId", _itemId);
-
+        // Initial data
         uint256 _initialTimestamp = block.timestamp;
-        uint256 _finalTimestamp = DateTimeLib.addYears(_initialTimestamp, maxLockYears);
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         lastClaimTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         startSellTimestamp[_itemAddress][_itemId] = DateTimeLib.addYears(
@@ -90,45 +97,48 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
             minLockYears
         );
 
+        // Earnings date
         uint256 earningsTimestamp = DateTimeLib.addMonths(_initialTimestamp, initialMonths);
+        uint256 daysInStartMonth = DateTimeLib.getDaysInMonth(earningsTimestamp);
         (uint256 earningsYear, uint256 earningsMonth, uint256 earningsDay) = DateTimeLib
             .timestampToDate(earningsTimestamp);
-        (uint256 finalYear, uint256 finalMonth, ) = DateTimeLib.timestampToDate(_finalTimestamp);
 
-        uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
-
-        uint256 daysInStartMonth = DateTimeLib.getDaysInMonth(earningsTimestamp);
-
+        // Remainder
         uint256 ratio = ((earningsDay - 1) * 10000) / daysInStartMonth;
+        uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
         uint256 _remainder = (totalPrice * ratio) / 10000;
         remainder[_itemAddress][_itemId] = _remainder; // be zero in 1 month day
-        deposits[earningsYear][earningsMonth] += totalPrice - _remainder;
 
+        // Final date
+        uint256 _finalTimestamp = DateTimeLib.addYears(_initialTimestamp, maxLockYears);
         if (_remainder > 0) {
-            finalTimestamp[_itemAddress][_itemId] = DateTimeLib.addMonths(_finalTimestamp, 1);
-        } else {
-            finalTimestamp[_itemAddress][_itemId] = _finalTimestamp;
+            _finalTimestamp = DateTimeLib.addMonths(_finalTimestamp, 1);
         }
+        finalTimestamp[_itemAddress][_itemId] = _finalTimestamp;
 
-        console.log("earningsYear", earningsYear);
-        console.log("earningsMonth", earningsMonth);
-
-        uint256 nextEarningsMonth = earningsMonth + 1;
-        uint256 nextEarningsYear = earningsYear;
-        if (nextEarningsMonth > 12) {
-            nextEarningsMonth = 1;
-            nextEarningsYear += 1;
-        }
+        // Set deposits
+        deposits[earningsYear][earningsMonth] += totalPrice - _remainder;
+        (uint256 nextEarningsYear, uint256 nextEarningsMonth, ) = DateTimeLib.timestampToDate(
+            DateTimeLib.addMonths(earningsTimestamp, 1)
+        );
         deposits[nextEarningsYear][nextEarningsMonth] += _remainder;
-
-        uint256 prevFinalMonth = finalMonth - 1;
-        uint256 prevFinalsYear = finalYear;
-        if (prevFinalMonth == 0) {
-            prevFinalMonth = 12;
-            nextEarningsYear -= 1;
-        }
-        depositsToRemove[prevFinalsYear][prevFinalMonth] += _remainder;
+        // Set deposits to remove
+        (uint256 finalYear, uint256 finalMonth, ) = DateTimeLib.timestampToDate(_finalTimestamp);
         depositsToRemove[finalYear][finalMonth] += totalPrice - _remainder;
+        (uint256 prevFinalYear, uint256 prevFinalMonth, ) = DateTimeLib.timestampToDate(
+            DateTimeLib.subMonths(_finalTimestamp, 1)
+        );
+        depositsToRemove[prevFinalYear][prevFinalMonth] += _remainder;
+        depostitsDate[_itemAddress][_itemId] = DepositsDate(
+            earningsYear,
+            earningsMonth,
+            nextEarningsYear,
+            nextEarningsMonth,
+            finalYear,
+            finalMonth,
+            prevFinalYear,
+            prevFinalMonth
+        );
     }
 
     // ------------------------------------------------------------------------------------
@@ -138,20 +148,19 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     function claim(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
         _enforceIsTokenOwner(_itemAddress, _itemId);
 
-        (uint256 rewards, uint256 expiredPeriods) = estimateRewards(_itemAddress, _itemId);
+        uint256 rewards = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "rewards!");
 
-        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
+        // Update claim timestamp
         uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
         uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, block.timestamp);
-
         lastClaimTimestamp[_itemAddress][_itemId] = DateTimeLib.addMonths(
             _initialTimestamp,
             allExpiredMonths
         );
 
+        // Withdraw
         address _treasury = IAddressBook(addressBook).treasury();
-
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             rewards,
             _withdrawToken
@@ -163,47 +172,41 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         _enforceIsTokenOwner(_itemAddress, _itemId);
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
+        // Get sell timestamp
+        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
+        uint256 currentTimestamp = block.number;
+        if (currentTimestamp > _finalTimestamp) currentTimestamp = _finalTimestamp;
+        (uint256 sellYear, uint256 sellMonth, ) = DateTimeLib.timestampToDate(currentTimestamp);
+
+        // Clear deposits
+        uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
+        deposits[sellYear][sellMonth] -= totalPrice;
+        uint256 _remainder = remainder[_itemAddress][_itemId];
+        DepositsDate memory d = depostitsDate[_itemAddress][_itemId];
+        depositsToRemove[d.prevFinalYear][d.prevFinalMonth] -= _remainder;
+        depositsToRemove[d.finalYear][d.finalMonth] -= totalPrice - _remainder;
+
+        // Burn item
+        IItem(_itemAddress).burn(_itemId);
+
+        // Withdraw
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
-
-        // (uint256 sellYear, uint256 sellMonth, ) = DateTimeLib
-        //     .timestampToDate(block.timestamp);
-
-        //      uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
-        // uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
-        // uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-
-        // uint256 currentTimestamp = block.number;
-        // if (currentTimestamp > _finalTimestamp) currentTimestamp = _finalTimestamp;
-
-        // uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
-
-        // uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, block.timestamp);
-        // uint256 claimedMonths = DateTimeLib.diffMonths(_initialTimestamp, _lastClaimTimestamp);
-
-        // depositsToRemove[prevFinalsYear][prevFinalMonth] += _remainder;
-        // depositsToRemove[finalYear][finalMonth] += totalPrice - _remainder;
-
-        delete initialTimestamp[_itemAddress][_itemId];
-        delete lastClaimTimestamp[_itemAddress][_itemId];
-        delete startSellTimestamp[_itemAddress][_itemId];
-        delete finalTimestamp[_itemAddress][_itemId];
-
         address _treasury = IAddressBook(addressBook).treasury();
-
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             sellAmount,
             _withdrawToken
         );
-
         require(withdrawTokenAmount > 0, "zero amount!");
-
-        IItem(_itemAddress).burn(_itemId);
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
     }
 
     // ------------------------------------------------------------------------------------
     // ----- VIEW  ------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
+
+    function stakingType() external pure returns (string memory) {
+        return "flex";
+    }
 
     function updateDeposits() public {
         uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
@@ -230,11 +233,8 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _itemId,
         uint256 _monthsCount
     ) external view returns (uint256) {
-        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-
         uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
-
         uint256 _nextClaimTimestamp = DateTimeLib.addMonths(_initialTimestamp, _monthsCount);
         if (_nextClaimTimestamp > _finalTimestamp) _nextClaimTimestamp = _finalTimestamp;
         return _nextClaimTimestamp;
@@ -243,7 +243,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     function estimateRewards(
         address _itemAddress,
         uint256 _itemId
-    ) public view returns (uint256 rewards_, uint256 expiredPeriods_) {
+    ) public view returns (uint256 rewards_) {
         uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
         uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
@@ -259,37 +259,30 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         for (uint256 i = claimedMonths; i < allExpiredMonths; ++i) {
             if (i < initialMonths) {
                 rewards_ += (totalPrice * initialRewardsRate) / 10000;
-            } else {
-                (uint256 year, uint256 month, ) = DateTimeLib.timestampToDate(
-                    DateTimeLib.addMonths(_initialTimestamp, i)
-                );
-
-                uint256 _earnings = earnings[year][month];
-                if (_earnings == 0) break;
-
-                uint256 itemsPrice = totalPrice;
-                if (i == initialMonths) {
-                    itemsPrice = totalPrice - remainder[_itemAddress][_itemId];
-                } else if (i == maxLockYears * 12 - 1) {
-                    itemsPrice = remainder[_itemAddress][_itemId];
-                }
-
-                rewards_ += (itemsPrice * _earnings) / deposits[year][month];
+                continue;
             }
-            ++expiredPeriods_;
+
+            (uint256 year, uint256 month, ) = DateTimeLib.timestampToDate(
+                DateTimeLib.addMonths(_initialTimestamp, i)
+            );
+
+            uint256 _earnings = earnings[year][month];
+            if (_earnings == 0) break;
+
+            uint256 itemsPrice = totalPrice;
+            if (i == initialMonths) {
+                itemsPrice = totalPrice - remainder[_itemAddress][_itemId];
+            } else if (i == maxLockYears * 12 - 1) {
+                itemsPrice = remainder[_itemAddress][_itemId];
+            }
+
+            rewards_ += (itemsPrice * _earnings) / deposits[year][month];
         }
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
         uint256 _startSellTimestamp = startSellTimestamp[_itemAddress][_itemId];
-        (uint256 rewards, ) = estimateRewards(_itemAddress, _itemId);
-        console.log(
-            "block.timestamp >= _startSellTimestamp",
-            block.timestamp >= _startSellTimestamp
-        );
-        console.log("rewards", rewards);
-        console.log("_startSellTimestamp", _startSellTimestamp);
-        console.log("block.timestamp", block.timestamp);
+        uint256 rewards = estimateRewards(_itemAddress, _itemId);
         return block.timestamp >= _startSellTimestamp && rewards == 0;
     }
 

@@ -3,8 +3,8 @@ pragma solidity 0.8.18;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import { IPricer } from "./interfaces/IPricer.sol";
-import { IAddressBook } from "./interfaces/IAddressBook.sol";
+import { IPricer } from "../interfaces/IPricer.sol";
+import { IAddressBook } from "../interfaces/IAddressBook.sol";
 
 contract Pricer is IPricer, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------

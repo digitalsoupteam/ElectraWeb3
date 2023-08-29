@@ -25,7 +25,6 @@ contract AddressBook is UUPSUpgradeable {
         enforceIsProductOwner(msg.sender);
     }
 
-
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -62,11 +61,10 @@ contract AddressBook is UUPSUpgradeable {
         treasury = _treasury;
     }
 
-
     // ------------------------------------------------------------------------------------
     // ----- VIEW  ------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
-    
+
     function enforceIsProductOwner(address _account) public view {
         require(_account == productOwner, "only product owner!");
     }
@@ -78,5 +76,4 @@ contract AddressBook is UUPSUpgradeable {
     function enforceIsStakingStrategyContract(address _contract) external view {
         require(stakingStrategies[_contract], "only staking strategy!");
     }
-
 }
