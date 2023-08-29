@@ -74,37 +74,23 @@ describe(`All tests`, () => {
 
   for (const tokenAddress of TEST_DATA.tokens) {
     describe(`Token ${tokenAddress}`, () => {
-      let tokenCaseInitSnapshot: string
       let payToken: IERC20Metadata
       let payTokenAmount: BigNumber
 
-      before(async () => {
+      beforeEach(async () => {
         payToken = IERC20Metadata__factory.connect(tokenAddress, productOwner)
         await ERC20Minter.mint(payToken.address, treasury.address, 1000000)
         payTokenAmount = await ERC20Minter.mint(payToken.address, user.address, 100000)
-        tokenCaseInitSnapshot = await ethers.provider.send('evm_snapshot', [])
       })
-
-      afterEach(async () => {
-        await ethers.provider.send('evm_revert', [tokenCaseInitSnapshot])
-        tokenCaseInitSnapshot = await ethers.provider.send('evm_snapshot', [])
-      })
-
+ 
       for (const itemTag of TEST_DATA.items) {
         describe(`Item ${itemTag}`, () => {
-          let itemCaseInitSnapshot: string
           let item: Item
 
-          before(async () => {
+          beforeEach(async () => {
             const ItemDeployment = await deployments.get(itemTag)
             item = Item__factory.connect(ItemDeployment.address, productOwner)
             await payToken.approve(item.address, payTokenAmount)
-            itemCaseInitSnapshot = await ethers.provider.send('evm_snapshot', [])
-          })
-
-          afterEach(async () => {
-            await ethers.provider.send('evm_revert', [itemCaseInitSnapshot])
-            itemCaseInitSnapshot = await ethers.provider.send('evm_snapshot', [])
           })
 
           for (const flexCase of TEST_DATA.flexCases) {
@@ -114,19 +100,12 @@ describe(`All tests`, () => {
               let item: Item
               let payToken: IERC20Metadata
 
-              before(async () => {
+              beforeEach(async () => {
                 const StakingStrategyDeployment = await deployments.get(flexCase.contractTag)
                 stakingStrategy = FlexStakingStrategy__factory.connect(
                   StakingStrategyDeployment.address,
                   productOwner,
                 )
-
-                flexCaseInitSnapshot = await ethers.provider.send('evm_snapshot', [])
-              })
-
-              afterEach(async () => {
-                await ethers.provider.send('evm_revert', [flexCaseInitSnapshot])
-                flexCaseInitSnapshot = await ethers.provider.send('evm_snapshot', [])
               })
 
               for (const name of Object.keys(flexCase.initialArgs)) {
@@ -137,7 +116,7 @@ describe(`All tests`, () => {
                 })
               }
 
-              for (const amount of [1,2,10,flexCase.initialArgs.]) {
+              for (const amount of [1,2,10,flexCase.initialArgs.m]) {
                 it(`Flex initial args test: ${name}`, async () => {
                   const arg = flexCase.initialArgs[name]
                   const value = await stakingStrategy[name]()
