@@ -29,7 +29,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const treasury = Treasury__factory.connect(TreasuryDeployment.address, deployer)
 
-  await (await treasury.setTokenPricer(USDT, deployment.address)).wait()
+  await (await treasury.addToken(USDT, deployment.address)).wait()
 }
 
 deploy.tags = ['UsdtPricer']
