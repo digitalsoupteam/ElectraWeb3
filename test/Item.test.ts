@@ -37,7 +37,6 @@ describe(`Items tests`, () => {
   let user: SignerWithAddress
 
   before(async () => {
-    console.log('Root before')
     const accounts = await ethers.getSigners()
     productOwner = accounts[0]
     user = accounts[9]
@@ -48,7 +47,6 @@ describe(`Items tests`, () => {
   })
 
   afterEach(async () => {
-    console.log('Root after each')
     await ethers.provider.send('evm_revert', [initSnapshot])
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
@@ -67,7 +65,6 @@ describe(`Items tests`, () => {
         describe(`StakingStrategy: ${stakingStrategyTag}`, () => {
           let stakingStrategyAddress: string
           beforeEach(async () => {
-            console.log('StakingStrategy before')
             const StakingStrategyDeployment = await deployments.get(stakingStrategyTag)
             stakingStrategyAddress = StakingStrategyDeployment.address
           })
@@ -78,7 +75,6 @@ describe(`Items tests`, () => {
               let itemPrice: BigNumber
               let maxSupply: BigNumber
               beforeEach(async () => {
-                console.log('Item before')
                 const StakingStrategyDeployment = await deployments.get(itemTag)
                 item = Item__factory.connect(StakingStrategyDeployment.address, user)
                 itemPrice = await item.price()
