@@ -21,8 +21,6 @@ contract Treasury is ITreasury, UUPSUpgradeable {
 
     address public addressBook;
     mapping(address => address) public pricers;
-    address[] internal _tokens;
-    mapping(address => uint256) internal _tokensIndexes;
     bool public onlyGovernanceWithdrawn;
 
     // ------------------------------------------------------------------------------------
@@ -46,6 +44,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
+    
     function setOnlyProductOwnerWithdrawn(bool _value) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         onlyGovernanceWithdrawn = _value;
@@ -57,9 +56,6 @@ contract Treasury is ITreasury, UUPSUpgradeable {
         require(pricers[_token] == address(0), "Treasury: already exists!");
         require(_pricer != address(0), "Treasury: pricer == 0");
         require(IPricer(_pricer).decimals() == PRICERS_DECIMALS, "Treasury: pricer decimals != 8");
-
-        _tokensIndexes[_token] = _tokens.length;
-        _tokens.push(_token);
 
         pricers[_token] = _pricer;
     }
@@ -76,17 +72,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
 
     function deleteToken(address _token) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
-
         require(pricers[_token] != address(0), "Treasury: not exists!");
-
-        uint256 lastIndex = _tokens.length - 1;
-        address lastToken = _tokens[lastIndex];
-        uint256 removedTokenIndex = _tokensIndexes[_token];
-        _tokens[removedTokenIndex] = lastToken;
-        _tokensIndexes[_token] = 0;
-        _tokensIndexes[lastToken] = removedTokenIndex;
-        _tokens.pop();
-
         delete pricers[_token];
     }
 
@@ -111,10 +97,6 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- VIEW  ------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
-
-    function tokens() external view returns (address[] memory) {
-        return _tokens;
-    }
 
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
         IPricer pricer = IPricer(pricers[_token]);

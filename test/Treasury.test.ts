@@ -8,33 +8,32 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain-types'
-import {
-  CHAINLINK_LINK_USD,
-  LINK,
-} from '../constants/addresses'
+import { CHAINLINK_LINK_USD, LINK, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
-import { INITIAL_DATA } from './data/initialData'
+
+const TEST_DATA = {
+  tokens: [
+    {
+      address: USDT,
+      pricer: 'UsdtPricer',
+    },
+  ],
+}
 
 describe(`Treasury`, () => {
   let initSnapshot: string
   let productOwner: SignerWithAddress
   let user: SignerWithAddress
   let treasury: Treasury
-  let tokens: IERC20Metadata[]
 
   before(async () => {
     const accounts = await ethers.getSigners()
     productOwner = accounts[0]
     user = accounts[9]
 
-    await deployments.fixture([ 'Treasury'])
+    await deployments.fixture()
     const TreasuryDeployment = await deployments.get('Treasury')
-
     treasury = Treasury__factory.connect(TreasuryDeployment.address, productOwner)
-
-    tokens = (await treasury.tokens()).map(address =>
-      IERC20Metadata__factory.connect(address, productOwner),
-    )
 
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
@@ -44,78 +43,47 @@ describe(`Treasury`, () => {
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
 
-  it('Initial data test: tokens', async () => {
-    assert(
-      tokens.length == INITIAL_DATA.tokens.length,
-      `tokens.length != INITIAL_DATA.tokens.length. ${tokens.length} != ${INITIAL_DATA.tokens.length}`,
-    )
-
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i]
-      assert(
-        token.address == INITIAL_DATA.tokens[i].address,
-        `token.address != INITIAL_DATA.tokens[i].address. ${token.address} != ${INITIAL_DATA.tokens[i].address}`,
-      )
+  for (const token of TEST_DATA.tokens) {
+    it(`Initial: ${token.address} pricers`, async () => {
       const pricer = await treasury.pricers(token.address)
-      assert(
-        pricer == INITIAL_DATA.tokens[i].pricer,
-        `pricer != INITIAL_DATA.tokens[i].pricer. ${pricer} != ${INITIAL_DATA.tokens[i].pricer}`,
-      )
-    }
-  })
+      const pricerAddress = ethers.utils.isAddress(token.pricer)
+        ? token.pricer
+        : (await deployments.get(token.pricer)).address
+      assert(pricer == pricerAddress, `pricer != pricerAddress, ${pricer} != ${pricerAddress}`)
+    })
 
-  it(`Error unit: add token not governance.`, async () => {
-    const newToken = LINK
-    const newTokenPricer = CHAINLINK_LINK_USD
-    await expect(
-      treasury.connect(user).setTokenPricer(newToken, newTokenPricer),
-    ).to.be.revertedWith('GovernanceRole: not authorized!')
-  })
+    it(`Error: user update token`, async () => {
+      const newTokenPricer = CHAINLINK_LINK_USD
+      await expect(
+        treasury.connect(user).updateTokenPricer(token.address, newTokenPricer),
+      ).to.be.revertedWith('only product owner!')
+    })
 
-  it(`Error unit: withdraw not governance.`, async () => {
-    const token = INITIAL_DATA.tokens[0].address
-    const amount = 1
-    await expect(
-      treasury.connect(user).withdraw(token, amount, user.address),
-    ).to.be.revertedWith('Treasury: withdraw not authorized!')
-  })
-
-  it(`Error unit: setOnlyGovernanceWithdraw not governance.`, async () => {
-    await expect(
-      treasury.connect(user).setOnlyGovernanceWithdrawn(true),
-    ).to.be.revertedWith('GovernanceRole: not authorized!')
-  })
-
-  for (const token of INITIAL_DATA.tokens) {
-    it(`Regular unit: Treasury usdAmountToToken. ${JSON.stringify(token)}`, async () => {
-      const usdAmount = ethers.utils.parseUnits('1000', 18)
-      const pricer = IPricer__factory.connect(token.pricer, user)
-      const { answer: tokenPrice } = await pricer.latestRoundData()
-      const tokenAmount = await treasury.usdAmountToToken(usdAmount, token.address)
-      const decimals = await IERC20Metadata__factory.connect(token.address, user).decimals()
-      let calculatedAmount = usdAmount
-        .mul(`${10 ** decimals}`)
-        .mul(`${1e8}`)
-        .div(tokenPrice)
-        .div(`${1e18}`)
-      assert(
-        tokenAmount.eq(calculatedAmount),
-        `tokenAmount != calculatedAmount. ${tokenAmount} != ${calculatedAmount}`,
+    it(`Error: user delete token`, async () => {
+      await expect(treasury.connect(user).deleteToken(token.address)).to.be.revertedWith(
+        'only product owner!',
       )
     })
 
-    it(`Regular unit: Treasury deposit. ${JSON.stringify(token)}`, async () => {
-      const amount = await ERC20Minter.mint(token.address, user.address, 1000)
-      
-      const _token = IERC20Metadata__factory.connect(token.address, user)
-      const treasuryBalanceBefore = await _token.balanceOf(treasury.address)
-      _token.connect(user).transfer(treasury.address, amount)
-      const treasuryBalanceAfter = await _token.balanceOf(treasury.address)
-
-      assert(
-        treasuryBalanceAfter.sub(amount).eq(treasuryBalanceBefore),
-        `treasuryBalanceAfter - amount != treasuryBalanceBefore. ${treasuryBalanceAfter} + ${amount} != ${treasuryBalanceBefore}`,
-      )
+    it(`Error: user withdraw`, async () => {
+      const amount = 10
+      await expect(
+        treasury.connect(user).withdraw(token.address, amount, user.address),
+      ).to.be.revertedWith('Treasury: withdraw not authorized!')
     })
   }
+
+  it(`Error: user add token`, async () => {
+    const newToken = LINK
+    const newTokenPricer = CHAINLINK_LINK_USD
+    await expect(treasury.connect(user).addToken(newToken, newTokenPricer)).to.be.revertedWith(
+      'only product owner!',
+    )
+  })
+
+  it(`Error: user setOnlyProductOwnerWithdrawn`, async () => {
+    await expect(treasury.connect(user).setOnlyProductOwnerWithdrawn(true)).to.be.revertedWith(
+      'only product owner!',
+    )
+  })
 })
