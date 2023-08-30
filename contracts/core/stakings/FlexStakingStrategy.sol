@@ -174,7 +174,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
         // Get sell timestamp
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-        uint256 currentTimestamp = block.number;
+        uint256 currentTimestamp = block.timestamp;
         if (currentTimestamp > _finalTimestamp) currentTimestamp = _finalTimestamp;
         (uint256 sellYear, uint256 sellMonth, ) = DateTimeLib.timestampToDate(currentTimestamp);
 
