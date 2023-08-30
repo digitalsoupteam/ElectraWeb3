@@ -116,7 +116,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
 
     function setNewMaxSupply(uint256 _maxSupply) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
-        require(_maxSupply > maxSupply, "max supply less!");
+        require(_maxSupply > totalMintedAmount, "max supply less!");
         maxSupply = _maxSupply;
     }
 
