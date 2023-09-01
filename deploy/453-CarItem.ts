@@ -23,6 +23,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         'CAR', // _symbol
         4000, // _price
         1000, // _maxSupply
+        'https://elct.com/metadata/car/', // _uri
       ])
     ]
   })

@@ -23,6 +23,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         'MPD', // _symbol
         2000, // _price
         1000, // _maxSupply
+        'https://elct.com/metadata/moped/', // _uri
       ])
     ]
   })

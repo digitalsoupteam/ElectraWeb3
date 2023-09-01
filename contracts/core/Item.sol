@@ -22,6 +22,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     uint256 public nextTokenId;
     mapping(uint256 => uint256) public amountInToken;
     mapping(uint256 => address) public tokenStakingStrategy;
+    string internal uri;
 
     // ------------------------------------------------------------------------------------
     // ----- EVENTS -----------------------------------------------------------------------
@@ -43,12 +44,14 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         string calldata _name,
         string calldata _symbol,
         uint256 _price,
-        uint256 _maxSupply
+        uint256 _maxSupply,
+        string calldata _uri
     ) public initializer {
         __ERC721_init(_name, _symbol);
         addressBook = _addressBook;
         price = _price;
         maxSupply = _maxSupply;
+        uri = _uri;
     }
 
     function _authorizeUpgrade(address) internal view override {
@@ -134,5 +137,9 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
 
     function _enfroceIsTokenOwner(uint256 _tokenId) internal view {
         require(ownerOf(_tokenId) == msg.sender, "tokenOwner!");
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return uri;
     }
 }

@@ -23,6 +23,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         'SCT', // _symbol
         1000, // _price
         1000, // _maxSupply
+        'https://elct.com/metadata/scooter/', // _uri
       ])
     ]
   })
