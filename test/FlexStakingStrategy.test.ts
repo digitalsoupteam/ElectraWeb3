@@ -309,7 +309,6 @@ describe(`FlexStakingStratgey`, () => {
                   const minLockYears = (await stakingStrategy.minLockYears()).toNumber()
                   const maxLockYears = (await stakingStrategy.maxLockYears()).toNumber()
                   for (let i = 0; i < 12 * maxLockYears + 1; i++) {
-                    console.log(`i ${i}`)
                     if (i < 12 * minLockYears) {
                       await expect(
                         stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
@@ -360,8 +359,6 @@ describe(`FlexStakingStratgey`, () => {
                       )
                     }
                   }
-
-                  return
 
                   await stakingStrategy.updateDeposits()
                   let balanceBefore = await token.balanceOf(user.address)

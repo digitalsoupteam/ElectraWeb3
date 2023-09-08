@@ -10,7 +10,7 @@ import { IAddressBook } from "../../interfaces/IAddressBook.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { DateTimeLib } from "../../utils/DateTimeLib.sol";
-import "hardhat/console.sol";
+
 contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
@@ -101,7 +101,6 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
             .timestampToDate(earningsTimestamp);
 
         // Remainder
-        console.log("earningsDay", earningsDay);
         uint256 ratio = ((earningsDay - 1) * 10000) / daysInStartMonth;
         uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
         uint256 _remainder = (totalPrice * ratio) / 10000;
@@ -254,11 +253,14 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, block.timestamp);
         uint256 claimedMonths = DateTimeLib.diffMonths(_initialTimestamp, _lastClaimTimestamp);
 
+        uint256 _remainder = remainder[_itemAddress][_itemId];
+        uint256 _maxClaimedMonths = maxClaimedMonths[_itemAddress][_itemId];
+        uint256 _initialMonths = initialMonths;
+        uint256 _initialRewardsRate = initialRewardsRate;
+
         for (uint256 i = claimedMonths; i < allExpiredMonths; ++i) {
-            console.log("cont i", i);
-            console.log("cont 2", maxClaimedMonths[_itemAddress][_itemId]);
-            if (i < initialMonths) {
-                rewards_ += (totalPrice * initialRewardsRate) / 10000;
+            if (i < _initialMonths) {
+                rewards_ += (totalPrice * _initialRewardsRate) / 10000;
                 continue;
             }
 
@@ -270,21 +272,13 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
             if (_earnings == 0) break;
 
             uint256 itemsPrice = totalPrice;
-            if (i == initialMonths) {
-                console.log("top", i);
-                itemsPrice = totalPrice - remainder[_itemAddress][_itemId];
-            } else if (i == maxClaimedMonths[_itemAddress][_itemId] - 1) {
-                console.log("bot", i);
-                itemsPrice = remainder[_itemAddress][_itemId];
-
+            if (i == _initialMonths) {
+                itemsPrice = totalPrice - _remainder;
+            } else if (i == _maxClaimedMonths - 1) {
+                itemsPrice = _remainder;
             }
 
             rewards_ += (itemsPrice * _earnings) / deposits[year][month];
-            console.log("itemsPrice", itemsPrice);
-            console.log("remainder[_itemAddress][_itemId]", remainder[_itemAddress][_itemId]);
-            console.log("rewards_", rewards_);
-            console.log("_earnings", _earnings);
-            console.log("deposits[year][month]", deposits[year][month]);
         }
     }
 
