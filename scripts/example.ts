@@ -1,7 +1,7 @@
-import harhat from 'hardhat'
+import { ethers } from "ethers"
 
 async function main() {
-  
+
 }
 
 main().catch((error) => {

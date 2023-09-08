@@ -2,14 +2,10 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  IERC20Metadata,
-  IERC20Metadata__factory,
-  IPricer__factory,
   Treasury,
   Treasury__factory,
 } from '../typechain-types'
 import { CHAINLINK_LINK_USD, LINK, USDT } from '../constants/addresses'
-import ERC20Minter from './utils/ERC20Minter'
 
 const TEST_DATA = {
   tokens: [

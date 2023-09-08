@@ -12,7 +12,6 @@ import {
 } from '../typechain-types'
 import { CHAINLINK_LINK_USD, LINK, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
-import { INITIAL_DATA } from './data/initialData'
 import { BigNumber } from 'ethers'
 
 const TEST_DATA = {

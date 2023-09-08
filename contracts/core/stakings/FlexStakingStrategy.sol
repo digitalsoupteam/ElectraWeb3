@@ -10,7 +10,7 @@ import { IAddressBook } from "../../interfaces/IAddressBook.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { DateTimeLib } from "../../utils/DateTimeLib.sol";
-
+import "hardhat/console.sol";
 contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
@@ -34,12 +34,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     mapping(address item => mapping(uint256 tokenId => uint256)) public startSellTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public finalTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public remainder;
+    mapping(address item => mapping(uint256 tokenId => uint256)) public maxClaimedMonths;
 
     struct DepositsDate {
-        uint256 earningsYear;
-        uint256 earningsMonth;
-        uint256 nextEarningsYear;
-        uint256 nextEarningsMonth;
         uint256 finalYear;
         uint256 finalMonth;
         uint256 prevFinalYear;
@@ -104,10 +101,15 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
             .timestampToDate(earningsTimestamp);
 
         // Remainder
+        console.log("earningsDay", earningsDay);
         uint256 ratio = ((earningsDay - 1) * 10000) / daysInStartMonth;
         uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
         uint256 _remainder = (totalPrice * ratio) / 10000;
         remainder[_itemAddress][_itemId] = _remainder; // be zero in 1 month day
+
+        uint256 _maxClaimedMonths = 12 * maxLockYears;
+        if(_remainder > 0) _maxClaimedMonths += 1;
+        maxClaimedMonths[_itemAddress][_itemId] = _maxClaimedMonths;
 
         // Final date
         uint256 _finalTimestamp = DateTimeLib.addYears(_initialTimestamp, maxLockYears);
@@ -124,16 +126,12 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         deposits[nextEarningsYear][nextEarningsMonth] += _remainder;
         // Set deposits to remove
         (uint256 finalYear, uint256 finalMonth, ) = DateTimeLib.timestampToDate(_finalTimestamp);
-        depositsToRemove[finalYear][finalMonth] += totalPrice - _remainder;
+        depositsToRemove[finalYear][finalMonth] += _remainder;
         (uint256 prevFinalYear, uint256 prevFinalMonth, ) = DateTimeLib.timestampToDate(
             DateTimeLib.subMonths(_finalTimestamp, 1)
         );
-        depositsToRemove[prevFinalYear][prevFinalMonth] += _remainder;
+        depositsToRemove[prevFinalYear][prevFinalMonth] += totalPrice - _remainder;
         depostitsDate[_itemAddress][_itemId] = DepositsDate(
-            earningsYear,
-            earningsMonth,
-            nextEarningsYear,
-            nextEarningsMonth,
             finalYear,
             finalMonth,
             prevFinalYear,
@@ -183,8 +181,8 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         deposits[sellYear][sellMonth] -= totalPrice;
         uint256 _remainder = remainder[_itemAddress][_itemId];
         DepositsDate memory d = depostitsDate[_itemAddress][_itemId];
-        depositsToRemove[d.prevFinalYear][d.prevFinalMonth] -= _remainder;
-        depositsToRemove[d.finalYear][d.finalMonth] -= totalPrice - _remainder;
+        depositsToRemove[d.prevFinalYear][d.prevFinalMonth] -= totalPrice - _remainder;
+        depositsToRemove[d.finalYear][d.finalMonth] -= _remainder;
 
         // Burn item
         IItem(_itemAddress).burn(_itemId);
@@ -257,6 +255,8 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 claimedMonths = DateTimeLib.diffMonths(_initialTimestamp, _lastClaimTimestamp);
 
         for (uint256 i = claimedMonths; i < allExpiredMonths; ++i) {
+            console.log("cont i", i);
+            console.log("cont 2", maxClaimedMonths[_itemAddress][_itemId]);
             if (i < initialMonths) {
                 rewards_ += (totalPrice * initialRewardsRate) / 10000;
                 continue;
@@ -271,12 +271,20 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
             uint256 itemsPrice = totalPrice;
             if (i == initialMonths) {
+                console.log("top", i);
                 itemsPrice = totalPrice - remainder[_itemAddress][_itemId];
-            } else if (i == maxLockYears * 12 - 1) {
+            } else if (i == maxClaimedMonths[_itemAddress][_itemId] - 1) {
+                console.log("bot", i);
                 itemsPrice = remainder[_itemAddress][_itemId];
+
             }
 
             rewards_ += (itemsPrice * _earnings) / deposits[year][month];
+            console.log("itemsPrice", itemsPrice);
+            console.log("remainder[_itemAddress][_itemId]", remainder[_itemAddress][_itemId]);
+            console.log("rewards_", rewards_);
+            console.log("_earnings", _earnings);
+            console.log("deposits[year][month]", deposits[year][month]);
         }
     }
 
