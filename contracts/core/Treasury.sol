@@ -14,6 +14,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
 
     uint256 public constant PRICERS_DECIMALS = 8;
+    uint256 public constant USD_DECIMALS = 18;
 
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
@@ -105,7 +106,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         return
             (_usdAmount * (10 ** IERC20Metadata(_token).decimals()) * (10 ** PRICERS_DECIMALS)) /
-            uint256(tokenPrice);
+            uint256(tokenPrice) / 10 ** USD_DECIMALS;
     }
 
     function enforceIsSupportedToken(address _token) external view {

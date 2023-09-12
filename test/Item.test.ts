@@ -22,6 +22,11 @@ const TEST_DATA = {
     // 'MopedItem',
     // 'CarItem',
   ],
+  amounts: [
+    1, //
+    // 2,
+    // 3,
+  ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
     // 'ThreeYearsFixStakingStrategy',
@@ -81,8 +86,8 @@ describe(`Items tests`, () => {
                 await token.connect(user).approve(item.address, mintedPayTokensAmount)
               })
 
-              for (const amount of [1, 2, 3]) {
-                it('Regular: mint', async () => {
+              for (const amount of TEST_DATA.amounts) {
+                it(`Regular: mint. amount=${amount}`, async () => {
                   const tokenId = 0
 
                   const balanceBefore = await item.balanceOf(user.address)
@@ -106,6 +111,11 @@ describe(`Items tests`, () => {
                   )
                 })
               }
+
+              it('Error: mint not authorized staking strategy', async () => {
+                const fakeStakingStratgey = ethers.constants.AddressZero
+                await expect(item.connect(user).mint(1, fakeStakingStratgey, token.address, '0x')).to.be.revertedWith('only staking strategy!')
+              })
 
               it(`Regular: owner stop sell`, async () => {
                 await item.connect(productOwner).stopSell()

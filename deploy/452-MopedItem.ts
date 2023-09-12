@@ -21,7 +21,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         AddressBookDeployment.address, // _addressBook
         'MOPED', // _name
         'MPD', // _symbol
-        2000, // _price
+        ethers.utils.parseUnits('2000', 18), // _price
         1000, // _maxSupply
         'https://elct.com/metadata/moped/', // _uri
       ])

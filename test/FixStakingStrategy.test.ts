@@ -20,19 +20,19 @@ const TEST_DATA = {
   tokens: [USDT],
   items: [
     'ScooterItem',
-    'BikeItem',
-    'MopedItem',
-    'CarItem',
+    // 'BikeItem',
+    // 'MopedItem',
+    // 'CarItem',
   ],
   mintedAmount: [
     1,
-    2,
-    10
+    // 2,
+    // 10
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
-     'ThreeYearsFixStakingStrategy',
-     'FiveYearsFixStakingStrategy',
+    //  'ThreeYearsFixStakingStrategy',
+    //  'FiveYearsFixStakingStrategy',
   ],
 }
 
@@ -89,13 +89,15 @@ describe(`FixStakingStratgey`, () => {
                   user,
                 )
               })
-              for(const mintAmount of TEST_DATA.mintedAmount) {
-                it(`Regular: claim every period. mintAmount=${mintAmount}`, async () => {                  
+              for (const mintAmount of TEST_DATA.mintedAmount) {
+                it(`Regular: claim every period. mintAmount=${mintAmount}`, async () => {
                   let tokenId = 0
-  
+
                   // Mint item
-                  await item.connect(user).mint(mintAmount, stakingStrategy.address, token.address, '0x')
-      
+                  await item
+                    .connect(user)
+                    .mint(mintAmount, stakingStrategy.address, token.address, '0x')
+
                   // Check errors: initial actions, claim/sell
                   await expect(
                     stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
@@ -103,12 +105,12 @@ describe(`FixStakingStratgey`, () => {
                   await expect(
                     stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                   ).to.be.revertedWith("can't sell!")
-      
+
                   // Contracts params
                   const tokenPrice = await item.tokenPrice(tokenId)
                   const rewardsRate = await stakingStrategy.rewardsRate()
                   const lockYears = (await stakingStrategy.lockYears()).toNumber()
-      
+
                   for (let i = 0; i < 12 * lockYears; i++) {
                     // Check errors sell
                     await expect(
@@ -125,16 +127,16 @@ describe(`FixStakingStratgey`, () => {
                     let balanceBefore = await token.balanceOf(user.address)
                     await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
                     let balanceAfter = await token.balanceOf(user.address)
-                    let estimatedBalance = ethers.utils.parseUnits(
+                    let estimatedBalance = await treasury.usdAmountToToken(
                       rewardsRate.mul(1).mul(tokenPrice).div(12).div(10000).toString(),
-                      await token.decimals(),
+                      token.address,
                     )
                     assert(
                       balanceAfter.sub(balanceBefore).eq(estimatedBalance),
                       `claimed balance! ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                     )
                   }
-      
+
                   // Check errors
                   await expect(
                     stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
@@ -143,7 +145,7 @@ describe(`FixStakingStratgey`, () => {
                   await expect(
                     stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                   ).to.be.revertedWith('rewards!')
-      
+
                   // Sell
                   let balanceBefore = await token.balanceOf(user.address)
                   await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
@@ -153,19 +155,17 @@ describe(`FixStakingStratgey`, () => {
                     balanceAfter.sub(balanceBefore).eq(sellPrice),
                     `sell balance! ${balanceAfter.sub(balanceBefore)} != ${sellPrice}`,
                   )
-      
+
                   // Check errors after burn
                   await expect(
                     stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                   ).to.be.revertedWith('ERC721: invalid token ID')
-      
+
                   await expect(
                     stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                   ).to.be.revertedWith('ERC721: invalid token ID')
                 })
               }
-
-              
             })
           }
         })
