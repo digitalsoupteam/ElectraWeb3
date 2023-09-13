@@ -98,7 +98,6 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- VIEW  ------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
-
     function usdAmountToToken(uint256 _usdAmount, address _token) public view returns (uint256) {
         IPricer pricer = IPricer(pricers[_token]);
         require(address(pricer) != address(0), "not supported token!");
