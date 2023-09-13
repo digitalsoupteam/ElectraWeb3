@@ -53,7 +53,7 @@ describe(`Treasury`, () => {
       const amount = await ERC20Minter.mint(token.address, user.address, 10000)
       await token.connect(user).transfer(treasury.address, amount)
       const balanceBefore = await token.balanceOf(user2.address)
-      await treasury.connect(productOwner).withdraw(token.address, amount, productOwner.address)
+      await treasury.connect(productOwner).withdraw(token.address, amount, user2.address)
       const balanceAfter = await token.balanceOf(user2.address)
       assert(
         balanceAfter.sub(balanceBefore).eq(amount),
