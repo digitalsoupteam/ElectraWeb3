@@ -115,7 +115,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     // ----- VIEW  ------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function stakingType() external pure returns(string memory) {
+    function stakingType() external pure returns (string memory) {
         return "fix";
     }
 
@@ -138,9 +138,9 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
-        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-        uint256 rewards = estimateRewards(_itemAddress, _itemId);
-        return block.timestamp >= _finalTimestamp && rewards == 0;
+        return
+            block.timestamp >= finalTimestamp[_itemAddress][_itemId] &&
+            estimateRewards(_itemAddress, _itemId) == 0;
     }
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {

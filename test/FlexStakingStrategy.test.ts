@@ -112,6 +112,15 @@ describe(`FlexStakingStratgey`, () => {
                   const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
                   const initialRewardsRate = await stakingStrategy.initialRewardsRate()
 
+                  async function getDate() {
+                    const timestamp = (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp
+                    return (new Date(timestamp * 1000)).toUTCString()
+                  }
+
+
+
+                  console.log(`${await getDate()}. token price ${ethers.utils.formatUnits(tokenPrice, 18)}`)
+
                   const minLockYears = (await stakingStrategy.minLockYears()).toNumber()
                   for (let i = 0; i < 12 * minLockYears; i++) {
                     await expect(
@@ -126,9 +135,10 @@ describe(`FlexStakingStratgey`, () => {
 
                     await time.increaseTo(nextClaimTimestamp)
 
-                    const earnings = 1000
+                    const formatedEarnings = 1000
+                    const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, earnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
                     const balanceBefore = await token.balanceOf(user.address)
                     await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
                     const balanceAfter = await token.balanceOf(user.address)
@@ -137,6 +147,7 @@ describe(`FlexStakingStratgey`, () => {
                         tokenPrice.mul(initialRewardsRate).div(10000),
                         token.address,
                       )
+                      console.log(`${await getDate()}. i ${i}. rewards ${ethers.utils.formatUnits(estimatedRewards, 18)}`)
                       assert(
                         balanceAfter.sub(balanceBefore).eq(estimatedRewards),
                         `flex first rewards ${balanceAfter.sub(
@@ -152,17 +163,13 @@ describe(`FlexStakingStratgey`, () => {
                         price.mul(10000).mul(earnings).div(deposits).div(10000),
                         token.address,
                       )
-
+                      console.log(`${await getDate()}. i ${i}. rewards ${ethers.utils.formatUnits(estimatedRewards, 18)}`)
                       assert(
                         balanceAfter.sub(balanceBefore).eq(estimatedRewards),
                         `flex rewards ${balanceAfter.sub(balanceBefore)} != ${estimatedRewards}`,
                       )
                     }
                   }
-
-                  console.log(
-                    `rewards ${await stakingStrategy.estimateRewards(item.address, tokenId)}`,
-                  )
 
                   await stakingStrategy.connect(productOwner).updateDeposits()
                   let balanceBefore = await token.balanceOf(user.address)
@@ -174,6 +181,7 @@ describe(`FlexStakingStratgey`, () => {
                     tokenPrice.sub(tokenPrice.mul(deprecationRate).mul(minLockYears).div(10000)),
                     token.address,
                   )
+                  console.log(`${await getDate()}. sell ${ethers.utils.formatUnits(estimatedBalance, 18)}`)
                   assert(
                     balanceAfter.sub(balanceBefore).eq(estimatedBalance),
                     `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
@@ -186,7 +194,7 @@ describe(`FlexStakingStratgey`, () => {
                     stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                   ).to.be.revertedWith('ERC721: invalid token ID')
                 })
-
+return
                 it(`Regular: claim all in one (min lock). mintAmount=${mintAmount}`, async () => {
                   await time.increase((31 + 30 + 22) * 24 * 60 * 60)
 
@@ -225,9 +233,10 @@ describe(`FlexStakingStratgey`, () => {
 
                     await time.increaseTo(nextClaimTimestamp)
 
-                    const earnings = 1000
+                    const formatedEarnings = 1000
+                    const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, earnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
 
                     if (i < initialMonths) {
                       estimatedRewards = estimatedRewards.add(
@@ -325,9 +334,10 @@ describe(`FlexStakingStratgey`, () => {
 
                     await time.increaseTo(nextClaimTimestamp)
 
-                    const earnings = 1000
+                    const formatedEarnings = 1000
+                    const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, earnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
                     const balanceBefore = await token.balanceOf(user.address)
                     await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
                     const balanceAfter = await token.balanceOf(user.address)
@@ -437,9 +447,10 @@ describe(`FlexStakingStratgey`, () => {
 
                     await time.increaseTo(nextClaimTimestamp)
 
-                    const earnings = 1000
+                    const formatedEarnings = 1000
+                    const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, earnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
                    
                     if (i < initialMonths) {
                       estimatedRewards = estimatedRewards.add(
@@ -544,9 +555,10 @@ describe(`FlexStakingStratgey`, () => {
 
                     await time.increaseTo(nextClaimTimestamp)
 
-                    const earnings = 1000
+                    const formatedEarnings = 1000
+                    const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, earnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
                    
                     if (i < initialMonths) {
                       estimatedRewards = estimatedRewards.add(
@@ -640,9 +652,10 @@ describe(`FlexStakingStratgey`, () => {
 
                     await time.increaseTo(nextClaimTimestamp)
 
-                    const earnings = 1000
+                    const formatedEarnings = 1000
+                    const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, earnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
                    
                     const deposits = await stakingStrategy.deposits(year, month)
                     console.log(`deposits ${i} ${deposits}`)

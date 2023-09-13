@@ -61,10 +61,14 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         addressBook = _addressBook;
         minLockYears = _minLockYears;
         maxLockYears = _maxLockYears;
-        lastUpdatedTimestamp = block.timestamp;
         initialMonths = _initialMonths;
         initialRewardsRate = _initialRewardsRate;
         yearDeprecationRate = _yearDeprecationRate;
+        
+        (uint256 initialYear, uint256 initialMonth, ) = DateTimeLib.timestampToDate(
+            DateTimeLib.subMonths(block.timestamp, 1)
+        );
+        lastUpdatedTimestamp = DateTimeLib.timestampFromDate(initialYear, initialMonth, 1);
     }
 
     function _authorizeUpgrade(address) internal view override {
@@ -77,6 +81,14 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
     function setEarnings(uint256 _month, uint256 _year, uint256 _formatedEarning) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
+        require(_formatedEarning > 0, "earnings cannot be zero!");
+
+        uint256 earningsTimestamp = DateTimeLib.timestampFromDate(_year, _month, 1);
+        require(
+            earningsTimestamp <= lastUpdatedTimestamp,
+            "cannot set earnings for an unexpired period!"
+        );
+
         earnings[_year][_month] = _formatedEarning * 1e18;
     }
 
@@ -183,7 +195,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         DepositsDate memory d = depostitsDate[_itemAddress][_itemId];
         uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
 
-        (uint256 currentYear, uint256 currentMonth, ) = DateTimeLib.timestampToDate(currentTimestamp);
+        (uint256 currentYear, uint256 currentMonth, ) = DateTimeLib.timestampToDate(
+            currentTimestamp
+        );
 
         (uint256 sellYear, uint256 sellMonth, ) = DateTimeLib.timestampToDate(sellTimestamp);
         if (diffMonths == 0) {
@@ -198,7 +212,6 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         }
         depositsToRemove[d.prevFinalYear][d.prevFinalMonth] -= totalPrice - _remainder;
         depositsToRemove[d.finalYear][d.finalMonth] -= _remainder;
-
 
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
 
@@ -223,19 +236,22 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         return "flex";
     }
 
-    function currentYear() external view returns(uint256) {
+    function currentYear() external view returns (uint256) {
         return DateTimeLib.getYear(block.timestamp);
     }
 
-   function currentMonth() external view returns(uint256) {
+    function currentMonth() external view returns (uint256) {
         return DateTimeLib.getMonth(block.timestamp);
     }
 
+// июнь июль август__ _сентябрь_ октябрь ноябрь декабрь
+// июнь июль август    сентябрь _октябрь_ ноябрь декабрь
+
     function updateDeposits() public {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
-        uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
 
-        uint256 monthToUpdate = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp);
+        uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
+        uint256 monthToUpdate = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp) - 1;
         for (uint256 i; i < monthToUpdate; ++i) {
             (uint256 prevYear, uint256 prevMonth, ) = DateTimeLib.timestampToDate(
                 _lastUpdatedTimestamp
