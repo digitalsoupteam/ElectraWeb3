@@ -60,7 +60,6 @@ describe(`Items tests`, () => {
       let token: IERC20Metadata
       let mintedPayTokensAmount: BigNumber
       beforeEach(async () => {
-        console.log('Token before')
         token = IERC20Metadata__factory.connect(USDT, user)
         mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 10000000)
       })
@@ -115,6 +114,11 @@ describe(`Items tests`, () => {
               it('Error: mint not authorized staking strategy', async () => {
                 const fakeStakingStratgey = ethers.constants.AddressZero
                 await expect(item.connect(user).mint(1, fakeStakingStratgey, token.address, '0x')).to.be.revertedWith('only staking strategy!')
+              })
+
+              it('Error: mint with not supported payToken', async () => {
+                const fakeTokenAddress = ethers.constants.AddressZero
+                await expect(item.connect(user).mint(1, stakingStrategyAddress, fakeTokenAddress, '0x')).to.be.revertedWith('Treasury: unknown token!')
               })
 
               it(`Regular: owner stop sell`, async () => {
