@@ -9,13 +9,22 @@ import { ITreasury } from "../../interfaces/ITreasury.sol";
 import { IAddressBook } from "../../interfaces/IAddressBook.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
-import { DateTimeLib } from "../../utils/DateTimeLib.sol";
+// import { DateTimeLib } from "../../utils/DateTimeLib.sol";
 import "hardhat/console.sol";
 
 contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
+    // ----- CONSTANTS --------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    uint256 public constant REWARDS_PERIOD = 30 days;
+    uint256 public constant SEED_PERIOD = 1;
+
+    // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
+
+    uint256 public seedPeriodTimestamp;
 
     address public addressBook;
     uint256 public minLockYears;
@@ -24,11 +33,11 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     uint256 public initialRewardsRate;
     uint256 public yearDeprecationRate;
 
-    mapping(uint256 year => mapping(uint256 month => uint256)) public earnings;
-    mapping(uint256 year => mapping(uint256 month => uint256 depositToRemove))
-        public depositsToRemove;
-    mapping(uint256 year => mapping(uint256 month => uint256 deposit)) public deposits;
+    mapping(uint256 period => uint256) public earnings;
+    mapping(uint256 period => uint256) public depositsToRemove;
+    mapping(uint256 period => uint256) public deposits;
     uint256 public lastUpdatedTimestamp;
+    uint256 public lastUpdatedPeriod;
 
     mapping(address item => mapping(uint256 tokenId => uint256)) public initialTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public lastClaimTimestamp;
@@ -47,6 +56,13 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     mapping(address item => mapping(uint256 tokenId => DepositsDate)) public depostitsDate;
 
     // ------------------------------------------------------------------------------------
+    // ----- EVENTS  ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    event UpdateDeposits(uint256 period, uint256 deposits);
+    event SetEarnings(uint256 period, uint256 earnings);
+
+    // ------------------------------------------------------------------------------------
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
@@ -56,7 +72,8 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _maxLockYears,
         uint256 _initialMonths,
         uint256 _initialRewardsRate,
-        uint256 _yearDeprecationRate
+        uint256 _yearDeprecationRate,
+        uint256 _seedPeriodTimestamp
     ) public initializer {
         addressBook = _addressBook;
         minLockYears = _minLockYears;
@@ -64,11 +81,14 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         initialMonths = _initialMonths;
         initialRewardsRate = _initialRewardsRate;
         yearDeprecationRate = _yearDeprecationRate;
-        
-        (uint256 initialYear, uint256 initialMonth, ) = DateTimeLib.timestampToDate(
-            DateTimeLib.subMonths(block.timestamp, 1)
-        );
-        lastUpdatedTimestamp = DateTimeLib.timestampFromDate(initialYear, initialMonth, 1);
+        seedPeriodTimestamp = _seedPeriodTimestamp;
+
+        lastUpdatedPeriod = SEED_PERIOD;
+
+        // (uint256 initialYear, uint256 initialMonth, ) = DateTimeLib.timestampToDate(
+        //     DateTimeLib.subMonths(block.timestamp, 1)
+        // );
+        // lastUpdatedTimestamp = DateTimeLib.timestampFromDate(initialYear, initialMonth, 1);
     }
 
     function _authorizeUpgrade(address) internal view override {
@@ -79,17 +99,43 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     // -----  PRODUCT OWNER ACTIONS  ------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function setEarnings(uint256 _month, uint256 _year, uint256 _formatedEarning) external {
+    function getPeriod(uint256 _timestamp) public view returns(uint256) {
+        return (_timestamp - seedPeriodTimestamp) / REWARDS_PERIOD + SEED_PERIOD;
+    }
+    
+    function currentPeriod() public view returns(uint256) {
+        return getPeriod(block.timestamp);
+    }
+    
+    function setEarnings(uint256 _period, uint256 _formatedEarning) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         require(_formatedEarning > 0, "earnings cannot be zero!");
 
-        uint256 earningsTimestamp = DateTimeLib.timestampFromDate(_year, _month, 1);
         require(
-            earningsTimestamp <= lastUpdatedTimestamp,
+            _period < currentPeriod(),
             "cannot set earnings for an unexpired period!"
         );
+        uint256 _earnings = _formatedEarning * 1e18;
+        earnings[_period] = _earnings;
 
-        earnings[_year][_month] = _formatedEarning * 1e18;
+        emit SetEarnings(_period, _earnings);
+    }
+
+    function updateDeposits() public {
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
+
+        uint256 _lastUpdatedPeriod = lastUpdatedPeriod;
+        uint256 _currentPeriod = currentPeriod();
+
+        for (uint256 period = _lastUpdatedPeriod; period < _currentPeriod; ++period) {
+            uint256 newDeposits = deposits[period] +
+                deposits[period - 1] -
+                depositsToRemove[period];
+            deposits[period] = newDeposits;
+
+            emit UpdateDeposits(period, newDeposits);
+        }
+        _lastUpdatedPeriod = _currentPeriod - 1;
     }
 
     // ------------------------------------------------------------------------------------
@@ -103,10 +149,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _initialTimestamp = block.timestamp;
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         lastClaimTimestamp[_itemAddress][_itemId] = _initialTimestamp;
-        startSellTimestamp[_itemAddress][_itemId] = DateTimeLib.addYears(
-            _initialTimestamp,
-            minLockYears
-        );
+        startSellTimestamp[_itemAddress][_itemId] = _initialTimestamp + minLockYears * 12 * REWARDS_PERIOD;
         maxClaimedMonths[_itemAddress][_itemId] = 12 * maxLockYears + 1;
 
         // Earnings date
@@ -116,9 +159,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
             .timestampToDate(earningsTimestamp);
 
         // Remainder
-        uint256 ratio = ((earningsDay) * 10000) / (daysInStartMonth + 1);
+        uint256 ratio = (1e18 * earningsDay) / (daysInStartMonth + 1);
         uint256 totalPrice = IItem(_itemAddress).tokenPrice(_itemId);
-        uint256 _remainder = (totalPrice * ratio) / 10000;
+        uint256 _remainder = (totalPrice * ratio) / 1e18;
         remainder[_itemAddress][_itemId] = _remainder;
 
         // Final date
@@ -240,35 +283,17 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         return DateTimeLib.getYear(block.timestamp);
     }
 
-    function currentMonth() external view returns (uint256) {
-        return DateTimeLib.getMonth(block.timestamp);
+    // function currentPeriod() external view returns (uint256 year_, uint256 month_) {
+    //     return timestampPeriod(block.timestamp);
+    // }
+
+    function timestampPeriod(
+        uint256 _timestamp
+    ) public pure returns (uint256 year_, uint256 month_) {
+        (year_, month_, ) = DateTimeLib.timestampToDate(_timestamp);
     }
 
-// июнь июль август__ _сентябрь_ октябрь ноябрь декабрь
-// июнь июль август    сентябрь _октябрь_ ноябрь декабрь
-
-    function updateDeposits() public {
-        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
-
-        uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
-        uint256 monthToUpdate = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp) - 1;
-        for (uint256 i; i < monthToUpdate; ++i) {
-            (uint256 prevYear, uint256 prevMonth, ) = DateTimeLib.timestampToDate(
-                _lastUpdatedTimestamp
-            );
-            _lastUpdatedTimestamp = DateTimeLib.addMonths(_lastUpdatedTimestamp, 1);
-            (uint256 year, uint256 month, ) = DateTimeLib.timestampToDate(_lastUpdatedTimestamp);
-            deposits[year][month] += deposits[prevYear][prevMonth];
-            deposits[year][month] -= depositsToRemove[year][month];
-        }
-        lastUpdatedTimestamp = _lastUpdatedTimestamp;
-    }
-
-    function currentPeriod() external view returns (uint256 month_, uint256 year_) {
-        (year_, month_, ) = DateTimeLib.timestampToDate(block.timestamp);
-    }
-
-    function nextClaimTimestamp(
+    function claimTimestamp(
         address _itemAddress,
         uint256 _itemId,
         uint256 _monthsCount
@@ -284,6 +309,11 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         address _itemAddress,
         uint256 _itemId
     ) public view returns (uint256 rewards_) {
+        console.log(
+            "test",
+            DateTimeLib.diffMonths(block.timestamp, block.timestamp + 60 * 60 * 24 * 5)
+        );
+
         uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
         uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
@@ -300,8 +330,12 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _maxClaimedMonths = maxClaimedMonths[_itemAddress][_itemId];
         uint256 _initialMonths = initialMonths;
         uint256 _initialRewardsRate = initialRewardsRate;
+        (uint256 year, uint256 month, ) = DateTimeLib.timestampToDate(block.timestamp);
 
+        console.log("now year", year);
+        console.log("now month", month);
         for (uint256 i = claimedMonths; i < allExpiredMonths; ++i) {
+            console.log("i", i);
             if (i < _initialMonths) {
                 rewards_ += (totalPrice * _initialRewardsRate) / 10000;
                 continue;
@@ -311,7 +345,11 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
                 DateTimeLib.addMonths(_initialTimestamp, i)
             );
 
+            console.log("year", year);
+            console.log("month", month);
+
             uint256 _earnings = earnings[year][month];
+            console.log("_earnings", _earnings);
             if (_earnings == 0) break;
 
             uint256 itemsPrice = totalPrice;
@@ -321,6 +359,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
                 itemsPrice = _remainder;
             }
 
+            console.log("deposits[year][month]", deposits[year][month]);
             rewards_ += (itemsPrice * _earnings) / deposits[year][month];
         }
     }

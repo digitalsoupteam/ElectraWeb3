@@ -8,10 +8,16 @@ import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { ITreasury } from "../../interfaces/ITreasury.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
-import { DateTimeLib } from "../../utils/DateTimeLib.sol";
 import { IAddressBook } from "../../interfaces/IAddressBook.sol";
+import "hardhat/console.sol";
 
 contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+    // ------------------------------------------------------------------------------------
+    // ----- CONSTANTS --------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    uint256 public constant REWARDS_PERIOD = 30 days;
+
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -21,7 +27,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     uint256 public lockYears;
     uint256 public yearDeprecationRate;
     mapping(address item => mapping(uint256 tokenId => uint256)) public initialTimestamp;
-    mapping(address item => mapping(uint256 tokenId => uint256)) public lastClaimTimestamp;
+    mapping(address item => mapping(uint256 tokenId => uint256)) public claimedPeriodsCount;
     mapping(address item => mapping(uint256 tokenId => uint256)) public finalTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public withdrawnRewards;
 
@@ -42,7 +48,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     }
 
     function _authorizeUpgrade(address) internal view override {
-        IAddressBook(addressBook).enforceIsStakingStrategyContract(msg.sender);
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
     }
 
     // ------------------------------------------------------------------------------------
@@ -54,8 +60,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
         uint256 _initialTimestamp = block.timestamp;
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
-        lastClaimTimestamp[_itemAddress][_itemId] = _initialTimestamp;
-        finalTimestamp[_itemAddress][_itemId] = DateTimeLib.addYears(_initialTimestamp, lockYears);
+        finalTimestamp[_itemAddress][_itemId] = _initialTimestamp + REWARDS_PERIOD * lockYears * 12;
     }
 
     // ------------------------------------------------------------------------------------
@@ -69,16 +74,10 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     ) external nonReentrant {
         _enforceIsTokenOwner(_itemAddress, _itemId);
 
-        uint256 rewards = estimateRewards(_itemAddress, _itemId);
+        (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "rewards!");
 
-        uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
-        uint256 allExpiredMonths = DateTimeLib.diffMonths(_initialTimestamp, block.timestamp);
-        lastClaimTimestamp[_itemAddress][_itemId] = DateTimeLib.addMonths(
-            _initialTimestamp,
-            allExpiredMonths
-        );
-
+        claimedPeriodsCount[_itemAddress][_itemId] += claimedPeriods;
         withdrawnRewards[_itemAddress][_itemId] += rewards;
 
         address _treasury = IAddressBook(addressBook).treasury();
@@ -122,25 +121,28 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     function estimateRewards(
         address _itemAddress,
         uint256 _itemId
-    ) public view returns (uint256 rewards_) {
-        uint256 _lastClaimTimestamp = lastClaimTimestamp[_itemAddress][_itemId];
+    ) public view returns (uint256 rewards_, uint256 claimedPeriods_) {
+        uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
+        uint256 _claimedPeriodsCount = claimedPeriodsCount[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
 
-        uint256 estimateTimestamp = block.timestamp;
-        if (estimateTimestamp > _finalTimestamp) estimateTimestamp = _finalTimestamp;
+        uint256 estimatedTimestamp = block.timestamp;
+        if (estimatedTimestamp > _finalTimestamp) estimatedTimestamp = _finalTimestamp;
+        uint256 allExpiredPeriods = (estimatedTimestamp - _initialTimestamp) / REWARDS_PERIOD;
 
-        uint256 expiredPeriods = DateTimeLib.diffMonths(_lastClaimTimestamp, estimateTimestamp);
-
+        claimedPeriods_ = allExpiredPeriods - _claimedPeriodsCount;
         rewards_ =
-            (expiredPeriods * IItem(_itemAddress).tokenPrice(_itemId) * rewardsRate) /
+            (claimedPeriods_ * IItem(_itemAddress).tokenPrice(_itemId) * rewardsRate) /
             12 /
             10000;
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
-        return
-            block.timestamp >= finalTimestamp[_itemAddress][_itemId] &&
-            estimateRewards(_itemAddress, _itemId) == 0;
+        if (block.timestamp < finalTimestamp[_itemAddress][_itemId]) {
+            return false;
+        }
+        (uint256 rewards, ) = estimateRewards(_itemAddress, _itemId);
+        return rewards == 0;
     }
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
@@ -157,7 +159,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     ) external view returns (uint256) {
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
         uint256 _initialTimestamp = initialTimestamp[_itemAddress][_itemId];
-        uint256 _nextClaimTimestamp = DateTimeLib.addMonths(_initialTimestamp, _monthsCount);
+        uint256 _nextClaimTimestamp = _initialTimestamp + _monthsCount * REWARDS_PERIOD;
         if (_nextClaimTimestamp > _finalTimestamp) _nextClaimTimestamp = _finalTimestamp;
         return _nextClaimTimestamp;
     }

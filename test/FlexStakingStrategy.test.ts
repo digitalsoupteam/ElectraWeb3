@@ -117,12 +117,11 @@ describe(`FlexStakingStratgey`, () => {
                     return (new Date(timestamp * 1000)).toUTCString()
                   }
 
-
-
                   console.log(`${await getDate()}. token price ${ethers.utils.formatUnits(tokenPrice, 18)}`)
 
                   const minLockYears = (await stakingStrategy.minLockYears()).toNumber()
                   for (let i = 0; i < 12 * minLockYears; i++) {
+                    console.log(`jsi ${i}`)
                     await expect(
                       stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                     ).to.be.revertedWith("can't sell!")
@@ -131,14 +130,14 @@ describe(`FlexStakingStratgey`, () => {
                       tokenId,
                       1 + i,
                     )
-                    let [month, year] = await stakingStrategy.currentPeriod()
+                    let [year, month] = await stakingStrategy.currentPeriod()
 
                     await time.increaseTo(nextClaimTimestamp)
 
                     const formatedEarnings = 1000
                     const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(year, month, formatedEarnings)
                     const balanceBefore = await token.balanceOf(user.address)
                     await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
                     const balanceAfter = await token.balanceOf(user.address)
@@ -229,14 +228,14 @@ return
                       tokenId,
                       1 + i,
                     )
-                    let [month, year] = await stakingStrategy.currentPeriod()
+                    let [year, month] = await stakingStrategy.currentPeriod()
 
                     await time.increaseTo(nextClaimTimestamp)
 
                     const formatedEarnings = 1000
                     const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(year, month, formatedEarnings)
 
                     if (i < initialMonths) {
                       estimatedRewards = estimatedRewards.add(
@@ -330,14 +329,14 @@ return
                       tokenId,
                       1 + i,
                     )
-                    let [month, year] = await stakingStrategy.currentPeriod()
+                    let [year, month] = await stakingStrategy.currentPeriod()
 
                     await time.increaseTo(nextClaimTimestamp)
 
                     const formatedEarnings = 1000
                     const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(year, month, formatedEarnings)
                     const balanceBefore = await token.balanceOf(user.address)
                     await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
                     const balanceAfter = await token.balanceOf(user.address)
@@ -443,14 +442,14 @@ return
                       tokenId,
                       1 + i,
                     )
-                    let [month, year] = await stakingStrategy.currentPeriod()
+                    let [year, month] = await stakingStrategy.currentPeriod()
 
                     await time.increaseTo(nextClaimTimestamp)
 
                     const formatedEarnings = 1000
                     const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(year, month, formatedEarnings)
                    
                     if (i < initialMonths) {
                       estimatedRewards = estimatedRewards.add(
@@ -491,7 +490,8 @@ return
                   await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
                   balanceAfter = await token.balanceOf(user.address)
 
-                  const deposits = await stakingStrategy.deposits(await stakingStrategy.currentYear(), await stakingStrategy.currentMonth())
+                  const [year, month] = await stakingStrategy.currentPeriod()
+                  const deposits = await stakingStrategy.deposits(year, month)
                   console.log(`deposits ${deposits}`)
                   
 
@@ -551,14 +551,14 @@ return
                       tokenId,
                       1 + i,
                     )
-                    let [month, year] = await stakingStrategy.currentPeriod()
+                    let [year, month] = await stakingStrategy.currentPeriod()
 
                     await time.increaseTo(nextClaimTimestamp)
 
                     const formatedEarnings = 1000
                     const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(year, month, formatedEarnings)
                    
                     if (i < initialMonths) {
                       estimatedRewards = estimatedRewards.add(
@@ -648,14 +648,14 @@ return
                       tokenId,
                       1 + i,
                     )
-                    let [month, year] = await stakingStrategy.currentPeriod()
+                    let [year, month] = await stakingStrategy.currentPeriod()
 
                     await time.increaseTo(nextClaimTimestamp)
 
                     const formatedEarnings = 1000
                     const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
                     await stakingStrategy.connect(productOwner).updateDeposits()
-                    await stakingStrategy.connect(productOwner).setEarnings(month, year, formatedEarnings)
+                    await stakingStrategy.connect(productOwner).setEarnings(year, month, formatedEarnings)
                    
                     const deposits = await stakingStrategy.deposits(year, month)
                     console.log(`deposits ${i} ${deposits}`)
@@ -672,7 +672,7 @@ return
                   }
 
                   await time.increase(31 * 24 * 60 * 60)
-                  let [month, year] = await stakingStrategy.currentPeriod()
+                  let [year, month] = await stakingStrategy.currentPeriod()
                   const deposits = await stakingStrategy.deposits(year, month)
                   console.log(`deposits [*] ${deposits}`)
 

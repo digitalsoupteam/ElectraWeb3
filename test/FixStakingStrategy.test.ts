@@ -8,12 +8,12 @@ import {
   Item__factory,
   Treasury,
   Treasury__factory,
+  FixStakingStrategy,
+  FixStakingStrategy__factory
 } from '../typechain-types'
 import { USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
-import { FixStakingStrategy } from '../typechain-types/contracts/stakings'
-import { FixStakingStrategy__factory } from '../typechain-types/factories/contracts/stakings'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 const TEST_DATA = {
@@ -92,11 +92,22 @@ describe(`FixStakingStratgey`, () => {
               for (const mintAmount of TEST_DATA.mintedAmount) {
                 it(`Regular: claim every period. mintAmount=${mintAmount}`, async () => {
                   let tokenId = 0
+                  await time.increase((31 + 30 + 22) * 24 * 60 * 60)
 
                   // Mint item
                   await item
                     .connect(user)
                     .mint(mintAmount, stakingStrategy.address, token.address, '0x')
+
+                  // Staking info
+                  const initialTimestamp = await stakingStrategy.initialTimestamp(item.address, tokenId)
+                  const finalTimestamp = await stakingStrategy.finalTimestamp(item.address, tokenId)
+                  const withdrawnRewards = await stakingStrategy.withdrawnRewards(item.address, tokenId)
+                  const claimTimestamp = await stakingStrategy.claimTimestamp(item.address, tokenId, 1)
+                  console.log(`initialTimestamp: ${new Date(initialTimestamp.toNumber() * 1000).toISOString()}`)
+                  console.log(`finalTimestamp: ${new Date(finalTimestamp.toNumber() * 1000).toISOString()}`)
+                  console.log(`withdrawnRewards: ${withdrawnRewards}`)
+                  console.log(`claimTimestamp: ${new Date(claimTimestamp.toNumber() * 1000).toISOString()}`)
 
                   // Check errors: initial actions, claim/sell
                   await expect(
