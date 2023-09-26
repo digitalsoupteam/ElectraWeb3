@@ -10,12 +10,15 @@ import {
   Item,
   Item__factory,
 } from '../typechain-types'
-import { CHAINLINK_LINK_USD, LINK, USDT } from '../constants/addresses'
+import { CHAINLINK_LINK_USD, ELCT, LINK, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
 
 const TEST_DATA = {
-  tokens: [USDT],
+  tokens: [
+    USDT,//
+  ELCT,
+],
   items: [
     'ScooterItem',
     // 'BikeItem',
