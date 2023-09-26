@@ -29,9 +29,10 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     // ------------------------------------------------------------------------------------
 
     event Mint(
-        address indexed holder,
-        address indexed payToken,
+        address indexed owner,
         uint256 indexed tokenId,
+        address indexed stakingStartegy,
+        address payToken,
         uint256 amount
     );
 
@@ -94,7 +95,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         amountInToken[tokenId] = _amount;
         tokenStakingStrategy[tokenId] = _stakingStrategy;
         _safeMint(msg.sender, tokenId);
-        emit Mint(msg.sender, _payToken, tokenId, _amount);
+        emit Mint(msg.sender, tokenId, _stakingStrategy, _payToken, _amount);
         // Enable staking
         IStakingStrategy(_stakingStrategy).stake(address(this), tokenId, _payload);
     }

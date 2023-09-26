@@ -9,7 +9,6 @@ import { ITreasury } from "../../interfaces/ITreasury.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { IAddressBook } from "../../interfaces/IAddressBook.sol";
-import "hardhat/console.sol";
 
 contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
@@ -26,10 +25,42 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     uint256 public rewardsRate;
     uint256 public lockYears;
     uint256 public yearDeprecationRate;
+    uint256 public maxPeriodsCount;
     mapping(address item => mapping(uint256 tokenId => uint256)) public initialTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public claimedPeriodsCount;
     mapping(address item => mapping(uint256 tokenId => uint256)) public finalTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public withdrawnRewards;
+    mapping(address item => mapping(uint256 tokenId => uint256)) public itemsPrice;
+
+    // ------------------------------------------------------------------------------------
+    // ----- EVENTS  ----------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    event Stake(
+        address itemAddress,
+        uint256 itemId,
+        address itemOwner,
+        uint256 itemsPrice,
+        uint256 initialTimestamp,
+        uint256 finalTimestamp
+    );
+    event Claim(
+        address itemAddress,
+        uint256 itemId,
+        address itemOwner,
+        uint256 rewards,
+        uint256 claimedPeriods,
+        address withdrawToken,
+        uint256 withdrawTokenAmount
+    );
+    event Sell(
+        address itemAddress,
+        uint256 itemId,
+        address itemOwner,
+        uint256 sellPrice,
+        address withdrawToken,
+        uint256 withdrawTokenAmount
+    );
 
     // ------------------------------------------------------------------------------------
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
@@ -45,6 +76,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         rewardsRate = _rewardsRate;
         lockYears = _lockYears;
         yearDeprecationRate = _yearDeprecationRate;
+        maxPeriodsCount = _lockYears * 12;
     }
 
     function _authorizeUpgrade(address) internal view override {
@@ -60,7 +92,21 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
         uint256 _initialTimestamp = block.timestamp;
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
-        finalTimestamp[_itemAddress][_itemId] = _initialTimestamp + REWARDS_PERIOD * lockYears * 12;
+        uint256 _finalTimestamp = _initialTimestamp + REWARDS_PERIOD * lockYears * 12;
+        finalTimestamp[_itemAddress][_itemId] = _finalTimestamp;
+        uint256 _itemsPrice = IItem(_itemAddress).tokenPrice(_itemId);
+        itemsPrice[_itemAddress][_itemId] = _itemsPrice;
+
+        address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
+
+        emit Stake(
+            _itemAddress,
+            _itemId,
+            _itemOwner,
+            _itemsPrice,
+            _initialTimestamp,
+            _finalTimestamp
+        );
     }
 
     // ------------------------------------------------------------------------------------
@@ -72,7 +118,8 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 _itemId,
         address _withdrawToken
     ) external nonReentrant {
-        _enforceIsTokenOwner(_itemAddress, _itemId);
+        address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
+        require(msg.sender == _itemOwner, "only item owner!");
 
         (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "rewards!");
@@ -86,6 +133,16 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
             _withdrawToken
         );
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+
+        emit Claim(
+            _itemAddress,
+            _itemId,
+            _itemOwner,
+            rewards,
+            claimedPeriods,
+            _withdrawToken,
+            withdrawTokenAmount
+        );
     }
 
     function sell(
@@ -93,7 +150,8 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 _itemId,
         address _withdrawToken
     ) external nonReentrant {
-        _enforceIsTokenOwner(_itemAddress, _itemId);
+        address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
+        require(msg.sender == _itemOwner, "only item owner!");
 
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
@@ -108,6 +166,15 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         withdrawnRewards[_itemAddress][_itemId] += sellAmount;
         IItem(_itemAddress).burn(_itemId);
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+
+        emit Sell(
+            _itemAddress,
+            _itemId,
+            _itemOwner,
+            sellAmount,
+            _withdrawToken,
+            withdrawTokenAmount
+        );
     }
 
     // ------------------------------------------------------------------------------------
@@ -129,27 +196,23 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 estimatedTimestamp = block.timestamp;
         if (estimatedTimestamp > _finalTimestamp) estimatedTimestamp = _finalTimestamp;
         uint256 allExpiredPeriods = (estimatedTimestamp - _initialTimestamp) / REWARDS_PERIOD;
+        uint256 _itemsPrice = itemsPrice[_itemAddress][_itemId];
 
         claimedPeriods_ = allExpiredPeriods - _claimedPeriodsCount;
-        rewards_ =
-            (claimedPeriods_ * IItem(_itemAddress).tokenPrice(_itemId) * rewardsRate) /
-            12 /
-            10000;
+        rewards_ = (claimedPeriods_ * _itemsPrice * rewardsRate) / 12 / 10000;
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
-        if (block.timestamp < finalTimestamp[_itemAddress][_itemId]) {
-            return false;
-        }
-        (uint256 rewards, ) = estimateRewards(_itemAddress, _itemId);
-        return rewards == 0;
+        return
+            block.timestamp >= finalTimestamp[_itemAddress][_itemId] &&
+            claimedPeriodsCount[_itemAddress][_itemId] == maxPeriodsCount;
     }
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
-        uint256 tokenPrice = IItem(_itemAddress).tokenPrice(_itemId);
-        uint256 deprecation = (tokenPrice * lockYears * yearDeprecationRate) / 10000;
-        if (deprecation > tokenPrice) return 0;
-        return tokenPrice - deprecation;
+        uint256 _itemsPrice = itemsPrice[_itemAddress][_itemId];
+        uint256 deprecation = (_itemsPrice * lockYears * yearDeprecationRate) / 10000;
+        if (deprecation > _itemsPrice) return 0;
+        return _itemsPrice - deprecation;
     }
 
     function claimTimestamp(
@@ -162,13 +225,5 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 _nextClaimTimestamp = _initialTimestamp + _monthsCount * REWARDS_PERIOD;
         if (_nextClaimTimestamp > _finalTimestamp) _nextClaimTimestamp = _finalTimestamp;
         return _nextClaimTimestamp;
-    }
-
-    // ------------------------------------------------------------------------------------
-    // ----- INTERNAL  --------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
-
-    function _enforceIsTokenOwner(address _tokenAddress, uint256 _tokenId) internal view {
-        require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "only token owner!");
     }
 }
