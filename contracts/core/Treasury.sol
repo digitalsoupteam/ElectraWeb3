@@ -81,6 +81,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ----- PRODUCT OWNER & PROTOCOL ACTIONS  --------------------------------------------
     // ------------------------------------------------------------------------------------
     function withdraw(address _token, uint256 _amount, address _recipient) external {
+        require(_amount > 0, "Treasury: withdrawn amount is zero!");
         IAddressBook _addressBook = IAddressBook(addressBook);
 
         require(
