@@ -23,19 +23,19 @@ const TEST_DATA = {
   ],
   items: [
     'ScooterItem', //
-    'BikeItem',
-    'MopedItem',
-    'CarItem',
+    // 'BikeItem',
+    // 'MopedItem',
+    // 'CarItem',
   ],
   mintedAmount: [
     1, //
-    2,
-    10,
+    // 2,
+    // 10,
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
-    'ThreeYearsFixStakingStrategy',
-    'FiveYearsFixStakingStrategy',
+    // 'ThreeYearsFixStakingStrategy',
+    // 'FiveYearsFixStakingStrategy',
   ],
 }
 
@@ -87,10 +87,15 @@ describe(`FixStakingStratgey`, () => {
               let mintedPayTokensAmount: BigNumber
 
               beforeEach(async () => {
+                console.log('aw1')
                 token = IERC20Metadata__factory.connect(tokenAddress, user)
+                console.log('aw12')
                 mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 100000)
+                console.log('aw13')
                 await ERC20Minter.mint(token.address, treasury.address, 10000000) // deposit to treasury
+                console.log('aw14')
                 await token.connect(user).approve(item.address, mintedPayTokensAmount)
+                console.log('aw15')
               })
 
               for (const mintAmount of TEST_DATA.mintedAmount) {

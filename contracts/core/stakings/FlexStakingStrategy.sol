@@ -47,6 +47,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     }
     mapping(address item => mapping(uint256 tokenId => DepositsDate)) public depostitsDate;
 
+    uint256 public lastUpdatedEarningsYear;
+    uint256 public lastUpdatedEarningsMonth;
+
     // ------------------------------------------------------------------------------------
     // ----- EVENTS  ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -129,6 +132,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _earnings = _formatedEarning * 1e18;
         earnings[_year][_month] = _earnings;
 
+        lastUpdatedEarningsYear = _year;
+        lastUpdatedEarningsMonth = _month;
+
         emit SetEarnings(_year, _month, _earnings);
     }
 
@@ -136,7 +142,10 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
         uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
-        uint256 monthsToUpdate = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp) - 1;
+        uint256 diffMonths = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp);
+        if (diffMonths == 0) return;
+        uint256 monthsToUpdate = diffMonths - 1;
+        if (monthsToUpdate == 0) return;
         for (uint256 i; i < monthsToUpdate; ++i) {
             (uint256 prevYear, uint256 prevMonth, ) = DateTimeLib.timestampToDate(
                 _lastUpdatedTimestamp
@@ -177,7 +186,6 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 daysInStartMonth = DateTimeLib.getDaysInMonth(_startStakingTimestamp);
         uint256 ratio = (1e18 * initialDay) / (daysInStartMonth + 1);
         uint256 _remainder = (_itemsPrice * ratio) / 1e18;
-
         remainder[_itemAddress][_itemId] = _remainder;
         // Final date
         uint256 _finalTimestamp = DateTimeLib.addMonths(_startStakingTimestamp, maxMonthsCount);
@@ -420,5 +428,10 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
         if (deprecation > _itemsPrice) return 0;
         return _itemsPrice - deprecation;
+    }
+
+    function lastUpdatedEarningsPeriod() external view returns (uint256 year_, uint256 month_) {
+        year_ = lastUpdatedEarningsYear;
+        month_ = lastUpdatedEarningsMonth;
     }
 }

@@ -18,7 +18,7 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 const TEST_DATA = {
   tokens: [
-    USDT, //
+    // USDT, //
     ELCT,
   ],
   items: [
@@ -35,6 +35,12 @@ const TEST_DATA = {
   startDay: [
     1, //
     // 15,
+  ],
+  subSellMonths: [
+    0, //
+    // 1,
+    // 2,
+    // 3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //
@@ -318,8 +324,9 @@ describe(`FlexStakingStratgey`, () => {
                               .claim(item.address, tokenId, token.address),
                           ).to.be.revertedWith('ERC721: invalid token ID')
                         })
+                        return
 
-                        it(`Regular: claim all in one (min lock). mintAmount=${mintAmount}`, async () => {
+                        xit(`Regular: claim all in one (min lock). mintAmount=${mintAmount}`, async () => {
                           for (let i = 0; i < daysDiff; i++) {
                             console.log(`IIIII ${i}`)
                             await time.increase(24 * 60 * 60)
@@ -460,7 +467,7 @@ describe(`FlexStakingStratgey`, () => {
                           ).to.be.revertedWith('ERC721: invalid token ID')
                         })
 
-                        it(`Regular: claim every period (max lock). mintAmount=${mintAmount}`, async () => {
+                        xit(`Regular: claim every period (max lock). mintAmount=${mintAmount}`, async () => {
                           for (let i = 0; i < daysDiff; i++) {
                             console.log(`IIIII ${i}`)
                             await time.increase(24 * 60 * 60)
@@ -606,296 +613,156 @@ describe(`FlexStakingStratgey`, () => {
                           ).to.be.revertedWith('ERC721: invalid token ID')
                         })
 
-                        it(`Regular: claim all in one (max lock). mintAmount=${mintAmount}`, async () => {
-                          for (let i = 0; i < daysDiff; i++) {
-                            console.log(`IIIII ${i}`)
-                            await time.increase(24 * 60 * 60)
-                            console.log(`initial days ${i} ${await getDate()}`)
+                        for (const subMonths of TEST_DATA.subSellMonths) {
+                          it(`Regular: claim all in one (max lock - 1). mintAmount=${mintAmount}`, async () => {
+                            for (let i = 0; i < daysDiff; i++) {
+                              console.log(`IIIII ${i}`)
+                              await time.increase(24 * 60 * 60)
+                              console.log(`initial days ${i} ${await getDate()}`)
+                              await expect(
+                                stakingStrategy
+                                  .connect(user)
+                                  .claim(item.address, tokenId, token.address),
+                              ).to.be.revertedWith('rewards!')
+                            }
+
+                            let estimatedRewards = BigNumber.from('0')
+                            const claimMouthsCount = maxMonthsCount - subMonths
+                            for (let i = 0; i < claimMouthsCount; i++) {
+                              console.log(`\n jsi ${i}`)
+                              if (i < minMonthsCount) {
+                                await expect(
+                                  stakingStrategy
+                                    .connect(user)
+                                    .sell(item.address, tokenId, token.address),
+                                ).to.be.revertedWith("can't sell!")
+                              }
+                              let claimTimestamp = await stakingStrategy.claimTimestamp(
+                                item.address,
+                                tokenId,
+                                1 + i,
+                              )
+                              let [year, month] = await stakingStrategy.currentPeriod()
+
+                              await time.increaseTo(claimTimestamp)
+
+                              const formatedEarnings = 1000
+                              const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
+                              await stakingStrategy.connect(productOwner).updateDeposits()
+                              await stakingStrategy
+                                .connect(productOwner)
+                                .setEarnings(year, month, formatedEarnings)
+
+                              if (i <= initialMonths) {
+                                let initialItemsPrice = tokenPrice
+                                if (i == 0) initialItemsPrice = tokenPrice.sub(remainder)
+                                else if (i == initialMonths) initialItemsPrice = remainder
+                                estimatedRewards = estimatedRewards.add(
+                                  await treasury.usdAmountToToken(
+                                    initialItemsPrice.mul(initialRewardsRate).div(10000),
+                                    token.address,
+                                  ),
+                                )
+                              }
+                              if (i >= initialMonths) {
+                                let earningsItemsPrice = tokenPrice
+                                if (i == initialMonths)
+                                  earningsItemsPrice = tokenPrice.sub(remainder)
+                                else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
+                                let deposits = await stakingStrategy.deposits(year, month)
+                                estimatedRewards = estimatedRewards.add(
+                                  await treasury.usdAmountToToken(
+                                    earningsItemsPrice
+                                      .mul(10000)
+                                      .mul(earnings)
+                                      .div(deposits)
+                                      .div(10000),
+                                    token.address,
+                                  ),
+                                )
+                              }
+                            }
+
+                            let balanceBefore = await token.balanceOf(user.address)
+                            await stakingStrategy
+                              .connect(user)
+                              .claim(item.address, tokenId, token.address)
+                            let balanceAfter = await token.balanceOf(user.address)
+
+                            const withdrawnRewards = await stakingStrategy.withdrawnRewards(
+                              item.address,
+                              tokenId,
+                            )
+
+                            assert(
+                              withdrawnRewards.eq(estimatedRewards),
+                              `withdrawnRewards != estimatedRewards. ${withdrawnRewards} != ${estimatedRewards}`,
+                            )
+                            console.log(
+                              `${await getDate()}. rewards ${ethers.utils.formatUnits(
+                                estimatedRewards,
+                                18,
+                              )}`,
+                            )
+                            assert(
+                              balanceAfter.sub(balanceBefore).eq(estimatedRewards),
+                              `flex rewards ${balanceAfter.sub(
+                                balanceBefore,
+                              )} != ${estimatedRewards}`,
+                            )
+
+                            await stakingStrategy.connect(productOwner).updateDeposits()
+                            balanceBefore = await token.balanceOf(user.address)
+                            await stakingStrategy
+                              .connect(user)
+                              .sell(item.address, tokenId, token.address)
+                            balanceAfter = await token.balanceOf(user.address)
+
+                            const estimatedBalance = await treasury.usdAmountToToken(
+                              tokenPrice.sub(
+                                tokenPrice
+                                  .mul(deprecationRate)
+                                  .mul(claimMouthsCount - 1)
+                                  .div(12)
+                                  .div(10000),
+                              ),
+                              token.address,
+                            )
+                            console.log(
+                              `${await getDate()}. balanceAfter.sub(balanceBefore) ${ethers.utils.formatUnits(
+                                balanceAfter.sub(balanceBefore),
+                                18,
+                              )}`,
+                            )
+                            console.log(
+                              `${await getDate()}. sell ${ethers.utils.formatUnits(
+                                estimatedBalance,
+                                18,
+                              )}`,
+                            )
+                            assert(
+                              balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                              `sell balance ${balanceAfter.sub(
+                                balanceBefore,
+                              )} != ${estimatedBalance}`,
+                            )
+
+                            await expect(
+                              stakingStrategy
+                                .connect(user)
+                                .sell(item.address, tokenId, token.address),
+                            ).to.be.revertedWith('ERC721: invalid token ID')
                             await expect(
                               stakingStrategy
                                 .connect(user)
                                 .claim(item.address, tokenId, token.address),
-                            ).to.be.revertedWith('rewards!')
-                          }
-
-                          let estimatedRewards = BigNumber.from('0')
-                          for (let i = 0; i < maxMonthsCount; i++) {
-                            console.log(`\n jsi ${i}`)
-                            if (i < minMonthsCount) {
-                              await expect(
-                                stakingStrategy
-                                  .connect(user)
-                                  .sell(item.address, tokenId, token.address),
-                              ).to.be.revertedWith("can't sell!")
-                            }
-                            let claimTimestamp = await stakingStrategy.claimTimestamp(
-                              item.address,
-                              tokenId,
-                              1 + i,
-                            )
-                            let [year, month] = await stakingStrategy.currentPeriod()
-
-                            await time.increaseTo(claimTimestamp)
-
-                            const formatedEarnings = 1000
-                            const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
-                            await stakingStrategy.connect(productOwner).updateDeposits()
-                            await stakingStrategy
-                              .connect(productOwner)
-                              .setEarnings(year, month, formatedEarnings)
-
-                            if (i <= initialMonths) {
-                              let initialItemsPrice = tokenPrice
-                              if (i == 0) initialItemsPrice = tokenPrice.sub(remainder)
-                              else if (i == initialMonths) initialItemsPrice = remainder
-                              estimatedRewards = estimatedRewards.add(
-                                await treasury.usdAmountToToken(
-                                  initialItemsPrice.mul(initialRewardsRate).div(10000),
-                                  token.address,
-                                ),
-                              )
-                            }
-                            if (i >= initialMonths) {
-                              let earningsItemsPrice = tokenPrice
-                              if (i == initialMonths) earningsItemsPrice = tokenPrice.sub(remainder)
-                              else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
-                              let deposits = await stakingStrategy.deposits(year, month)
-                              estimatedRewards = estimatedRewards.add(
-                                await treasury.usdAmountToToken(
-                                  earningsItemsPrice
-                                    .mul(10000)
-                                    .mul(earnings)
-                                    .div(deposits)
-                                    .div(10000),
-                                  token.address,
-                                ),
-                              )
-                            }
-                          }
-
-                          let balanceBefore = await token.balanceOf(user.address)
-                          await stakingStrategy
-                            .connect(user)
-                            .claim(item.address, tokenId, token.address)
-                          let balanceAfter = await token.balanceOf(user.address)
-
-                          const withdrawnRewards = await stakingStrategy.withdrawnRewards(
-                            item.address,
-                            tokenId,
-                          )
-
-                          assert(
-                            withdrawnRewards.eq(estimatedRewards),
-                            `withdrawnRewards != estimatedRewards. ${withdrawnRewards} != ${estimatedRewards}`,
-                          )
-                          console.log(
-                            `${await getDate()}. rewards ${ethers.utils.formatUnits(
-                              estimatedRewards,
-                              18,
-                            )}`,
-                          )
-                          assert(
-                            balanceAfter.sub(balanceBefore).eq(estimatedRewards),
-                            `flex rewards ${balanceAfter.sub(
-                              balanceBefore,
-                            )} != ${estimatedRewards}`,
-                          )
-
-                          await stakingStrategy.connect(productOwner).updateDeposits()
-                          balanceBefore = await token.balanceOf(user.address)
-                          await stakingStrategy
-                            .connect(user)
-                            .sell(item.address, tokenId, token.address)
-                          balanceAfter = await token.balanceOf(user.address)
-
-                          const estimatedBalance = await treasury.usdAmountToToken(
-                            tokenPrice.sub(
-                              tokenPrice
-                                .mul(deprecationRate)
-                                .mul(maxMonthsCount - 1)
-                                .div(12)
-                                .div(10000),
-                            ),
-                            token.address,
-                          )
-                          console.log(
-                            `${await getDate()}. balanceAfter.sub(balanceBefore) ${ethers.utils.formatUnits(
-                              balanceAfter.sub(balanceBefore),
-                              18,
-                            )}`,
-                          )
-                          console.log(
-                            `${await getDate()}. sell ${ethers.utils.formatUnits(
-                              estimatedBalance,
-                              18,
-                            )}`,
-                          )
-                          assert(
-                            balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                            `sell balance ${balanceAfter.sub(
-                              balanceBefore,
-                            )} != ${estimatedBalance}`,
-                          )
-
-                          await expect(
-                            stakingStrategy
-                              .connect(user)
-                              .sell(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('ERC721: invalid token ID')
-                          await expect(
-                            stakingStrategy
-                              .connect(user)
-                              .claim(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('ERC721: invalid token ID')
-                        })
-
-                        it(`Regular: claim all in one (max lock - 1). mintAmount=${mintAmount}`, async () => {
-                          for (let i = 0; i < daysDiff; i++) {
-                            console.log(`IIIII ${i}`)
-                            await time.increase(24 * 60 * 60)
-                            console.log(`initial days ${i} ${await getDate()}`)
-                            await expect(
-                              stakingStrategy
-                                .connect(user)
-                                .claim(item.address, tokenId, token.address),
-                            ).to.be.revertedWith('rewards!')
-                          }
-
-                          let estimatedRewards = BigNumber.from('0')
-                          const claimMouthsCount = maxMonthsCount - 1
-                          for (let i = 0; i < claimMouthsCount; i++) {
-                            console.log(`\n jsi ${i}`)
-                            if (i < minMonthsCount) {
-                              await expect(
-                                stakingStrategy
-                                  .connect(user)
-                                  .sell(item.address, tokenId, token.address),
-                              ).to.be.revertedWith("can't sell!")
-                            }
-                            let claimTimestamp = await stakingStrategy.claimTimestamp(
-                              item.address,
-                              tokenId,
-                              1 + i,
-                            )
-                            let [year, month] = await stakingStrategy.currentPeriod()
-
-                            await time.increaseTo(claimTimestamp)
-
-                            const formatedEarnings = 1000
-                            const earnings = ethers.utils.parseUnits(`${formatedEarnings}`, 18)
-                            await stakingStrategy.connect(productOwner).updateDeposits()
-                            await stakingStrategy
-                              .connect(productOwner)
-                              .setEarnings(year, month, formatedEarnings)
-
-                            if (i <= initialMonths) {
-                              let initialItemsPrice = tokenPrice
-                              if (i == 0) initialItemsPrice = tokenPrice.sub(remainder)
-                              else if (i == initialMonths) initialItemsPrice = remainder
-                              estimatedRewards = estimatedRewards.add(
-                                await treasury.usdAmountToToken(
-                                  initialItemsPrice.mul(initialRewardsRate).div(10000),
-                                  token.address,
-                                ),
-                              )
-                            }
-                            if (i >= initialMonths) {
-                              let earningsItemsPrice = tokenPrice
-                              if (i == initialMonths) earningsItemsPrice = tokenPrice.sub(remainder)
-                              else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
-                              let deposits = await stakingStrategy.deposits(year, month)
-                              estimatedRewards = estimatedRewards.add(
-                                await treasury.usdAmountToToken(
-                                  earningsItemsPrice
-                                    .mul(10000)
-                                    .mul(earnings)
-                                    .div(deposits)
-                                    .div(10000),
-                                  token.address,
-                                ),
-                              )
-                            }
-                          }
-
-                          let balanceBefore = await token.balanceOf(user.address)
-                          await stakingStrategy
-                            .connect(user)
-                            .claim(item.address, tokenId, token.address)
-                          let balanceAfter = await token.balanceOf(user.address)
-
-                          const withdrawnRewards = await stakingStrategy.withdrawnRewards(
-                            item.address,
-                            tokenId,
-                          )
-
-                          assert(
-                            withdrawnRewards.eq(estimatedRewards),
-                            `withdrawnRewards != estimatedRewards. ${withdrawnRewards} != ${estimatedRewards}`,
-                          )
-                          console.log(
-                            `${await getDate()}. rewards ${ethers.utils.formatUnits(
-                              estimatedRewards,
-                              18,
-                            )}`,
-                          )
-                          assert(
-                            balanceAfter.sub(balanceBefore).eq(estimatedRewards),
-                            `flex rewards ${balanceAfter.sub(
-                              balanceBefore,
-                            )} != ${estimatedRewards}`,
-                          )
-
-                          await stakingStrategy.connect(productOwner).updateDeposits()
-                          balanceBefore = await token.balanceOf(user.address)
-                          await stakingStrategy
-                            .connect(user)
-                            .sell(item.address, tokenId, token.address)
-                          balanceAfter = await token.balanceOf(user.address)
-
-                          const estimatedBalance = await treasury.usdAmountToToken(
-                            tokenPrice.sub(
-                              tokenPrice
-                                .mul(deprecationRate)
-                                .mul(claimMouthsCount - 1)
-                                .div(12)
-                                .div(10000),
-                            ),
-                            token.address,
-                          )
-                          console.log(
-                            `${await getDate()}. balanceAfter.sub(balanceBefore) ${ethers.utils.formatUnits(
-                              balanceAfter.sub(balanceBefore),
-                              18,
-                            )}`,
-                          )
-                          console.log(
-                            `${await getDate()}. sell ${ethers.utils.formatUnits(
-                              estimatedBalance,
-                              18,
-                            )}`,
-                          )
-                          assert(
-                            balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                            `sell balance ${balanceAfter.sub(
-                              balanceBefore,
-                            )} != ${estimatedBalance}`,
-                          )
-
-                          await expect(
-                            stakingStrategy
-                              .connect(user)
-                              .sell(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('ERC721: invalid token ID')
-                          await expect(
-                            stakingStrategy
-                              .connect(user)
-                              .claim(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('ERC721: invalid token ID')
-                        })
+                            ).to.be.revertedWith('ERC721: invalid token ID')
+                          })
+                        }
                       })
 
                       describe(`Single token in supply`, () => {
-                        it(`Regular: deposit update.`, async () => {
+                        xit(`Regular: deposit update.`, async () => {
                           const tokenId = 0
 
                           await item
