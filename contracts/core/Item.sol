@@ -5,12 +5,19 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
 
 contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
+    // ------------------------------------------------------------------------------------
+    // ----- LIBRARIES --------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+
+    using SafeERC20 for IERC20Metadata;
+
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -20,8 +27,8 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     uint256 public maxSupply;
     uint256 public totalMintedAmount;
     uint256 public nextTokenId;
-    mapping(uint256 => uint256) public amountInToken;
-    mapping(uint256 => address) public tokenStakingStrategy;
+    mapping(uint256 tokenId => uint256) public amountInToken;
+    mapping(uint256 tokenId => address) public tokenStakingStrategy;
     string internal uri;
 
     // ------------------------------------------------------------------------------------
@@ -83,12 +90,11 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         // Recieve pay tokens
         uint256 totalPrice = _amount * price;
         uint256 payTokenAmount = treasury.usdAmountToToken(totalPrice, _payToken);
-        bool success = IERC20Metadata(_payToken).transferFrom(
+        IERC20Metadata(_payToken).safeTransferFrom(
             msg.sender,
             address(treasury),
             payTokenAmount
         );
-        require(success, "ERC20 transferFrom failed!");
 
         // Mint item
         uint256 tokenId = nextTokenId++;
@@ -105,7 +111,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     // ------------------------------------------------------------------------------------
 
     function burn(uint256 _tokenId) external {
-        IAddressBook(addressBook).enforceIsStakingStrategyContract(msg.sender);
+        require(msg.sender == tokenStakingStrategy[_tokenId], "only staking strategy!");
         _burn(_tokenId);
     }
 
@@ -135,10 +141,6 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     // ------------------------------------------------------------------------------------
     // ----- INTERNAL  --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
-
-    function _enfroceIsTokenOwner(uint256 _tokenId) internal view {
-        require(ownerOf(_tokenId) == msg.sender, "tokenOwner!");
-    }
 
     function _baseURI() internal view override returns (string memory) {
         return uri;

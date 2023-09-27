@@ -18,8 +18,8 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 const TEST_DATA = {
   tokens: [
-    // USDT, //
-    ELCT,
+    USDT, //
+    // ELCT,
   ],
   items: [
     'ScooterItem', //
@@ -29,12 +29,12 @@ const TEST_DATA = {
   ],
   mintedAmount: [
     1, //
-    // 2,
-    // 10,
+    2,
+    10,
   ],
   startDay: [
     1, //
-    // 15,
+    15,
   ],
   subSellMonths: [
     0, //
@@ -181,7 +181,7 @@ describe(`FlexStakingStratgey`, () => {
                           )
                         })
 
-                        xit(`Regular: claim every period (min lock). startDay=${startDay}, mintAmount=${mintAmount}`, async () => {
+                        it(`Regular: claim every period (min lock). startDay=${startDay}, mintAmount=${mintAmount}`, async () => {
                           for (let i = 0; i < daysDiff; i++) {
                             console.log(`IIIII ${i}`)
                             console.log(`initial days ${i} ${await getDate()}`)
@@ -330,7 +330,7 @@ describe(`FlexStakingStratgey`, () => {
                           ).to.be.revertedWith('ERC721: invalid token ID')
                         })
 
-                        xit(`Regular: claim all in one (min lock). mintAmount=${mintAmount}`, async () => {
+                        it(`Regular: claim all in one (min lock). mintAmount=${mintAmount}`, async () => {
                           for (let i = 0; i < daysDiff; i++) {
                             console.log(`IIIII ${i}`)
                             console.log(`initial days ${i} ${await getDate()}`)
@@ -629,7 +629,7 @@ describe(`FlexStakingStratgey`, () => {
                             ).to.be.revertedWith('ERC721: invalid token ID')
                           })
 
-                          xit(`Regular: claim all in one (max lock - ${subMonths}). mintAmount=${mintAmount}`, async () => {
+                          it(`Regular: claim all in one (max lock - ${subMonths}). mintAmount=${mintAmount}`, async () => {
                             for (let i = 0; i < daysDiff; i++) {
                               console.log(`IIIII ${i}`)
                               console.log(`initial days ${i} ${await getDate()}`)
@@ -780,7 +780,7 @@ describe(`FlexStakingStratgey`, () => {
                       })
 
                       describe(`Single token in supply`, () => {
-                        xit(`Regular: deposit update.`, async () => {
+                        it(`Regular: deposit update.`, async () => {
                           const tokenId = 0
 
                           await item

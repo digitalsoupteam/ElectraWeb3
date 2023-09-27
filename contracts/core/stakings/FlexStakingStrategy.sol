@@ -31,6 +31,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     mapping(uint256 year => mapping(uint256 month => uint256 deposit)) public deposits;
     uint256 public lastUpdatedTimestamp;
 
+    mapping(address item => mapping(uint256 tokenId => bool)) public isStakedToken;
     mapping(address item => mapping(uint256 tokenId => uint256)) public initialTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public startStakingTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public itemsPrice;
@@ -170,6 +171,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         IAddressBook(addressBook).enforceIsItemContract(msg.sender);
 
         // Initial data
+        isStakedToken[_itemAddress][_itemId] = true;
         uint256 _initialTimestamp = block.timestamp;
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         (uint256 year, uint256 month, uint256 initialDay) = DateTimeLib.timestampToDate(
@@ -240,6 +242,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     function claim(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
         address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
         require(msg.sender == _itemOwner, "only item owner!");
+        _enforceIsStakedToken(_itemAddress, _itemId);
 
         (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "rewards!");
@@ -269,6 +272,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     function sell(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
         address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
         require(msg.sender == _itemOwner, "only item owner!");
+        _enforceIsStakedToken(_itemAddress, _itemId);
 
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
@@ -356,25 +360,30 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         return _nextClaimTimestamp;
     }
 
+    function getAllExpiredMoths(
+        address _itemAddress,
+        uint256 _itemId
+    ) public view returns (uint256) {
+        uint256 _startStakingTimestamp = startStakingTimestamp[_itemAddress][_itemId];
+        uint256 _maxMonthsCount = maxMonthsCount;
+        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, block.timestamp);
+        if (allExpiredMonths > _maxMonthsCount) allExpiredMonths = _maxMonthsCount;
+        return allExpiredMonths;
+    }
+
     function estimateRewards(
         address _itemAddress,
         uint256 _itemId
     ) public view returns (uint256 rewards_, uint256 claimedPeriods_) {
         uint256 _startStakingTimestamp = startStakingTimestamp[_itemAddress][_itemId];
-        uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
-
-        uint256 currentTimestamp = block.number;
-        if (currentTimestamp > _finalTimestamp) currentTimestamp = _finalTimestamp;
-
         uint256 _itemsPrice = itemsPrice[_itemAddress][_itemId];
-
-        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, block.timestamp);
         uint256 _claimedPeriodsCount = claimedPeriodsCount[_itemAddress][_itemId];
-
         uint256 _remainder = remainder[_itemAddress][_itemId];
         uint256 _maxMonthsCount = maxMonthsCount;
         uint256 _initialMonths = initialMonths;
         uint256 _initialRewardsRate = initialRewardsRate;
+
+        uint256 allExpiredMonths = getAllExpiredMoths(_itemAddress, _itemId);
 
         for (uint256 i = _claimedPeriodsCount; i < allExpiredMonths; ++i) {
             if (i <= _initialMonths) {
@@ -411,16 +420,15 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     }
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
-        return claimedPeriodsCount[_itemAddress][_itemId] >= minMonthsCount;
+        uint256 _claimedPeriodsCount = claimedPeriodsCount[_itemAddress][_itemId];
+        return
+            _claimedPeriodsCount >= minMonthsCount &&
+            _claimedPeriodsCount == getAllExpiredMoths(_itemAddress, _itemId);
     }
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
-        uint256 _startStakingTimestamp = startStakingTimestamp[_itemAddress][_itemId];
-        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, block.timestamp);
-
+        uint256 allExpiredMonths = getAllExpiredMoths(_itemAddress, _itemId);
         if (allExpiredMonths < minMonthsCount) return 0;
-        uint256 _maxMonthsCount = maxMonthsCount;
-        if (allExpiredMonths > _maxMonthsCount) allExpiredMonths = _maxMonthsCount;
         --allExpiredMonths; // sub additional splited month
 
         uint256 _itemsPrice = itemsPrice[_itemAddress][_itemId];
@@ -433,5 +441,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     function lastUpdatedEarningsPeriod() external view returns (uint256 year_, uint256 month_) {
         year_ = lastUpdatedEarningsYear;
         month_ = lastUpdatedEarningsMonth;
+    }
+
+    function _enforceIsStakedToken(address _itemAddress, uint256 _itemId) internal view {
+        require(isStakedToken[_itemAddress][_itemId], "only staked token");
     }
 }
