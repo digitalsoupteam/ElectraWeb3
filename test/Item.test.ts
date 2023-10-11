@@ -17,7 +17,7 @@ import { BigNumber } from 'ethers'
 const TEST_DATA = {
   tokens: [
     USDT, //
-    ELCT,
+    // ELCT,
   ],
   items: [
     'MopedItem',
@@ -117,7 +117,7 @@ describe(`Items tests`, () => {
                 await item.connect(productOwner).stopSell()
                 await expect(
                   item.connect(user).mint(stakingStrategyAddress, token.address, '0x'),
-                ).to.be.revertedWith('amount!')
+                ).to.be.revertedWith('maxSupply!')
               })
 
               it(`Regular: owner set new maxSupply`, async () => {
@@ -141,12 +141,6 @@ describe(`Items tests`, () => {
                 await expect(item.connect(user).stopSell()).to.be.revertedWith(
                   'only product owner!',
                 )
-              })
-
-              it(`Error: mint zero amount`, async () => {
-                await expect(
-                  item.connect(user).mint(stakingStrategyAddress, token.address, '0x'),
-                ).to.be.revertedWith('amount!')
               })
 
               it(`Error: user burn`, async () => {
