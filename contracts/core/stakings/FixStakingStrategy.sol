@@ -97,7 +97,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         uint256 _finalTimestamp = _initialTimestamp + REWARDS_PERIOD * lockYears * 12;
         finalTimestamp[_itemAddress][_itemId] = _finalTimestamp;
-        uint256 _itemsPrice = IItem(_itemAddress).tokenPrice(_itemId);
+        uint256 _itemsPrice = IItem(_itemAddress).price();
         itemsPrice[_itemAddress][_itemId] = _itemsPrice;
 
         address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);

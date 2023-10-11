@@ -181,7 +181,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _startStakingTimestamp = DateTimeLib.timestampFromDate(year, month, 1);
         startStakingTimestamp[_itemAddress][_itemId] = _startStakingTimestamp;
 
-        uint256 _itemsPrice = IItem(_itemAddress).tokenPrice(_itemId);
+        uint256 _itemsPrice = IItem(_itemAddress).price();
         itemsPrice[_itemAddress][_itemId] = _itemsPrice;
 
         // Remainder
