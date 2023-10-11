@@ -12,15 +12,15 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const FixStakingStrategyImplementationDeployment = await get('FixStakingStrategyImplementation')
   const AddressBookDeployment = await get('AddressBook')
 
-  const deployment = await deploy('FiveYearsFixStakingStrategy', {
+  const deployment = await deploy('ThreeYearsFixStakingStrategy', {
     contract: 'ERC1967Proxy',
     from: deployer.address,
     args: [
       FixStakingStrategyImplementationDeployment.address,
       FixStakingStrategy__factory.createInterface().encodeFunctionData('initialize', [
         AddressBookDeployment.address, // _addressBook
-        1200, // _rewardsRate
-        5, // _lockYears
+        1000, // _rewardsRate
+        3, // _lockYears
         0, // _yearDeprecationRate
       ])
     ]
@@ -31,6 +31,6 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await (await addressBook.addStakingStrategy(deployment.address)).wait()
 }
 
-deploy.tags = ['FiveYearsFixStakingStrategy']
+deploy.tags = ['ThreeYearsFixStakingStrategy']
 deploy.dependencies = ['FixStakingStrategyImplementation', 'AddressBook']
 export default deploy

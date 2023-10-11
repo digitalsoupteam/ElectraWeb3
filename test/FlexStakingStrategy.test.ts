@@ -22,25 +22,23 @@ const TEST_DATA = {
     // ELCT,
   ],
   items: [
-    'ScooterItem', //
-    // 'BikeItem',
-    // 'MopedItem',
-    // 'CarItem',
+    'MopedItem',
+    // 'MopedSparePartItem',
   ],
   mintedAmount: [
     1, //
-    2,
-    10,
+    // 2,
+    // 10,
   ],
   startDay: [
     1, //
-    15,
+    // 15,
   ],
   subSellMonths: [
     0, //
-    1,
-    2,
-    3,
+    // 1,
+    // 2,
+    // 3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //

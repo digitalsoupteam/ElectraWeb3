@@ -19,10 +19,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       ItemImplementationDeployment.address,
       Item__factory.createInterface().encodeFunctionData('initialize', [
         AddressBookDeployment.address, // _addressBook
-        'MOPED', // _name
+        'Moped', // _name
         'MPD', // _symbol
-        ethers.utils.parseUnits('2000', 18), // _price
-        1000, // _maxSupply
+        ethers.utils.parseUnits('5280', 18), // _price
+        180, // _maxSupply
         'https://elct.com/metadata/moped/', // _uri
       ])
     ]

@@ -22,10 +22,8 @@ const TEST_DATA = {
     ELCT,
   ],
   items: [
-    'ScooterItem', //
-    // 'BikeItem',
-    // 'MopedItem',
-    // 'CarItem',
+    'MopedItem',
+    // 'MopedSparePartItem',
   ],
   mintedAmount: [
     1, //

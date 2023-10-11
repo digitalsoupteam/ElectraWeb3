@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { AddressBook__factory, FixStakingStrategy__factory } from '../typechain-types'
+import { AddressBook__factory, FlexStakingStrategy__factory } from '../typechain-types'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
@@ -9,19 +9,21 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const signers = await ethers.getSigners()
   const deployer = signers[0]
   
-  const FixStakingStrategyImplementationDeployment = await get('FixStakingStrategyImplementation')
+  const FlexStakingStrategyImplementationDeployment = await get('FlexStakingStrategyImplementation')
   const AddressBookDeployment = await get('AddressBook')
 
-  const deployment = await deploy('ThreeYearsFixStakingStrategy', {
+  const deployment = await deploy('FiveYearsFlexStakingStrategy', {
     contract: 'ERC1967Proxy',
     from: deployer.address,
     args: [
-      FixStakingStrategyImplementationDeployment.address,
-      FixStakingStrategy__factory.createInterface().encodeFunctionData('initialize', [
+      FlexStakingStrategyImplementationDeployment.address,
+      FlexStakingStrategy__factory.createInterface().encodeFunctionData('initialize', [
         AddressBookDeployment.address, // _addressBook
-        800, // _rewardsRate
-        3, // _lockYears
-        0, // _yearDeprecationRate
+        2, // _minLockYears
+        5, // _maxLockYears
+        4, // _initialMonths
+        100, // _initialRewardsRate
+        1000, // _yearDeprecationRate
       ])
     ]
   })
@@ -31,6 +33,6 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await (await addressBook.addStakingStrategy(deployment.address)).wait()
 }
 
-deploy.tags = ['ThreeYearsFixStakingStrategy']
-deploy.dependencies = ['FixStakingStrategyImplementation', 'AddressBook']
+deploy.tags = ['FiveYearsFlexStakingStrategy']
+deploy.dependencies = ['FlexStakingStrategyImplementation', 'AddressBook']
 export default deploy

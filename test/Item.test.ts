@@ -167,7 +167,7 @@ describe(`Items tests`, () => {
                     .mint(maxSupply.add(1), stakingStrategyAddress, token.address, '0x'),
                 ).to.be.revertedWith('maxSupply!')
               })
-
+              
               it(`Error: mint more max supply in many tokens`, async () => {
                 await item
                   .connect(user)

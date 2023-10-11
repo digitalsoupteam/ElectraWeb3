@@ -12,18 +12,18 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const ItemImplementationDeployment = await get('ItemImplementation')
   const AddressBookDeployment = await get('AddressBook')
 
-  const deployment = await deploy('ScooterItem', {
+  const deployment = await deploy('MopedSparePartItem', {
     contract: 'ERC1967Proxy',
     from: deployer.address,
     args: [
       ItemImplementationDeployment.address,
       Item__factory.createInterface().encodeFunctionData('initialize', [
         AddressBookDeployment.address, // _addressBook
-        'SCOOTER', // _name
-        'SCT', // _symbol
-        ethers.utils.parseUnits('1000', 18), // _price
-        1000, // _maxSupply
-        'https://elct.com/metadata/scooter/', // _uri
+        'Moped Spare Part', // _name
+        'MSP', // _symbol
+        ethers.utils.parseUnits('290', 18), // _price
+        2400, // _maxSupply
+        'https://elct.com/metadata/moped_spare_part/', // _uri
       ])
     ]
   })
@@ -33,6 +33,6 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await (await addressBook.addItem(deployment.address)).wait()
 }
 
-deploy.tags = ['ScooterItem']
+deploy.tags = ['MopedSparePartItem']
 deploy.dependencies = ['ItemImplementation', 'AddressBook']
 export default deploy
