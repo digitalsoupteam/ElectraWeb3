@@ -16,19 +16,12 @@ import { BigNumber } from 'ethers'
 
 const TEST_DATA = {
   tokens: [
-    USDT,//
-  ELCT,
-],
-  items: [
-    'ScooterItem',
-    // 'BikeItem',
-    // 'MopedItem',
-    // 'CarItem',
+    USDT, //
+    ELCT,
   ],
-  amounts: [
-    1, //
-    // 2,
-    // 3,
+  items: [
+    'MopedItem',
+    // 'MopedSparePartItem',
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
@@ -88,46 +81,42 @@ describe(`Items tests`, () => {
                 await token.connect(user).approve(item.address, mintedPayTokensAmount)
               })
 
-              for (const amount of TEST_DATA.amounts) {
-                it(`Regular: mint. amount=${amount}`, async () => {
-                  const tokenId = 0
+              it(`Regular: mint.`, async () => {
+                const tokenId = 0
 
-                  const balanceBefore = await item.balanceOf(user.address)
-                  await item.connect(user).mint(amount, stakingStrategyAddress, token.address, '0x')
-                  const balanceAfter = await item.balanceOf(user.address)
-                  assert(
-                    balanceAfter.sub(balanceBefore).eq(1),
-                    `Error mint: balanceBefore=${balanceBefore}, balanceAfter=${balanceAfter}`,
-                  )
+                const balanceBefore = await item.balanceOf(user.address)
+                await item.connect(user).mint(stakingStrategyAddress, token.address, '0x')
+                const balanceAfter = await item.balanceOf(user.address)
+                assert(
+                  balanceAfter.sub(balanceBefore).eq(1),
+                  `Error mint: balanceBefore=${balanceBefore}, balanceAfter=${balanceAfter}`,
+                )
 
-                  const amountInToken = await item.amountInToken(tokenId)
-                  assert(
-                    amountInToken.eq(amount),
-                    `amountInToken != amount, ${amountInToken} != ${amount}`,
-                  )
-
-                  const tokenStakingStrategy = await item.tokenStakingStrategy(tokenId)
-                  assert(
-                    tokenStakingStrategy == stakingStrategyAddress,
-                    `tokenStakingStrategy != stakingStrategyAddress, ${tokenStakingStrategy} != ${stakingStrategyAddress}`,
-                  )
-                })
-              }
+                const tokenStakingStrategy = await item.tokenStakingStrategy(tokenId)
+                assert(
+                  tokenStakingStrategy == stakingStrategyAddress,
+                  `tokenStakingStrategy != stakingStrategyAddress, ${tokenStakingStrategy} != ${stakingStrategyAddress}`,
+                )
+              })
 
               it('Error: mint not authorized staking strategy', async () => {
                 const fakeStakingStratgey = ethers.constants.AddressZero
-                await expect(item.connect(user).mint(1, fakeStakingStratgey, token.address, '0x')).to.be.revertedWith('only staking strategy!')
+                await expect(
+                  item.connect(user).mint(fakeStakingStratgey, token.address, '0x'),
+                ).to.be.revertedWith('only staking strategy!')
               })
 
               it('Error: mint with not supported payToken', async () => {
                 const fakeTokenAddress = ethers.constants.AddressZero
-                await expect(item.connect(user).mint(1, stakingStrategyAddress, fakeTokenAddress, '0x')).to.be.revertedWith('Treasury: unknown token!')
+                await expect(
+                  item.connect(user).mint(stakingStrategyAddress, fakeTokenAddress, '0x'),
+                ).to.be.revertedWith('Treasury: unknown token!')
               })
 
               it(`Regular: owner stop sell`, async () => {
                 await item.connect(productOwner).stopSell()
                 await expect(
-                  item.connect(user).mint(0, stakingStrategyAddress, token.address, '0x'),
+                  item.connect(user).mint(stakingStrategyAddress, token.address, '0x'),
                 ).to.be.revertedWith('amount!')
               })
 
@@ -156,32 +145,13 @@ describe(`Items tests`, () => {
 
               it(`Error: mint zero amount`, async () => {
                 await expect(
-                  item.connect(user).mint(0, stakingStrategyAddress, token.address, '0x'),
+                  item.connect(user).mint(stakingStrategyAddress, token.address, '0x'),
                 ).to.be.revertedWith('amount!')
-              })
-
-              it(`Error: mint more max supply in signle token`, async () => {
-                await expect(
-                  item
-                    .connect(user)
-                    .mint(maxSupply.add(1), stakingStrategyAddress, token.address, '0x'),
-                ).to.be.revertedWith('maxSupply!')
-              })
-              
-              it(`Error: mint more max supply in many tokens`, async () => {
-                await item
-                  .connect(user)
-                  .mint(maxSupply.div(2), stakingStrategyAddress, token.address, '0x')
-                await expect(
-                  item
-                    .connect(user)
-                    .mint(maxSupply.div(2).add(1), stakingStrategyAddress, token.address, '0x'),
-                ).to.be.revertedWith('maxSupply!')
               })
 
               it(`Error: user burn`, async () => {
                 const tokenId = 0
-                await item.connect(user).mint(1, stakingStrategyAddress, token.address, '0x')
+                await item.connect(user).mint(stakingStrategyAddress, token.address, '0x')
                 await expect(item.connect(user).burn(tokenId)).to.be.revertedWith(
                   'only staking strategy!',
                 )

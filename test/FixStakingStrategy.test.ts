@@ -25,11 +25,6 @@ const TEST_DATA = {
     'MopedItem',
     // 'MopedSparePartItem',
   ],
-  mintedAmount: [
-    1, //
-    // 2,
-    // 10,
-  ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
     // 'ThreeYearsFixStakingStrategy',
@@ -96,105 +91,101 @@ describe(`FixStakingStratgey`, () => {
                 console.log('aw15')
               })
 
-              for (const mintAmount of TEST_DATA.mintedAmount) {
-                describe(`mintAmount ${mintAmount}`, () => {
-                  it(`Regular: claim every period.`, async () => {
-                    let tokenId = 0
+              it(`Regular: claim every period.`, async () => {
+                let tokenId = 0
 
-                    // Mint item
-                    await item
-                      .connect(user)
-                      .mint(mintAmount, stakingStrategy.address, token.address, '0x')
+                // Mint item
+                await item
+                  .connect(user)
+                  .mint(stakingStrategy.address, token.address, '0x')
 
-                    // Check errors: initial actions, claim/sell
-                    await expect(
-                      stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                    ).to.be.revertedWith('rewards!')
-                    await expect(
-                      stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
-                    ).to.be.revertedWith("can't sell!")
+                // Check errors: initial actions, claim/sell
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('rewards!')
+                await expect(
+                  stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                ).to.be.revertedWith("can't sell!")
 
-                    // Contracts params
-                    const tokenURI = await item.tokenURI(tokenId)
-                    const tokenPrice = await item.tokenPrice(tokenId)
-                    const rewardsRate = await stakingStrategy.rewardsRate()
-                    const lockYears = (await stakingStrategy.lockYears()).toNumber()
+                // Contracts params
+                const tokenURI = await item.tokenURI(tokenId)
+                const tokenPrice = await item.price()
+                const rewardsRate = await stakingStrategy.rewardsRate()
+                const lockYears = (await stakingStrategy.lockYears()).toNumber()
 
-                    console.log(`tokenURI ${tokenURI}`)
-                    console.log(`tokenPrice ${tokenPrice}`)
-                    console.log(`rewardsRate ${rewardsRate}`)
-                    console.log(`lockYears ${lockYears}`)
+                console.log(`tokenURI ${tokenURI}`)
+                console.log(`tokenPrice ${tokenPrice}`)
+                console.log(`rewardsRate ${rewardsRate}`)
+                console.log(`lockYears ${lockYears}`)
 
-                    for (let i = 0; i < 12 * lockYears; i++) {
-                      console.log(`-> Period: ${i}`)
-                      // Check errors sell
-                      await expect(
-                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
-                      ).to.be.revertedWith("can't sell!")
-                      // Increase time
-                      let nextClaimTimestamp = await stakingStrategy.claimTimestamp(
-                        item.address,
-                        tokenId,
-                        i + 1,
-                      )
-                      await time.increaseTo(nextClaimTimestamp)
-                      // Claim
-                      let balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy
-                        .connect(user)
-                        .claim(item.address, tokenId, token.address)
-                      let balanceAfter = await token.balanceOf(user.address)
-                      let estimatedBalance = await treasury.usdAmountToToken(
-                        rewardsRate.mul(1).mul(tokenPrice).div(12).div(10000).toString(),
-                        token.address,
-                      )
-                      assert(
-                        balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                        `claimed balance! ${balanceAfter.sub(
-                          balanceBefore,
-                        )} != ${estimatedBalance}`,
-                      )
-                      console.log(
-                        `rewards: ${ethers.utils.formatUnits(
-                          estimatedBalance,
-                          await token.decimals(),
-                        )}`,
-                      )
-                    }
+                for (let i = 0; i < 12 * lockYears; i++) {
+                  console.log(`-> Period: ${i}`)
+                  // Check errors sell
+                  await expect(
+                    stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                  ).to.be.revertedWith("can't sell!")
+                  // Increase time
+                  let nextClaimTimestamp = await stakingStrategy.claimTimestamp(
+                    item.address,
+                    tokenId,
+                    i + 1,
+                  )
+                  await time.increaseTo(nextClaimTimestamp)
+                  // Claim
+                  let balanceBefore = await token.balanceOf(user.address)
+                  await stakingStrategy
+                    .connect(user)
+                    .claim(item.address, tokenId, token.address)
+                  let balanceAfter = await token.balanceOf(user.address)
+                  let estimatedBalance = await treasury.usdAmountToToken(
+                    rewardsRate.mul(1).mul(tokenPrice).div(12).div(10000).toString(),
+                    token.address,
+                  )
+                  assert(
+                    balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                    `claimed balance! ${balanceAfter.sub(
+                      balanceBefore,
+                    )} != ${estimatedBalance}`,
+                  )
+                  console.log(
+                    `rewards: ${ethers.utils.formatUnits(
+                      estimatedBalance,
+                      await token.decimals(),
+                    )}`,
+                  )
+                }
 
-                    // Check errors
-                    await expect(
-                      stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                    ).to.be.revertedWith('rewards!')
-                    await time.increase(1 * 12 * 30 * 24 * 60 * 60)
-                    await expect(
-                      stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                    ).to.be.revertedWith('rewards!')
+                // Check errors
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('rewards!')
+                await time.increase(1 * 12 * 30 * 24 * 60 * 60)
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('rewards!')
 
-                    // Sell
-                    let balanceBefore = await token.balanceOf(user.address)
-                    await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
-                    let balanceAfter = await token.balanceOf(user.address)
-                    const sellPrice = await treasury.usdAmountToToken(tokenPrice, token.address)
-                    assert(
-                      balanceAfter.sub(balanceBefore).eq(sellPrice),
-                      `sell balance! ${balanceAfter.sub(balanceBefore)} != ${sellPrice}`,
-                    )
-                    console.log(
-                      `sell: ${ethers.utils.formatUnits(sellPrice, await token.decimals())}`,
-                    )
+                // Sell
+                let balanceBefore = await token.balanceOf(user.address)
+                await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
+                let balanceAfter = await token.balanceOf(user.address)
+                const sellPrice = await treasury.usdAmountToToken(tokenPrice, token.address)
+                assert(
+                  balanceAfter.sub(balanceBefore).eq(sellPrice),
+                  `sell balance! ${balanceAfter.sub(balanceBefore)} != ${sellPrice}`,
+                )
+                console.log(
+                  `sell: ${ethers.utils.formatUnits(sellPrice, await token.decimals())}`,
+                )
 
-                    // Check errors after burn
-                    await expect(
-                      stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
-                    ).to.be.revertedWith('ERC721: invalid token ID')
+                // Check errors after burn
+                await expect(
+                  stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                ).to.be.revertedWith('ERC721: invalid token ID')
 
-                    await expect(
-                      stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                    ).to.be.revertedWith('ERC721: invalid token ID')
-                  })
-                })
-              }
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('ERC721: invalid token ID')
+              })
             })
           }
         })
