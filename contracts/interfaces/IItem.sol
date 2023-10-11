@@ -10,13 +10,9 @@ interface IItem {
 
     function totalMintedAmount() external returns (uint256);
 
-    function amountInToken(uint256 _tokenId) external returns (uint256);
-
     function tokenStakingStrategy(uint256 _tokenId) external returns (address);
 
-    function mint(uint256 _amount, address _stakingStrategy, address _payToken, bytes memory _payload) external;
-
-    function tokenPrice(uint256 _tokenId) external view returns (uint256);
+    function mint(address _stakingStrategy, address _payToken, bytes memory _payload) external;
 
     function stopSell() external;
 

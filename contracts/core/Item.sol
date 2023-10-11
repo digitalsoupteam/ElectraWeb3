@@ -8,10 +8,11 @@ import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IAddressBook } from "../interfaces/IAddressBook.sol";
+import { IItem } from "../interfaces/IItem.sol";
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
 
-contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
+contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
     // ------------------------------------------------------------------------------------
     // ----- LIBRARIES --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -27,7 +28,6 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     uint256 public maxSupply;
     uint256 public totalMintedAmount;
     uint256 public nextTokenId;
-    mapping(uint256 tokenId => uint256) public amountInToken;
     mapping(uint256 tokenId => address) public tokenStakingStrategy;
     string internal uri;
 
@@ -39,8 +39,7 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         address indexed owner,
         uint256 indexed tokenId,
         address indexed stakingStartegy,
-        address payToken,
-        uint256 amount
+        address payToken
     );
 
     // ------------------------------------------------------------------------------------
@@ -71,7 +70,6 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
     // ------------------------------------------------------------------------------------
 
     function mint(
-        uint256 _amount,
         address _stakingStrategy,
         address _payToken,
         bytes memory _payload
@@ -80,16 +78,12 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         IAddressBook _addressBook = IAddressBook(addressBook);
         ITreasury treasury = ITreasury(_addressBook.treasury());
 
-        // Check args
-        require(_amount > 0, "amount!");
-        totalMintedAmount += _amount;
-        require(maxSupply >= totalMintedAmount, "maxSupply!");
+        require(maxSupply >= ++totalMintedAmount, "maxSupply!");
         _addressBook.enforceIsStakingStrategyContract(_stakingStrategy);
         treasury.enforceIsSupportedToken(_payToken);
 
         // Recieve pay tokens
-        uint256 totalPrice = _amount * price;
-        uint256 payTokenAmount = treasury.usdAmountToToken(totalPrice, _payToken);
+        uint256 payTokenAmount = treasury.usdAmountToToken(price, _payToken);
         IERC20Metadata(_payToken).safeTransferFrom(
             msg.sender,
             address(treasury),
@@ -98,10 +92,9 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
 
         // Mint item
         uint256 tokenId = nextTokenId++;
-        amountInToken[tokenId] = _amount;
         tokenStakingStrategy[tokenId] = _stakingStrategy;
         _safeMint(msg.sender, tokenId);
-        emit Mint(msg.sender, tokenId, _stakingStrategy, _payToken, _amount);
+        emit Mint(msg.sender, tokenId, _stakingStrategy, _payToken);
         // Enable staking
         IStakingStrategy(_stakingStrategy).stake(address(this), tokenId, _payload);
     }
@@ -128,14 +121,6 @@ contract Item is ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable 
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         require(_maxSupply > totalMintedAmount, "max supply less!");
         maxSupply = _maxSupply;
-    }
-
-    // ------------------------------------------------------------------------------------
-    // ----- VIEW  ------------------------------------------------------------------------
-    // ------------------------------------------------------------------------------------
-
-    function tokenPrice(uint256 _tokenId) external view returns (uint256) {
-        return price * amountInToken[_tokenId];
     }
 
     // ------------------------------------------------------------------------------------
