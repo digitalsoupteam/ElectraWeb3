@@ -25,8 +25,8 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     uint256 public rewardsRate;
     uint256 public lockYears;
     uint256 public yearDeprecationRate;
-    uint256 public maxPeriodsCount;    
-    
+    uint256 public maxPeriodsCount;
+
     mapping(address item => mapping(uint256 tokenId => bool)) public isStakedToken;
     mapping(address item => mapping(uint256 tokenId => uint256)) public initialTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public claimedPeriodsCount;
@@ -232,7 +232,6 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         return _nextClaimTimestamp;
     }
 
-    
     function _enforceIsStakedToken(address _itemAddress, uint256 _itemId) internal view {
         require(isStakedToken[_itemAddress][_itemId], "only staked token");
     }

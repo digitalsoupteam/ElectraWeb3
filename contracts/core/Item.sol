@@ -84,11 +84,7 @@ contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Enume
 
         // Recieve pay tokens
         uint256 payTokenAmount = treasury.usdAmountToToken(price, _payToken);
-        IERC20Metadata(_payToken).safeTransferFrom(
-            msg.sender,
-            address(treasury),
-            payTokenAmount
-        );
+        IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(treasury), payTokenAmount);
 
         // Mint item
         uint256 tokenId = nextTokenId++;

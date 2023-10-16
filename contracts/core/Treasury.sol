@@ -45,7 +45,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
-    
+
     function setOnlyProductOwnerWithdrawn(bool _value) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         onlyGovernanceWithdrawn = _value;
@@ -80,6 +80,7 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER & PROTOCOL ACTIONS  --------------------------------------------
     // ------------------------------------------------------------------------------------
+
     function withdraw(address _token, uint256 _amount, address _recipient) external {
         require(_amount > 0, "Treasury: withdrawn amount is zero!");
         IAddressBook _addressBook = IAddressBook(addressBook);
@@ -106,7 +107,8 @@ contract Treasury is ITreasury, UUPSUpgradeable {
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         return
             (_usdAmount * (10 ** IERC20Metadata(_token).decimals()) * (10 ** PRICERS_DECIMALS)) /
-            uint256(tokenPrice) / 10 ** USD_DECIMALS;
+            uint256(tokenPrice) /
+            10 ** USD_DECIMALS;
     }
 
     function enforceIsSupportedToken(address _token) external view {

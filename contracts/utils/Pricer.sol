@@ -42,6 +42,7 @@ contract Pricer is IPricer, UUPSUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
+    
     function setCurrentPrice(int256 _newPrice) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
