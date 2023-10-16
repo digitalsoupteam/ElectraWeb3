@@ -366,7 +366,10 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     ) public view returns (uint256) {
         uint256 _startStakingTimestamp = startStakingTimestamp[_itemAddress][_itemId];
         uint256 _maxMonthsCount = maxMonthsCount;
-        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, _blockTimestamp());
+        uint256 allExpiredMonths = DateTimeLib.diffMonths(
+            _startStakingTimestamp,
+            _blockTimestamp()
+        );
         if (allExpiredMonths > _maxMonthsCount) allExpiredMonths = _maxMonthsCount;
         return allExpiredMonths;
     }
@@ -447,7 +450,19 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         require(isStakedToken[_itemAddress][_itemId], "only staked token");
     }
 
+    // Only mainnet 
+    // function _blockTimestamp() internal view returns (uint256) {
+    //     return block.timestamp;
+    // }
+
+    // Only testnet
+    uint256 public __addedDays;
+
     function _blockTimestamp() internal view returns (uint256) {
-        return block.timestamp;
+        return block.timestamp + __addedDays * 1 days;
+    }
+
+    function addDays(uint256 _daysCount) external {
+        __addedDays += _daysCount;
     }
 }

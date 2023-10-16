@@ -236,7 +236,19 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         require(isStakedToken[_itemAddress][_itemId], "only staked token");
     }
 
+    // Only mainnet
+    // function _blockTimestamp() internal view returns (uint256) {
+    //     return block.timestamp;
+    // }
+
+    // Only testnet
+    uint256 public __addedDays;
+
     function _blockTimestamp() internal view returns (uint256) {
-        return block.timestamp;
+        return block.timestamp + __addedDays * 1 days;
+    }
+
+    function addDays(uint256 _daysCount) external {
+        __addedDays += _daysCount;
     }
 }
