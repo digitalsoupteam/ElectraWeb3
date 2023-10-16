@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { ERC721EnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { IAddressBook } from "../interfaces/IAddressBook.sol";
@@ -12,7 +12,7 @@ import { IItem } from "../interfaces/IItem.sol";
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
 
-contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgradeable {
+contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721EnumerableUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- LIBRARIES --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Upgra
         // Load deps
         IAddressBook _addressBook = IAddressBook(addressBook);
         ITreasury treasury = ITreasury(_addressBook.treasury());
-
+        // Validate args
         require(maxSupply >= ++totalMintedAmount, "maxSupply!");
         _addressBook.enforceIsStakingStrategyContract(_stakingStrategy);
         treasury.enforceIsSupportedToken(_payToken);
