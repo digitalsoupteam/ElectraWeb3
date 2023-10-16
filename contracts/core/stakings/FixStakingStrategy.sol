@@ -91,9 +91,9 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
     function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
         IAddressBook(addressBook).enforceIsItemContract(msg.sender);
-        
+
         isStakedToken[_itemAddress][_itemId] = true;
-        uint256 _initialTimestamp = block.timestamp;
+        uint256 _initialTimestamp = _blockTimestamp();
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         uint256 _finalTimestamp = _initialTimestamp + REWARDS_PERIOD * lockYears * 12;
         finalTimestamp[_itemAddress][_itemId] = _finalTimestamp;
@@ -198,7 +198,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 _claimedPeriodsCount = claimedPeriodsCount[_itemAddress][_itemId];
         uint256 _finalTimestamp = finalTimestamp[_itemAddress][_itemId];
 
-        uint256 estimatedTimestamp = block.timestamp;
+        uint256 estimatedTimestamp = _blockTimestamp();
         if (estimatedTimestamp > _finalTimestamp) estimatedTimestamp = _finalTimestamp;
         uint256 allExpiredPeriods = (estimatedTimestamp - _initialTimestamp) / REWARDS_PERIOD;
         uint256 _itemsPrice = itemsPrice[_itemAddress][_itemId];
@@ -209,7 +209,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
     function canSell(address _itemAddress, uint256 _itemId) public view returns (bool) {
         return
-            block.timestamp >= finalTimestamp[_itemAddress][_itemId] &&
+            _blockTimestamp() >= finalTimestamp[_itemAddress][_itemId] &&
             claimedPeriodsCount[_itemAddress][_itemId] == maxPeriodsCount;
     }
 
@@ -234,5 +234,9 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
     function _enforceIsStakedToken(address _itemAddress, uint256 _itemId) internal view {
         require(isStakedToken[_itemAddress][_itemId], "only staked token");
+    }
+
+    function _blockTimestamp() internal view returns (uint256) {
+        return block.timestamp;
     }
 }

@@ -105,7 +105,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         yearDeprecationRate = _yearDeprecationRate;
 
         (uint256 initialYear, uint256 initialMonth, ) = DateTimeLib.timestampToDate(
-            DateTimeLib.subMonths(block.timestamp, 1)
+            DateTimeLib.subMonths(_blockTimestamp(), 1)
         );
         lastUpdatedTimestamp = DateTimeLib.timestampFromDate(initialYear, initialMonth, 1);
 
@@ -143,7 +143,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
         uint256 _lastUpdatedTimestamp = lastUpdatedTimestamp;
-        uint256 diffMonths = DateTimeLib.diffMonths(_lastUpdatedTimestamp, block.timestamp);
+        uint256 diffMonths = DateTimeLib.diffMonths(_lastUpdatedTimestamp, _blockTimestamp());
         if (diffMonths == 0) return;
         uint256 monthsToUpdate = diffMonths - 1;
         if (monthsToUpdate == 0) return;
@@ -172,7 +172,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
         // Initial data
         isStakedToken[_itemAddress][_itemId] = true;
-        uint256 _initialTimestamp = block.timestamp;
+        uint256 _initialTimestamp = _blockTimestamp();
         initialTimestamp[_itemAddress][_itemId] = _initialTimestamp;
         (uint256 year, uint256 month, uint256 initialDay) = DateTimeLib.timestampToDate(
             _initialTimestamp
@@ -276,7 +276,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
-        uint256 currentTimestamp = block.timestamp;
+        uint256 currentTimestamp = _blockTimestamp();
         (uint256 currentYear, uint256 currentMonth, ) = DateTimeLib.timestampToDate(
             currentTimestamp
         );
@@ -339,7 +339,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     }
 
     function currentPeriod() external view returns (uint256 year_, uint256 month_, uint256 day_) {
-        return timestampPeriod(block.timestamp);
+        return timestampPeriod(_blockTimestamp());
     }
 
     function timestampPeriod(
@@ -366,7 +366,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     ) public view returns (uint256) {
         uint256 _startStakingTimestamp = startStakingTimestamp[_itemAddress][_itemId];
         uint256 _maxMonthsCount = maxMonthsCount;
-        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, block.timestamp);
+        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, _blockTimestamp());
         if (allExpiredMonths > _maxMonthsCount) allExpiredMonths = _maxMonthsCount;
         return allExpiredMonths;
     }
@@ -445,5 +445,9 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
 
     function _enforceIsStakedToken(address _itemAddress, uint256 _itemId) internal view {
         require(isStakedToken[_itemAddress][_itemId], "only staked token");
+    }
+
+    function _blockTimestamp() internal view returns (uint256) {
+        return block.timestamp;
     }
 }
