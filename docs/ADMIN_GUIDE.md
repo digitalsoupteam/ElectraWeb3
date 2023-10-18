@@ -2,7 +2,7 @@
 
 # Admin guide
 
-## Increase time in staking
+## Increase time in staking (ONLY TESTNET)
 
 ```solidity
 StakingStrategy.addDays(uint256 _daysCount);
