@@ -7,6 +7,7 @@ import 'hardhat-tracer'
 import 'hardhat-abi-exporter'
 import '@nomicfoundation/hardhat-chai-matchers'
 import 'hardhat-contract-sizer'
+import CONFIG from './config.json'
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -24,6 +25,10 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    binanceTestnet: {
+      url: 'https://rpc.ankr.com/bsc_testnet_chapel',
+      accounts: [CONFIG.privateKey]
+    },
     hardhat: {
       chainId: 1337,
       forking: {
