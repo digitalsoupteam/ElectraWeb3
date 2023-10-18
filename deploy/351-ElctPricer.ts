@@ -5,7 +5,7 @@ import { ELCT } from '../constants/addresses'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getOrNull } = deployments
 
   const signers = await ethers.getSigners()
   const deployer = signers[0]
@@ -27,9 +27,12 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ]
   })
 
+  const alreadyDeployed = await getOrNull('ElctPricer') !== null
+  if(alreadyDeployed) return
+
   const treasury = Treasury__factory.connect(TreasuryDeployment.address, deployer)
 
-  await (await treasury.addToken(ELCT, deployment.address)).wait()
+  await (await treasury.addToken(ELCT, deployment.address)).wait(1)
 }
 
 deploy.tags = ['ElctPricer']
