@@ -17,17 +17,17 @@ import { BigNumber } from 'ethers'
 const TEST_DATA = {
   tokens: [
     USDT, //
-    // ELCT,
+    ELCT,
   ],
   items: [
     'MopedItem',
-    // 'MopedSparePartItem',
+    'MopedSparePartItem',
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
-    // 'ThreeYearsFixStakingStrategy',
-    // 'FiveYearsFixStakingStrategy',
-    // 'FiveYearsFlexStakingStrategy',
+    'ThreeYearsFixStakingStrategy',
+    'FiveYearsFixStakingStrategy',
+    'FiveYearsFlexStakingStrategy',
   ],
 }
 

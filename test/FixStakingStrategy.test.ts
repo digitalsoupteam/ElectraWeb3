@@ -18,17 +18,17 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 const TEST_DATA = {
   tokens: [
-    // USDT, //
+    USDT, //
     ELCT,
   ],
   items: [
     'MopedItem',
-    // 'MopedSparePartItem',
+    'MopedSparePartItem',
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
-    // 'ThreeYearsFixStakingStrategy',
-    // 'FiveYearsFixStakingStrategy',
+    'ThreeYearsFixStakingStrategy',
+    'FiveYearsFixStakingStrategy',
   ],
 }
 

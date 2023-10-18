@@ -17,7 +17,8 @@ export default class ERC20Minter {
 
     const holders = {
         [BUSD]: '0x56306851238d7aee9fac8cdd6877e92f83d5924c',
-        [USDT]: '0xd183f2bbf8b28d9fec8367cb06fe72b88778c86b',
+        // [USDT]: '0xd183f2bbf8b28d9fec8367cb06fe72b88778c86b',
+        [USDT]: '0xBF87F4C03d765Ba17fbec79e7b4fd167fD8895Df',
         [LINK]: '0x21d45650db732ce5df77685d6021d7d5d1da807f',
         [ELCT]: '0xBF87F4C03d765Ba17fbec79e7b4fd167fD8895Df'
     }
