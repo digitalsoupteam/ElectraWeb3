@@ -2,6 +2,14 @@
 
 # Admin guide
 
+## Increase time in staking
+
+```solidity
+StakingStrategy.addDays(uint256 _daysCount);
+```
+
+<br/>
+
 ## Set new ProductOwner
 
 ```solidity
