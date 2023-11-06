@@ -364,7 +364,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         return _nextClaimTimestamp;
     }
 
-    function getAllExpiredMoths(
+    function getAllExpiredMonths(
         address _itemAddress,
         uint256 _itemId
     ) public view returns (uint256) {
@@ -387,7 +387,7 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _initialMonths = initialMonths;
         uint256 _initialRewardsRate = initialRewardsRate;
 
-        uint256 allExpiredMonths = getAllExpiredMoths(_itemAddress, _itemId);
+        uint256 allExpiredMonths = getAllExpiredMonths(_itemAddress, _itemId);
 
         for (uint256 i = _claimedPeriodsCount; i < allExpiredMonths; ++i) {
             if (i <= _initialMonths) {
@@ -427,11 +427,11 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
         uint256 _claimedPeriodsCount = claimedPeriodsCount[_itemAddress][_itemId];
         return
             _claimedPeriodsCount >= minMonthsCount &&
-            _claimedPeriodsCount == getAllExpiredMoths(_itemAddress, _itemId);
+            _claimedPeriodsCount == getAllExpiredMonths(_itemAddress, _itemId);
     }
 
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
-        uint256 allExpiredMonths = getAllExpiredMoths(_itemAddress, _itemId);
+        uint256 allExpiredMonths = getAllExpiredMonths(_itemAddress, _itemId);
         if (allExpiredMonths < minMonthsCount) return 0;
         --allExpiredMonths; // sub additional splited month
 

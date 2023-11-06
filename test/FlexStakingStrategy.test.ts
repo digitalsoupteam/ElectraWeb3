@@ -123,15 +123,8 @@ describe(`FlexStakingStratgey`, () => {
                       await ethers.provider.getBlockNumber(),
                     )
                     const date = new Date(block.timestamp * 1000)
-                    assert(
-                      date.getDate() == startDay,
-                      `Failed set startDay day: ${date.getDate()}`,
-                    )
-                    const daysInMonth = new Date(
-                      date.getFullYear(),
-                      date.getMonth(),
-                      0,
-                    ).getDate()
+                    assert(date.getDate() == startDay, `Failed set startDay day: ${date.getDate()}`)
+                    const daysInMonth = new Date(date.getFullYear(), date.getMonth(), 0).getDate()
                     daysDiff = daysInMonth - startDay
                   })
 
@@ -148,13 +141,9 @@ describe(`FlexStakingStratgey`, () => {
                     beforeEach(async () => {
                       console.log(`aw1 ${await getDate()}`)
                       // other token
-                      await item
-                        .connect(user)
-                        .mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
                       // tested token
-                      await item
-                        .connect(user)
-                        .mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
 
                       tokenPrice = await item.price()
                       initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -177,9 +166,7 @@ describe(`FlexStakingStratgey`, () => {
                         console.log(`IIIII ${i}`)
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                         ).to.be.revertedWith('rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -188,9 +175,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < minMonthsCount; i++) {
                         console.log(`\n jsi ${i}`)
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                         ).to.be.revertedWith("can't sell!")
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
@@ -220,9 +205,7 @@ describe(`FlexStakingStratgey`, () => {
                           let initialItemsPrice = tokenPrice
                           if (i == 0) initialItemsPrice = tokenPrice.sub(remainder)
                           else if (i == initialMonths) initialItemsPrice = remainder
-                          estimatedRewards = initialItemsPrice
-                            .mul(initialRewardsRate)
-                            .div(10000)
+                          estimatedRewards = initialItemsPrice.mul(initialRewardsRate).div(10000)
                           estimatedRewardsByToken = await treasury.usdAmountToToken(
                             estimatedRewards,
                             token.address,
@@ -234,11 +217,7 @@ describe(`FlexStakingStratgey`, () => {
                           else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
                           let deposits = await stakingStrategy.deposits(year, month)
                           estimatedRewards = estimatedRewards.add(
-                            earningsItemsPrice
-                              .mul(10000)
-                              .mul(earnings)
-                              .div(deposits)
-                              .div(10000),
+                            earningsItemsPrice.mul(10000).mul(earnings).div(deposits).div(10000),
                           )
                           estimatedRewardsByToken = await treasury.usdAmountToToken(
                             estimatedRewards,
@@ -251,8 +230,7 @@ describe(`FlexStakingStratgey`, () => {
                           tokenId,
                         )
 
-                        estimatedWithdrawnRewards =
-                          estimatedWithdrawnRewards.add(estimatedRewards)
+                        estimatedWithdrawnRewards = estimatedWithdrawnRewards.add(estimatedRewards)
 
                         assert(
                           withdrawnRewards.eq(estimatedWithdrawnRewards),
@@ -275,9 +253,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       let balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy
-                        .connect(user)
-                        .sell(item.address, tokenId, token.address)
+                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
                       let balanceAfter = await token.balanceOf(user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
@@ -304,20 +280,14 @@ describe(`FlexStakingStratgey`, () => {
                       )
                       assert(
                         balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                        `sell balance ${balanceAfter.sub(
-                          balanceBefore,
-                        )} != ${estimatedBalance}`,
+                        `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                       )
 
                       await expect(
-                        stakingStrategy
-                          .connect(user)
-                          .sell(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                       await expect(
-                        stakingStrategy
-                          .connect(user)
-                          .claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
@@ -326,9 +296,7 @@ describe(`FlexStakingStratgey`, () => {
                         console.log(`IIIII ${i}`)
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                         ).to.be.revertedWith('rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -338,9 +306,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < minMonthsCount; i++) {
                         console.log(`\n jsi ${i}`)
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                         ).to.be.revertedWith("can't sell!")
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
@@ -376,11 +342,7 @@ describe(`FlexStakingStratgey`, () => {
                           else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
                           let deposits = await stakingStrategy.deposits(year, month)
                           estimatedRewards = estimatedRewards.add(
-                            earningsItemsPrice
-                              .mul(10000)
-                              .mul(earnings)
-                              .div(deposits)
-                              .div(10000),
+                            earningsItemsPrice.mul(10000).mul(earnings).div(deposits).div(10000),
                           )
                           estimatedRewardsByToken = await treasury.usdAmountToToken(
                             estimatedRewards,
@@ -419,9 +381,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy
-                        .connect(user)
-                        .sell(item.address, tokenId, token.address)
+                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
                       balanceAfter = await token.balanceOf(user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
@@ -448,24 +408,16 @@ describe(`FlexStakingStratgey`, () => {
                       )
                       assert(
                         balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                        `sell balance ${balanceAfter.sub(
-                          balanceBefore,
-                        )} != ${estimatedBalance}`,
+                        `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                       )
 
                       await expect(
-                        stakingStrategy
-                          .connect(user)
-                          .sell(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                       await expect(
-                        stakingStrategy
-                          .connect(user)
-                          .claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
-
-                   
 
                     for (const subMonths of TEST_DATA.subSellMonths) {
                       it(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
@@ -519,9 +471,7 @@ describe(`FlexStakingStratgey`, () => {
                             let initialItemsPrice = tokenPrice
                             if (i == 0) initialItemsPrice = tokenPrice.sub(remainder)
                             else if (i == initialMonths) initialItemsPrice = remainder
-                            estimatedRewards = initialItemsPrice
-                              .mul(initialRewardsRate)
-                              .div(10000)
+                            estimatedRewards = initialItemsPrice.mul(initialRewardsRate).div(10000)
                             estimatedRewardsByToken = await treasury.usdAmountToToken(
                               estimatedRewards,
                               token.address,
@@ -533,11 +483,7 @@ describe(`FlexStakingStratgey`, () => {
                             else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
                             let deposits = await stakingStrategy.deposits(year, month)
                             estimatedRewards = estimatedRewards.add(
-                              earningsItemsPrice
-                                .mul(10000)
-                                .mul(earnings)
-                                .div(deposits)
-                                .div(10000),
+                              earningsItemsPrice.mul(10000).mul(earnings).div(deposits).div(10000),
                             )
                             estimatedRewardsByToken = await treasury.usdAmountToToken(
                               estimatedRewards,
@@ -603,20 +549,14 @@ describe(`FlexStakingStratgey`, () => {
                         )
                         assert(
                           balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                          `sell balance ${balanceAfter.sub(
-                            balanceBefore,
-                          )} != ${estimatedBalance}`,
+                          `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                         )
 
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
 
@@ -674,16 +614,11 @@ describe(`FlexStakingStratgey`, () => {
                           }
                           if (i >= initialMonths) {
                             let earningsItemsPrice = tokenPrice
-                            if (i == initialMonths)
-                              earningsItemsPrice = tokenPrice.sub(remainder)
+                            if (i == initialMonths) earningsItemsPrice = tokenPrice.sub(remainder)
                             else if (i == maxMonthsCount - 1) earningsItemsPrice = remainder
                             let deposits = await stakingStrategy.deposits(year, month)
                             estimatedRewards = estimatedRewards.add(
-                              earningsItemsPrice
-                                .mul(10000)
-                                .mul(earnings)
-                                .div(deposits)
-                                .div(10000),
+                              earningsItemsPrice.mul(10000).mul(earnings).div(deposits).div(10000),
                             )
                             estimatedRewardsByToken = await treasury.usdAmountToToken(
                               estimatedRewards,
@@ -751,20 +686,14 @@ describe(`FlexStakingStratgey`, () => {
                         )
                         assert(
                           balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                          `sell balance ${balanceAfter.sub(
-                            balanceBefore,
-                          )} != ${estimatedBalance}`,
+                          `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                         )
 
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                         await expect(
-                          stakingStrategy
-                            .connect(user)
-                            .claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
                     }
@@ -774,9 +703,7 @@ describe(`FlexStakingStratgey`, () => {
                     it(`Regular: deposit update.`, async () => {
                       const tokenId = 0
 
-                      await item
-                        .connect(user)
-                        .mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -811,18 +738,12 @@ describe(`FlexStakingStratgey`, () => {
                         if (i < initialMonths) {
                           assert(deposits.eq(0), `deposits != 0, ${deposits} != 0`)
                         } else {
-                          const remainder = await stakingStrategy.remainder(
-                            item.address,
-                            tokenId,
-                          )
+                          const remainder = await stakingStrategy.remainder(item.address, tokenId)
                           let deposits = await stakingStrategy.deposits(year, month)
                           let price = tokenPrice
                           if (i == initialMonths) price = tokenPrice.sub(remainder)
                           else if (i == maxMonthsCount - 1) price = remainder
-                          assert(
-                            deposits.eq(price),
-                            `deposits != price, ${deposits} != ${price}`,
-                          )
+                          assert(deposits.eq(price), `deposits != price, ${deposits} != ${price}`)
                         }
                       }
 
@@ -832,6 +753,82 @@ describe(`FlexStakingStratgey`, () => {
                       console.log(`deposits [*] ${deposits}`)
 
                       assert(deposits.eq(0), `deposits != 0, ${deposits} != 0`)
+                    })
+
+                    it(`Error: sell without settet earnings.`, async () => {
+                      const tokenId = 0
+                      const formatedEarnings = 1000
+
+                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+
+                      const tokenPrice = await item.price()
+                      const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
+                      const minMonthsCount = (await stakingStrategy.minMonthsCount()).toNumber()
+                      const maxMonthsCount = (await stakingStrategy.maxMonthsCount()).toNumber()
+
+                      for (let i = 0; i < minMonthsCount; i++) {
+                        if (i < minMonthsCount) {
+                          await expect(
+                            stakingStrategy
+                              .connect(user)
+                              .sell(item.address, tokenId, token.address),
+                          ).to.be.revertedWith("can't sell!")
+                        }
+                        let claimTimestamp = await stakingStrategy.claimTimestamp(
+                          item.address,
+                          tokenId,
+                          1 + i,
+                        )
+                        let [year, month] = await stakingStrategy.currentPeriod()
+
+                        await time.increaseTo(claimTimestamp.add(3))
+
+                        await stakingStrategy.connect(productOwner).updateDeposits()
+                        await stakingStrategy
+                          .connect(productOwner)
+                          .setEarnings(year, month, formatedEarnings)
+
+                        const deposits = await stakingStrategy.deposits(year, month)
+                        if (i < initialMonths) {
+                          assert(deposits.eq(0), `deposits != 0, ${deposits} != 0`)
+                        } else {
+                          const remainder = await stakingStrategy.remainder(item.address, tokenId)
+                          let deposits = await stakingStrategy.deposits(year, month)
+                          let price = tokenPrice
+                          if (i == initialMonths) price = tokenPrice.sub(remainder)
+                          else if (i == maxMonthsCount - 1) price = remainder
+                          assert(deposits.eq(price), `deposits != price, ${deposits} != ${price}`)
+                        }
+                      }
+
+                      await stakingStrategy
+                        .connect(user)
+                        .claim(item.address, tokenId, token.address)
+
+                      let [year, month] = await stakingStrategy.currentPeriod()
+
+                      let claimTimestamp = await stakingStrategy.claimTimestamp(
+                        item.address,
+                        tokenId,
+                        minMonthsCount + 1,
+                      )
+                      await time.increaseTo(claimTimestamp.add(10))
+
+                      await stakingStrategy.connect(productOwner).updateDeposits()
+                      await expect(
+                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                      ).to.be.revertedWith("can't sell!")
+
+                      await stakingStrategy.connect(productOwner).updateDeposits()
+                      await stakingStrategy
+                        .connect(productOwner)
+                        .setEarnings(year, month, formatedEarnings)
+
+                      await stakingStrategy
+                        .connect(user)
+                        .claim(item.address, tokenId, token.address)
+
+                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
                     })
                   })
                 })
