@@ -17,6 +17,10 @@ contract AddressBook is UUPSUpgradeable {
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address _prodcutOwner) public initializer {
         productOwner = _prodcutOwner;
     }

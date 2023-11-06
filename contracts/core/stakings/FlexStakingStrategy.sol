@@ -89,6 +89,10 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _addressBook,
         uint256 _minLockYears,

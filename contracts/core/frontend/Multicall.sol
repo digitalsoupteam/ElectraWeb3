@@ -9,6 +9,10 @@ import { IAddressBook } from "../../interfaces/IAddressBook.sol";
 contract Multicall is UUPSUpgradeable, MulticallUpgradeable {
     address public addressBook;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address _addressBook) public initializer {
         addressBook = _addressBook;
     }

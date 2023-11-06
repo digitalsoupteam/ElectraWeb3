@@ -34,6 +34,10 @@ contract Treasury is ITreasury, UUPSUpgradeable {
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address _addressBook) public initializer {
         addressBook = _addressBook;
     }

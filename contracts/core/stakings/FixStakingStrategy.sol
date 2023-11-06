@@ -68,6 +68,10 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _addressBook,
         uint256 _rewardsRate,

@@ -46,6 +46,10 @@ contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Enume
     // ----- DEPLOY & UPGRADE  ------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         address _addressBook,
         string calldata _name,
