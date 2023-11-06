@@ -14,3 +14,4 @@ deployments/localhost
 abi
 gui
 bin
+config.json
