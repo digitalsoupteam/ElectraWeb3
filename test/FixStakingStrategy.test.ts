@@ -18,17 +18,17 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 const TEST_DATA = {
   tokens: [
-    // USDT, //
+    USDT, //
     ELCT,
   ],
   items: [
-    'MopedItem',
-    // 'MopedSparePartItem',
+    'MopedItem', //
+    'MopedSparePartItem',
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
-    // 'ThreeYearsFixStakingStrategy',
-    // 'FiveYearsFixStakingStrategy',
+    'ThreeYearsFixStakingStrategy',
+    'FiveYearsFixStakingStrategy',
   ],
 }
 
@@ -80,24 +80,17 @@ describe(`FixStakingStratgey`, () => {
               let mintedPayTokensAmount: BigNumber
 
               beforeEach(async () => {
-                console.log('aw1')
                 token = IERC20Metadata__factory.connect(tokenAddress, user)
-                console.log('aw12')
                 mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 100000)
-                console.log('aw13')
                 await ERC20Minter.mint(token.address, treasury.address, 10000000) // deposit to treasury
-                console.log('aw14')
                 await token.connect(user).approve(item.address, mintedPayTokensAmount)
-                console.log('aw15')
               })
 
               it(`Regular: claim every period.`, async () => {
                 let tokenId = 0
 
                 // Mint item
-                await item
-                  .connect(user)
-                  .mint(stakingStrategy.address, token.address, '0x')
+                await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
 
                 // Check errors: initial actions, claim/sell
                 await expect(
@@ -133,9 +126,7 @@ describe(`FixStakingStratgey`, () => {
                   await time.increaseTo(nextClaimTimestamp)
                   // Claim
                   let balanceBefore = await token.balanceOf(user.address)
-                  await stakingStrategy
-                    .connect(user)
-                    .claim(item.address, tokenId, token.address)
+                  await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
                   let balanceAfter = await token.balanceOf(user.address)
                   let estimatedBalance = await treasury.usdAmountToToken(
                     rewardsRate.mul(1).mul(tokenPrice).div(12).div(10000).toString(),
@@ -143,9 +134,7 @@ describe(`FixStakingStratgey`, () => {
                   )
                   assert(
                     balanceAfter.sub(balanceBefore).eq(estimatedBalance),
-                    `claimed balance! ${balanceAfter.sub(
-                      balanceBefore,
-                    )} != ${estimatedBalance}`,
+                    `claimed balance! ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                   )
                   console.log(
                     `rewards: ${ethers.utils.formatUnits(
@@ -173,9 +162,79 @@ describe(`FixStakingStratgey`, () => {
                   balanceAfter.sub(balanceBefore).eq(sellPrice),
                   `sell balance! ${balanceAfter.sub(balanceBefore)} != ${sellPrice}`,
                 )
-                console.log(
-                  `sell: ${ethers.utils.formatUnits(sellPrice, await token.decimals())}`,
+                console.log(`sell: ${ethers.utils.formatUnits(sellPrice, await token.decimals())}`)
+
+                // Check errors after burn
+                await expect(
+                  stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                ).to.be.revertedWith('ERC721: invalid token ID')
+
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('ERC721: invalid token ID')
+              })
+
+              it(`Regular: claim all periods.`, async () => {
+                let tokenId = 0
+
+                // Mint item
+                await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+
+                // Check errors: initial actions, claim/sell
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('rewards!')
+                await expect(
+                  stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                ).to.be.revertedWith("can't sell!")
+
+                // Contracts params
+                const tokenPrice = await item.price()
+                const rewardsRate = await stakingStrategy.rewardsRate()
+                const lockYears = (await stakingStrategy.lockYears()).toNumber()
+
+                // Increase time
+                let nextClaimTimestamp = await stakingStrategy.claimTimestamp(
+                  item.address,
+                  tokenId,
+                  lockYears * 12,
                 )
+                await time.increaseTo(nextClaimTimestamp)
+                // Claim
+                let balanceBefore = await token.balanceOf(user.address)
+                await stakingStrategy.connect(user).claim(item.address, tokenId, token.address)
+                let balanceAfter = await token.balanceOf(user.address)
+                let estimatedBalance = await treasury.usdAmountToToken(
+                  rewardsRate.mul(lockYears * 12).mul(tokenPrice).div(12).div(10000).toString(),
+                  token.address,
+                )
+                assert(
+                  balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                  `claimed balance! ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
+                )
+                console.log(
+                  `rewards: ${ethers.utils.formatUnits(estimatedBalance, await token.decimals())}`,
+                )
+
+                // Check errors
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('rewards!')
+                await time.increase(1 * 12 * 30 * 24 * 60 * 60)
+                await expect(
+                  stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                ).to.be.revertedWith('rewards!')
+
+                // Sell
+                let sellBalanceBefore = await token.balanceOf(user.address)
+                await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
+                let sellBalanceAfter = await token.balanceOf(user.address)
+                const sellPrice = await treasury.usdAmountToToken(tokenPrice, token.address)
+                assert(
+                  sellBalanceAfter.sub(sellBalanceBefore).eq(sellPrice),
+                  `sell balance! ${sellBalanceAfter.sub(sellBalanceBefore)} != ${sellPrice}`,
+                )
+                console.log(`sell: ${ethers.utils.formatUnits(sellPrice, await token.decimals())}`)
 
                 // Check errors after burn
                 await expect(

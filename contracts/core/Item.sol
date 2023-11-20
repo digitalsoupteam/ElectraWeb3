@@ -11,8 +11,15 @@ import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { IItem } from "../interfaces/IItem.sol";
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IStakingStrategy } from "../interfaces/IStakingStrategy.sol";
+import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721EnumerableUpgradeable {
+contract Item is
+    IItem,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
+    ERC721EnumerableUpgradeable,
+    MulticallUpgradeable
+{
     // ------------------------------------------------------------------------------------
     // ----- LIBRARIES --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -121,6 +128,11 @@ contract Item is IItem, ReentrancyGuardUpgradeable, UUPSUpgradeable, ERC721Enume
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         require(_maxSupply > totalMintedAmount, "max supply less!");
         maxSupply = _maxSupply;
+    }
+
+    function setBaseUri(string calldata _uri) external {
+        IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
+        uri = _uri;
     }
 
     // ------------------------------------------------------------------------------------

@@ -4,13 +4,16 @@ import { AddressBook__factory, Item__factory } from '../typechain-types'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getOrNull } = deployments
 
   const signers = await ethers.getSigners()
   const deployer = signers[0]
   
   const ItemImplementationDeployment = await get('ItemImplementation')
   const AddressBookDeployment = await get('AddressBook')
+
+  const alreadyDeployed = await getOrNull('MopedItem') != null
+  if(alreadyDeployed) return
 
   const deployment = await deploy('MopedItem', {
     contract: 'ERC1967Proxy',
@@ -29,8 +32,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   const addressBook = AddressBook__factory.connect(AddressBookDeployment.address, deployer)
-
-  await (await addressBook.addItem(deployment.address)).wait()
+  await (await addressBook.addItem(deployment.address)).wait(1)
 }
 
 deploy.tags = ['MopedItem']

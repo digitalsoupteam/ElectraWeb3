@@ -19,21 +19,21 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 const TEST_DATA = {
   tokens: [
     USDT, //
-    // ELCT,
+    ELCT,
   ],
   items: [
     'MopedItem',
-    // 'MopedSparePartItem',
+    'MopedSparePartItem',
   ],
   startDay: [
     1, //
-    // 15,
+    15,
   ],
   subSellMonths: [
     0, //
-    // 1,
-    // 2,
-    // 3,
+    1,
+    2,
+    3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //
@@ -118,7 +118,6 @@ describe(`FlexStakingStratgey`, () => {
                     // set initial day
                     await time.increaseTo(nextTokenInitialTimestamp)
                     if (startDay - 1 > 0) await time.increase((startDay - 1) * 24 * 60 * 60)
-                    console.log(`aw15 ${await getDate()}`)
                     const block = await ethers.provider.getBlock(
                       await ethers.provider.getBlockNumber(),
                     )
@@ -139,7 +138,6 @@ describe(`FlexStakingStratgey`, () => {
                     let deprecationRate: BigNumber
 
                     beforeEach(async () => {
-                      console.log(`aw1 ${await getDate()}`)
                       // other token
                       await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
                       // tested token
@@ -163,7 +161,6 @@ describe(`FlexStakingStratgey`, () => {
 
                     it(`Regular: claim every period (min lock). startDay=${startDay}`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
-                        console.log(`IIIII ${i}`)
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
@@ -173,7 +170,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       let estimatedWithdrawnRewards = BigNumber.from('0')
                       for (let i = 0; i < minMonthsCount; i++) {
-                        console.log(`\n jsi ${i}`)
+                        console.log(`\n period ${i}`)
                         await expect(
                           stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                         ).to.be.revertedWith("can't sell!")
@@ -293,7 +290,6 @@ describe(`FlexStakingStratgey`, () => {
 
                     it(`Regular: claim all in one (min lock).`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
-                        console.log(`IIIII ${i}`)
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
@@ -304,7 +300,7 @@ describe(`FlexStakingStratgey`, () => {
                       let estimatedRewards = BigNumber.from('0')
                       let estimatedRewardsByToken = BigNumber.from('0')
                       for (let i = 0; i < minMonthsCount; i++) {
-                        console.log(`\n jsi ${i}`)
+                        console.log(`\n period ${i}`)
                         await expect(
                           stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                         ).to.be.revertedWith("can't sell!")
@@ -422,7 +418,6 @@ describe(`FlexStakingStratgey`, () => {
                     for (const subMonths of TEST_DATA.subSellMonths) {
                       it(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
-                          console.log(`IIIII ${i}`)
                           console.log(`initial days ${i} ${await getDate()}`)
                           await expect(
                             stakingStrategy
@@ -436,7 +431,7 @@ describe(`FlexStakingStratgey`, () => {
                         let estimatedRewardsByToken = BigNumber.from('0')
                         const claimMouthsCount = maxMonthsCount - subMonths
                         for (let i = 0; i < claimMouthsCount; i++) {
-                          console.log(`\n jsi ${i}`)
+                          console.log(`\n period ${i}`)
                           if (i < minMonthsCount) {
                             await expect(
                               stakingStrategy
@@ -562,7 +557,6 @@ describe(`FlexStakingStratgey`, () => {
 
                       it(`Regular: claim all in one (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
-                          console.log(`IIIII ${i}`)
                           console.log(`initial days ${i} ${await getDate()}`)
                           await expect(
                             stakingStrategy
@@ -576,7 +570,7 @@ describe(`FlexStakingStratgey`, () => {
                         let estimatedRewardsByToken = BigNumber.from('0')
                         const claimMouthsCount = maxMonthsCount - subMonths
                         for (let i = 0; i < claimMouthsCount; i++) {
-                          console.log(`\n jsi ${i}`)
+                          console.log(`\n period ${i}`)
                           if (i < minMonthsCount) {
                             await expect(
                               stakingStrategy

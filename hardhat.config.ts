@@ -7,6 +7,7 @@ import 'hardhat-tracer'
 import 'hardhat-abi-exporter'
 import '@nomicfoundation/hardhat-chai-matchers'
 import 'hardhat-contract-sizer'
+import CONFIG from './config.json'
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -24,31 +25,29 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    binanceTestnet: {
+      url: 'https://rpc.ankr.com/bsc_testnet_chapel',
+      accounts: [CONFIG.privateKey]
+    },
     hardhat: {
       chainId: 1337,
       forking: {
         url: 'https://rpc.ankr.com/bsc',
-        blockNumber: 31884336,
+        blockNumber: 31534153,
       },
       blockGasLimit: 30000000,
       accounts: {
         count: 10,
         accountsBalance: '1000000000000000000000000000',
       },
-      // loggingEnabled: true,
       loggingEnabled: false,
-      // mining: {
-      //   auto: false,
-      //   interval: 2000,
-      // }
     }
   },
   abiExporter: {
     path: './abi',
   },
   gasReporter: {
-    // enabled: true,
-    enabled: false,
+    enabled: true,
     currency: 'USD',
     gasPrice: 30,
   },
@@ -56,7 +55,7 @@ const config: HardhatUserConfig = {
     timeout: 100000000,
   },
   tracer: {
-    tasks: [ 'deploy'],
+    tasks: ['deploy'],
   },
 }
 

@@ -5,7 +5,7 @@ import { USDT } from '../constants/addresses'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getOrNull } = deployments
 
   const signers = await ethers.getSigners()
   const deployer = signers[0]
@@ -13,7 +13,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const PricerImplementationDeployment = await get('PricerImplementation')
   const AddressBookDeployment = await get('AddressBook')
   const TreasuryDeployment = await get('Treasury')
- 
+
+  const alreadyDeployed = await getOrNull('UsdtPricer') != null
+  if(alreadyDeployed) return
+
   const deployment = await deploy('UsdtPricer', {
     contract: 'ERC1967Proxy',
     from: deployer.address,
@@ -28,8 +31,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   const treasury = Treasury__factory.connect(TreasuryDeployment.address, deployer)
-
-  await (await treasury.addToken(USDT, deployment.address)).wait()
+  await (await treasury.addToken(USDT, deployment.address)).wait(1)
 }
 
 deploy.tags = ['UsdtPricer']

@@ -4,13 +4,16 @@ import { AddressBook__factory, FixStakingStrategy__factory } from '../typechain-
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getOrNull } = deployments
 
   const signers = await ethers.getSigners()
   const deployer = signers[0]
   
   const FixStakingStrategyImplementationDeployment = await get('FixStakingStrategyImplementation')
   const AddressBookDeployment = await get('AddressBook')
+
+  const alreadyDeployed = await getOrNull('TwoYearsFixStakingStrategy') != null
+  if(alreadyDeployed) return
 
   const deployment = await deploy('TwoYearsFixStakingStrategy', {
     contract: 'ERC1967Proxy',
@@ -27,8 +30,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   const addressBook = AddressBook__factory.connect(AddressBookDeployment.address, deployer)
-
-  await (await addressBook.addStakingStrategy(deployment.address)).wait()
+  await (await addressBook.addStakingStrategy(deployment.address)).wait(1)
 }
 
 deploy.tags = ['TwoYearsFixStakingStrategy']

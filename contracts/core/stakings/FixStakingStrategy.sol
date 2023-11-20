@@ -9,8 +9,9 @@ import { ITreasury } from "../../interfaces/ITreasury.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { IAddressBook } from "../../interfaces/IAddressBook.sol";
+import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable, MulticallUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------

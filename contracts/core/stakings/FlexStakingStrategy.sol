@@ -10,8 +10,9 @@ import { IAddressBook } from "../../interfaces/IAddressBook.sol";
 import { IItem } from "../../interfaces/IItem.sol";
 import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { DateTimeLib } from "../../utils/DateTimeLib.sol";
+import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable {
+contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable, MulticallUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -370,7 +371,10 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
     ) public view returns (uint256) {
         uint256 _startStakingTimestamp = startStakingTimestamp[_itemAddress][_itemId];
         uint256 _maxMonthsCount = maxMonthsCount;
-        uint256 allExpiredMonths = DateTimeLib.diffMonths(_startStakingTimestamp, _blockTimestamp());
+        uint256 allExpiredMonths = DateTimeLib.diffMonths(
+            _startStakingTimestamp,
+            _blockTimestamp()
+        );
         if (allExpiredMonths > _maxMonthsCount) allExpiredMonths = _maxMonthsCount;
         return allExpiredMonths;
     }

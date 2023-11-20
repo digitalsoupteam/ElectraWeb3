@@ -7,8 +7,9 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { IPricer } from "../interfaces/IPricer.sol";
+import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract Treasury is ITreasury, UUPSUpgradeable {
+contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
