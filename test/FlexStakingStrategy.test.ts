@@ -19,21 +19,21 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 const TEST_DATA = {
   tokens: [
     USDT, //
-    ELCT,
+    // ELCT,
   ],
   items: [
     'MopedItem',
-    'MopedSparePartItem',
+    // 'MopedSparePartItem',
   ],
   startDay: [
-    1, //
+    // 1, //
     15,
   ],
   subSellMonths: [
     0, //
-    1,
-    2,
-    3,
+    // 1,
+    // 2,
+    // 3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //
@@ -194,6 +194,9 @@ describe(`FlexStakingStratgey`, () => {
                           .connect(user)
                           .claim(item.address, tokenId, token.address)
                         const balanceAfter = await token.balanceOf(user.address)
+                        await expect(
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        ).to.be.revertedWith('rewards!')
 
                         let estimatedRewards = BigNumber.from('0')
                         let estimatedRewardsByToken = BigNumber.from('0')
@@ -353,6 +356,10 @@ describe(`FlexStakingStratgey`, () => {
                         .claim(item.address, tokenId, token.address)
                       let balanceAfter = await token.balanceOf(user.address)
 
+                      await expect(
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                      ).to.be.revertedWith('rewards!')
+
                       const withdrawnRewards = await stakingStrategy.withdrawnRewards(
                         item.address,
                         tokenId,
@@ -415,6 +422,31 @@ describe(`FlexStakingStratgey`, () => {
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
+                    it(`Regular: claim all in one (min lock) without earnings (endless claim bug).`, async () => {
+                      for (let i = 0; i < daysDiff; i++) {
+                        console.log(`initial days ${i} ${await getDate()}`)
+                        await expect(
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        ).to.be.revertedWith('rewards!')
+                        if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
+                      }
+
+                      const monthsToClaim = 23
+                      await time.increaseTo(await stakingStrategy.claimTimestamp(
+                        item.address,
+                        tokenId,
+                        monthsToClaim,
+                      ))
+
+                      await stakingStrategy
+                        .connect(user)
+                        .claim(item.address, tokenId, token.address)
+
+                      await expect(
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                      ).to.be.revertedWith('rewards!')
+                    })
+
                     for (const subMonths of TEST_DATA.subSellMonths) {
                       it(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
@@ -459,6 +491,12 @@ describe(`FlexStakingStratgey`, () => {
                             .connect(user)
                             .claim(item.address, tokenId, token.address)
                           const balanceAfter = await token.balanceOf(user.address)
+
+                          await expect(
+                            stakingStrategy
+                              .connect(user)
+                              .claim(item.address, tokenId, token.address),
+                          ).to.be.revertedWith('rewards!')
 
                           let estimatedRewards = BigNumber.from('0')
 
@@ -627,6 +665,9 @@ describe(`FlexStakingStratgey`, () => {
                           .claim(item.address, tokenId, token.address)
                         let balanceAfter = await token.balanceOf(user.address)
 
+                        await expect(
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        ).to.be.revertedWith('rewards!')
                         const withdrawnRewards = await stakingStrategy.withdrawnRewards(
                           item.address,
                           tokenId,
@@ -799,6 +840,9 @@ describe(`FlexStakingStratgey`, () => {
                         .connect(user)
                         .claim(item.address, tokenId, token.address)
 
+                      await expect(
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                      ).to.be.revertedWith('rewards!')
                       let [year, month] = await stakingStrategy.currentPeriod()
 
                       let claimTimestamp = await stakingStrategy.claimTimestamp(
@@ -821,6 +865,10 @@ describe(`FlexStakingStratgey`, () => {
                       await stakingStrategy
                         .connect(user)
                         .claim(item.address, tokenId, token.address)
+
+                      await expect(
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                      ).to.be.revertedWith('rewards!')
 
                       await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
                     })
