@@ -12,7 +12,12 @@ import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { DateTimeLib } from "../../utils/DateTimeLib.sol";
 import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable, MulticallUpgradeable {
+contract FlexStakingStrategy is
+    IStakingStrategy,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
+    MulticallUpgradeable
+{
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -413,7 +418,10 @@ contract FlexStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UU
             );
 
             uint256 _earnings = earnings[year][month];
-            if (_earnings == 0) break;
+            if (_earnings == 0) {
+                if (claimedPeriods_ == 0) rewards_ = 0;
+                break;
+            }
 
             uint256 earningsItemsPrice = _itemsPrice;
             if (i == _initialMonths) {
