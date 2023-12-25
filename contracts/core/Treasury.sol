@@ -56,6 +56,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
         onlyGovernanceWithdrawn = _value;
     }
 
+    /// @dev Only verified tokens are used without hidden fees
     function addToken(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
