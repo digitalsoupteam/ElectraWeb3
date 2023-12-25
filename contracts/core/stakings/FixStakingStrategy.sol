@@ -79,6 +79,8 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         uint256 _lockYears,
         uint256 _yearDeprecationRate
     ) public initializer {
+        require(_rewardsRate > 0, "_rewardsRate  cannot be zero");
+        require(_lockYears > 0, "_lockYears  cannot be zero");
         addressBook = _addressBook;
         rewardsRate = _rewardsRate;
         lockYears = _lockYears;

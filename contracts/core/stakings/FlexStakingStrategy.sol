@@ -107,6 +107,10 @@ contract FlexStakingStrategy is
         uint256 _initialRewardsRate,
         uint256 _yearDeprecationRate
     ) public initializer {
+        require(_minLockYears > 0, "_minLockYears cannot be zero");
+        require(_maxLockYears > _minLockYears, "_maxLockYears must be greater than _minLockYears");
+        require(_initialMonths > 0, "_initialMonths cannot be zero");
+        require(_initialRewardsRate > 0, "_initialRewardsRate cannot be zero");
         addressBook = _addressBook;
         minLockYears = _minLockYears;
         maxLockYears = _maxLockYears;
