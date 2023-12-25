@@ -164,7 +164,7 @@ describe(`FlexStakingStratgey`, () => {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                        ).to.be.revertedWith('rewards!')
+                        ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
 
@@ -196,7 +196,7 @@ describe(`FlexStakingStratgey`, () => {
                         const balanceAfter = await token.balanceOf(user.address)
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                        ).to.be.revertedWith('rewards!')
+                        ).to.be.revertedWith('not has rewards!')
 
                         let estimatedRewards = BigNumber.from('0')
                         let estimatedRewardsByToken = BigNumber.from('0')
@@ -296,7 +296,7 @@ describe(`FlexStakingStratgey`, () => {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                        ).to.be.revertedWith('rewards!')
+                        ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
 
@@ -358,7 +358,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await expect(
                         stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                      ).to.be.revertedWith('rewards!')
+                      ).to.be.revertedWith('not has rewards!')
 
                       const withdrawnRewards = await stakingStrategy.withdrawnRewards(
                         item.address,
@@ -427,7 +427,7 @@ describe(`FlexStakingStratgey`, () => {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                        ).to.be.revertedWith('rewards!')
+                        ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
 
@@ -444,7 +444,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await expect(
                         stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                      ).to.be.revertedWith('rewards!')
+                      ).to.be.revertedWith('not has rewards!')
                     })
 
                     for (const subMonths of TEST_DATA.subSellMonths) {
@@ -455,7 +455,7 @@ describe(`FlexStakingStratgey`, () => {
                             stakingStrategy
                               .connect(user)
                               .claim(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('rewards!')
+                          ).to.be.revertedWith('not has rewards!')
                           if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                         }
 
@@ -496,7 +496,7 @@ describe(`FlexStakingStratgey`, () => {
                             stakingStrategy
                               .connect(user)
                               .claim(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('rewards!')
+                          ).to.be.revertedWith('not has rewards!')
 
                           let estimatedRewards = BigNumber.from('0')
 
@@ -600,7 +600,7 @@ describe(`FlexStakingStratgey`, () => {
                             stakingStrategy
                               .connect(user)
                               .claim(item.address, tokenId, token.address),
-                          ).to.be.revertedWith('rewards!')
+                          ).to.be.revertedWith('not has rewards!')
                           if (i == daysDiff - 1) await time.increase(24 * 60 * 60)
                         }
 
@@ -667,7 +667,7 @@ describe(`FlexStakingStratgey`, () => {
 
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                        ).to.be.revertedWith('rewards!')
+                        ).to.be.revertedWith('not has rewards!')
                         const withdrawnRewards = await stakingStrategy.withdrawnRewards(
                           item.address,
                           tokenId,
@@ -842,7 +842,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await expect(
                         stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                      ).to.be.revertedWith('rewards!')
+                      ).to.be.revertedWith('not has rewards!')
                       let [year, month] = await stakingStrategy.currentPeriod()
 
                       let claimTimestamp = await stakingStrategy.claimTimestamp(
@@ -868,7 +868,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await expect(
                         stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                      ).to.be.revertedWith('rewards!')
+                      ).to.be.revertedWith('not has rewards!')
 
                       await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
                     })

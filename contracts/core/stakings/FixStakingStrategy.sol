@@ -133,7 +133,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         _enforceIsStakedToken(_itemAddress, _itemId);
 
         (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
-        require(rewards > 0, "rewards!");
+        require(rewards > 0, "not has rewards!");
 
         claimedPeriodsCount[_itemAddress][_itemId] += claimedPeriods;
         withdrawnRewards[_itemAddress][_itemId] += rewards;

@@ -95,7 +95,7 @@ describe(`FixStakingStratgey`, () => {
                 // Check errors: initial actions, claim/sell
                 await expect(
                   stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                ).to.be.revertedWith('rewards!')
+                ).to.be.revertedWith('not has rewards!')
                 await expect(
                   stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                 ).to.be.revertedWith("can't sell!")
@@ -147,11 +147,11 @@ describe(`FixStakingStratgey`, () => {
                 // Check errors
                 await expect(
                   stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                ).to.be.revertedWith('rewards!')
+                ).to.be.revertedWith('not has rewards!')
                 await time.increase(1 * 12 * 30 * 24 * 60 * 60)
                 await expect(
                   stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                ).to.be.revertedWith('rewards!')
+                ).to.be.revertedWith('not has rewards!')
 
                 // Sell
                 let balanceBefore = await token.balanceOf(user.address)
@@ -183,7 +183,7 @@ describe(`FixStakingStratgey`, () => {
                 // Check errors: initial actions, claim/sell
                 await expect(
                   stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                ).to.be.revertedWith('rewards!')
+                ).to.be.revertedWith('not has rewards!')
                 await expect(
                   stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
                 ).to.be.revertedWith("can't sell!")
@@ -219,11 +219,11 @@ describe(`FixStakingStratgey`, () => {
                 // Check errors
                 await expect(
                   stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                ).to.be.revertedWith('rewards!')
+                ).to.be.revertedWith('not has rewards!')
                 await time.increase(1 * 12 * 30 * 24 * 60 * 60)
                 await expect(
                   stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
-                ).to.be.revertedWith('rewards!')
+                ).to.be.revertedWith('not has rewards!')
 
                 // Sell
                 let sellBalanceBefore = await token.balanceOf(user.address)
