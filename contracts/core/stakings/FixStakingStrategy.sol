@@ -220,6 +220,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
             claimedPeriodsCount[_itemAddress][_itemId] == maxPeriodsCount;
     }
 
+    /// @dev May return zero in collections where the cost of equipment is not returned
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
         uint256 _itemsPrice = itemsPrice[_itemAddress][_itemId];
         uint256 deprecation = (_itemsPrice * lockYears * yearDeprecationRate) / 10000;

@@ -446,6 +446,7 @@ contract FlexStakingStrategy is
             _claimedPeriodsCount == getAllExpiredMonths(_itemAddress, _itemId);
     }
 
+    /// @dev May return zero in collections where the cost of equipment is not returned
     function estimateSell(address _itemAddress, uint256 _itemId) public view returns (uint256) {
         uint256 allExpiredMonths = getAllExpiredMonths(_itemAddress, _itemId);
         if (allExpiredMonths < minMonthsCount) return 0;
