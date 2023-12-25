@@ -70,7 +70,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
     function updateTokenPricer(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
-        require(pricers[_token] != address(0), "Treasury: not exists!");
+        enforceIsSupportedToken(_token);
         require(_pricer == address(0), "Treasury: pricer == 0");
         require(IPricer(_pricer).decimals() == PRICERS_DECIMALS, "Treasury: pricer decimals != 8");
 
@@ -79,7 +79,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
 
     function deleteToken(address _token) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
-        require(pricers[_token] != address(0), "Treasury: not exists!");
+        enforceIsSupportedToken(_token);
         delete pricers[_token];
     }
 
@@ -117,7 +117,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
             10 ** USD_DECIMALS;
     }
 
-    function enforceIsSupportedToken(address _token) external view {
+    /// @dev Checks whether the token is registered. Registered tokens have a pricer
+    function enforceIsSupportedToken(address _token) public view {
         require(pricers[_token] != address(0), "Treasury: unknown token!");
     }
 }
