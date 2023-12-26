@@ -70,6 +70,8 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
     // ----- VIEW  ------------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    /// @dev Such functions are used instead of modifiers because: 
+    /// they can be reused between contracts, they take up less space in the bytecode
     function enforceIsProductOwner(address _account) public view {
         require(_account == productOwner, "only product owner!");
     }
