@@ -15,6 +15,4 @@ interface IAddressBook {
     function stakingStrategies(address _stakingStrategy) external view returns (bool);
 
     function enforceIsStakingStrategyContract(address _contract) external view;
-    // function stakingPlatform() external view returns (address);
-    // function itemsFactory() external view returns (address);
 }

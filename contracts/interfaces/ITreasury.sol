@@ -7,4 +7,6 @@ interface ITreasury {
     function usdAmountToToken(uint256 _usdAmount, address _token) external view returns (uint256);
 
     function withdraw(address _token, uint256 _amount, address _recipient) external;
+
+    function USD_DECIMALS() external view returns(uint256);
 }

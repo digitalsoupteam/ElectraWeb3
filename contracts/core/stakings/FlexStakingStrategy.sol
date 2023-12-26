@@ -148,7 +148,8 @@ contract FlexStakingStrategy is
             earningsTimestamp <= lastUpdatedTimestamp,
             "cannot set earnings for an unexpired period!"
         );
-        uint256 _earnings = _formatedEarning * 1e18;
+        uint256 usdDecimals = ITreasury(IAddressBook(addressBook).treasury()).USD_DECIMALS();
+        uint256 _earnings = _formatedEarning * (usdDecimals ** 10);
         earnings[_year][_month] = _earnings;
 
         lastUpdatedEarningsYear = _year;
