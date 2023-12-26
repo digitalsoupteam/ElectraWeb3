@@ -259,9 +259,9 @@ contract FlexStakingStrategy is
     // ------------------------------------------------------------------------------------
 
     function claim(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
-        address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
-        require(msg.sender == _itemOwner, "only item owner!");
+        _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
+        address _itemOwner = msg.sender;
 
         (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "not has rewards!");
@@ -289,9 +289,9 @@ contract FlexStakingStrategy is
     }
 
     function sell(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
-        address _itemOwner = IERC721(_itemAddress).ownerOf(_itemId);
-        require(msg.sender == _itemOwner, "only item owner!");
+        _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
+        address _itemOwner = msg.sender;
 
         require(canSell(_itemAddress, _itemId), "can't sell!");
 
@@ -472,6 +472,10 @@ contract FlexStakingStrategy is
 
     function _enforceIsStakedToken(address _itemAddress, uint256 _itemId) internal view {
         require(isStakedToken[_itemAddress][_itemId], "only staked token");
+    }
+
+    function _enforceIsItemOwner(address _itemAddress, uint256 _itemId) internal view {
+        require(msg.sender == IERC721(_itemAddress).ownerOf(_itemId), "only item owner!");
     }
 
     function _blockTimestamp() internal view returns (uint256) {
