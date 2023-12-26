@@ -24,6 +24,7 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
         _disableInitializers();
     }
 
+    /// @dev All contracts use a naming convention for function arguments starting with _.
     function initialize(address _prodcutOwner) public initializer {
         productOwner = _prodcutOwner;
     }
