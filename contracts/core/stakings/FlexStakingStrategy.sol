@@ -44,7 +44,7 @@ contract FlexStakingStrategy is
     mapping(address item => mapping(uint256 tokenId => uint256)) public claimedPeriodsCount;
     mapping(address item => mapping(uint256 tokenId => uint256)) public finalTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public remainder;
-    mapping(address item => mapping(uint256 tokenId => uint256)) public withdrawnRewards;
+    mapping(address item => mapping(uint256 tokenId => uint256)) public totalWithdrawn;
 
     struct DepositsDate {
         uint256 finalYear;
@@ -266,7 +266,7 @@ contract FlexStakingStrategy is
         (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "not has rewards!");
 
-        withdrawnRewards[_itemAddress][_itemId] += rewards;
+        totalWithdrawn[_itemAddress][_itemId] += rewards;
         claimedPeriodsCount[_itemAddress][_itemId] += claimedPeriods;
 
         // Withdraw
@@ -327,7 +327,7 @@ contract FlexStakingStrategy is
 
         uint256 sellPrice = estimateSell(_itemAddress, _itemId);
 
-        withdrawnRewards[_itemAddress][_itemId] += sellPrice;
+        totalWithdrawn[_itemAddress][_itemId] += sellPrice;
 
         address _treasury = IAddressBook(addressBook).treasury();
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(

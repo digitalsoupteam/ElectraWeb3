@@ -225,7 +225,7 @@ describe(`FlexStakingStratgey`, () => {
                           )
                         }
 
-                        const withdrawnRewards = await stakingStrategy.withdrawnRewards(
+                        const totalWithdrawn = await stakingStrategy.totalWithdrawn(
                           item.address,
                           tokenId,
                         )
@@ -233,8 +233,8 @@ describe(`FlexStakingStratgey`, () => {
                         estimatedWithdrawnRewards = estimatedWithdrawnRewards.add(estimatedRewards)
 
                         assert(
-                          withdrawnRewards.eq(estimatedWithdrawnRewards),
-                          `withdrawnRewards != estimatedWithdrawnRewards. ${withdrawnRewards} != ${estimatedWithdrawnRewards}`,
+                          totalWithdrawn.eq(estimatedWithdrawnRewards),
+                          `totalWithdrawn != estimatedWithdrawnRewards. ${totalWithdrawn} != ${estimatedWithdrawnRewards}`,
                         )
 
                         console.log(
@@ -360,14 +360,14 @@ describe(`FlexStakingStratgey`, () => {
                         stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                       ).to.be.revertedWith('not has rewards!')
 
-                      const withdrawnRewards = await stakingStrategy.withdrawnRewards(
+                      const totalWithdrawn = await stakingStrategy.totalWithdrawn(
                         item.address,
                         tokenId,
                       )
 
                       assert(
-                        withdrawnRewards.eq(estimatedRewards),
-                        `withdrawnRewards != estimatedRewards. ${withdrawnRewards} != ${estimatedRewards}`,
+                        totalWithdrawn.eq(estimatedRewards),
+                        `totalWithdrawn != estimatedRewards. ${totalWithdrawn} != ${estimatedRewards}`,
                       )
                       console.log(
                         `${await getDate()}. rewards ${ethers.utils.formatUnits(
@@ -524,7 +524,7 @@ describe(`FlexStakingStratgey`, () => {
                             )
                           }
 
-                          const withdrawnRewards = await stakingStrategy.withdrawnRewards(
+                          const totalWithdrawn = await stakingStrategy.totalWithdrawn(
                             item.address,
                             tokenId,
                           )
@@ -533,8 +533,8 @@ describe(`FlexStakingStratgey`, () => {
                             estimatedWithdrawnRewards.add(estimatedRewards)
 
                           assert(
-                            withdrawnRewards.eq(estimatedWithdrawnRewards),
-                            `withdrawnRewards != estimatedWithdrawnRewards. ${withdrawnRewards} != ${estimatedWithdrawnRewards}`,
+                            totalWithdrawn.eq(estimatedWithdrawnRewards),
+                            `totalWithdrawn != estimatedWithdrawnRewards. ${totalWithdrawn} != ${estimatedWithdrawnRewards}`,
                           )
 
                           console.log(
@@ -668,14 +668,14 @@ describe(`FlexStakingStratgey`, () => {
                         await expect(
                           stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
                         ).to.be.revertedWith('not has rewards!')
-                        const withdrawnRewards = await stakingStrategy.withdrawnRewards(
+                        const totalWithdrawn = await stakingStrategy.totalWithdrawn(
                           item.address,
                           tokenId,
                         )
 
                         assert(
-                          withdrawnRewards.eq(estimatedRewards),
-                          `withdrawnRewards != estimatedRewards. ${withdrawnRewards} != ${estimatedRewards}`,
+                          totalWithdrawn.eq(estimatedRewards),
+                          `totalWithdrawn != estimatedRewards. ${totalWithdrawn} != ${estimatedRewards}`,
                         )
                         console.log(
                           `${await getDate()}. rewards ${ethers.utils.formatUnits(

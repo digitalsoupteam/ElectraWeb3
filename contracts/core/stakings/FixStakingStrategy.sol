@@ -32,7 +32,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     mapping(address item => mapping(uint256 tokenId => uint256)) public initialTimestamp;
     mapping(address item => mapping(uint256 tokenId => uint256)) public claimedPeriodsCount;
     mapping(address item => mapping(uint256 tokenId => uint256)) public finalTimestamp;
-    mapping(address item => mapping(uint256 tokenId => uint256)) public withdrawnRewards;
+    mapping(address item => mapping(uint256 tokenId => uint256)) public totalWithdrawn;
     mapping(address item => mapping(uint256 tokenId => uint256)) public itemsPrice;
 
     // ------------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         require(rewards > 0, "not has rewards!");
 
         claimedPeriodsCount[_itemAddress][_itemId] += claimedPeriods;
-        withdrawnRewards[_itemAddress][_itemId] += rewards;
+        totalWithdrawn[_itemAddress][_itemId] += rewards;
 
         address _treasury = IAddressBook(addressBook).treasury();
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
@@ -175,7 +175,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         );
         require(withdrawTokenAmount > 0, "zero amount!");
 
-        withdrawnRewards[_itemAddress][_itemId] += sellAmount;
+        totalWithdrawn[_itemAddress][_itemId] += sellAmount;
         IItem(_itemAddress).burn(_itemId);
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
 
