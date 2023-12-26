@@ -137,7 +137,7 @@ contract FlexStakingStrategy is
     // -----  PRODUCT OWNER ACTIONS  ------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    /// @notice Sets the income for the period
+    /// @notice Protocol owner sets the income for the period
     /// @dev Awards must be stated for each period; if there was no income, you must indicate at least $1.
     function setEarnings(uint256 _year, uint256 _month, uint256 _formatedEarning) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);

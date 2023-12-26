@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
+/// @dev This contract is managed by the protocol owner
 contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
