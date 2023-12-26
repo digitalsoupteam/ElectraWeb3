@@ -122,6 +122,8 @@ contract FlexStakingStrategy is
             DateTimeLib.subMonths(_blockTimestamp(), 1)
         );
         lastUpdatedTimestamp = DateTimeLib.timestampFromDate(initialYear, initialMonth, 1);
+        lastUpdatedEarningsYear = initialYear;
+        lastUpdatedEarningsMonth = initialMonth;
 
         maxMonthsCount = 12 * _maxLockYears + 1;
         minMonthsCount = 12 * _minLockYears + 1;
@@ -135,6 +137,8 @@ contract FlexStakingStrategy is
     // -----  PRODUCT OWNER ACTIONS  ------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    /// @notice Sets the income for the period
+    /// @dev Awards must be stated for each period; if there was no income, you must indicate at least $1.
     function setEarnings(uint256 _year, uint256 _month, uint256 _formatedEarning) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         require(_formatedEarning > 0, "earnings cannot be zero!");
@@ -421,6 +425,7 @@ contract FlexStakingStrategy is
                 DateTimeLib.addMonths(_startStakingTimestamp, i)
             );
 
+            // If rewards are not indicated for a period, then there are no further ones either.
             uint256 _earnings = earnings[year][month];
             if (_earnings == 0) {
                 if (claimedPeriods_ == 0) rewards_ = 0;
