@@ -205,8 +205,8 @@ contract FlexStakingStrategy is
 
         // Remainder
         uint256 daysInStartMonth = DateTimeLib.getDaysInMonth(_startStakingTimestamp);
-        uint256 ratio = (1e18 * initialDay) / (daysInStartMonth + 1);
-        uint256 _remainder = (_itemsPrice * ratio) / 1e18;
+        uint256 ratio = (1e18 * initialDay) / (daysInStartMonth + 1); // Division occurs after multiplication
+        uint256 _remainder = (_itemsPrice * ratio) / 1e18; // Division occurs after multiplication
         remainder[_itemAddress][_itemId] = _remainder;
         // Final date
         uint256 _finalTimestamp = DateTimeLib.addMonths(_startStakingTimestamp, maxMonthsCount);
