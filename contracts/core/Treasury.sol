@@ -97,6 +97,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
         require(_amount > 0, "Treasury: withdrawn amount is zero!");
         IAddressBook _addressBook = IAddressBook(addressBook);
 
+        // Checks function permission
+        // An explicit comparison with false is used, since it is much clearer than negation
         require(
             (_addressBook.stakingStrategies(msg.sender) && onlyGovernanceWithdrawn == false) ||
                 _addressBook.productOwner() == msg.sender,
