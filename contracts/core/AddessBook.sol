@@ -5,6 +5,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
 /// @dev This contract is managed by the protocol owner
+/// Does not emit any events since they are not required for the protocol to work
 contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- STORAGE ----------------------------------------------------------------------
