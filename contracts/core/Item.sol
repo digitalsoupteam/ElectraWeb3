@@ -65,6 +65,7 @@ contract Item is
         uint256 _maxSupply,
         string calldata _uri
     ) public initializer {
+        require(_addressBook != address(0), "_addressBook!");
         __ERC721_init(_name, _symbol);
         addressBook = _addressBook;
         price = _price;

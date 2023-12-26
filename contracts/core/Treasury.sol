@@ -40,6 +40,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
     }
 
     function initialize(address _addressBook) public initializer {
+        require(_addressBook != address(0), "_addressBook!");
         addressBook = _addressBook;
     }
 
@@ -62,6 +63,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
     function addToken(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
+        require(_token != address(0), "_token!");
         require(pricers[_token] == address(0), "Treasury: already exists!");
         require(_pricer != address(0), "Treasury: pricer == 0");
         require(IPricer(_pricer).decimals() == PRICERS_DECIMALS, "Treasury: pricer decimals != 8");

@@ -111,6 +111,7 @@ contract FlexStakingStrategy is
         require(_maxLockYears > _minLockYears, "_maxLockYears must be greater than _minLockYears!");
         require(_initialMonths > 0, "_initialMonths cannot be zero");
         require(_initialRewardsRate > 0, "_initialRewardsRate cannot be zero");
+        require(_addressBook != address(0), "_addressBook!");
         addressBook = _addressBook;
         minLockYears = _minLockYears;
         maxLockYears = _maxLockYears;

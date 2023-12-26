@@ -26,6 +26,7 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
 
     /// @dev All contracts use a naming convention for function arguments starting with _.
     function initialize(address _prodcutOwner) public initializer {
+        require(_prodcutOwner != address(0), "_prodcutOwner!");
         productOwner = _prodcutOwner;
     }
 
@@ -41,11 +42,13 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
     /// since the EVM handles this situation itself and does not waste extra gas with the same values
     function setProductOwner(address _newProductOwner) external {
         enforceIsProductOwner(msg.sender);
+        require(_newProductOwner != address(0), "_newProductOwner!");
         productOwner = _newProductOwner;
     }
 
     function addItem(address _item) external {
         enforceIsProductOwner(msg.sender);
+        require(_item != address(0), "_item!");
         items[_item] = true;
     }
 
@@ -56,6 +59,7 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
 
     function addStakingStrategy(address _stakingStrategy) external {
         enforceIsProductOwner(msg.sender);
+        require(_stakingStrategy != address(0), "_stakingStrategy!");
         stakingStrategies[_stakingStrategy] = true;
     }
 
@@ -67,6 +71,7 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
     function setTreasury(address _treasury) external {
         enforceIsProductOwner(msg.sender);
         require(treasury == address(0), "treasury already setted!");
+        require(_treasury != address(0), "_treasury!");
 
         treasury = _treasury;
     }

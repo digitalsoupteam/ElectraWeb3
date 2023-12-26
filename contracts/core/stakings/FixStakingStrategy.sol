@@ -81,6 +81,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     ) public initializer {
         require(_rewardsRate > 0, "_rewardsRate  cannot be zero");
         require(_lockYears > 0, "_lockYears  cannot be zero");
+        require(_addressBook != address(0), "_addressBook!");
         addressBook = _addressBook;
         rewardsRate = _rewardsRate;
         lockYears = _lockYears;
@@ -131,7 +132,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
         address _itemOwner = msg.sender;
-        
+
         (uint256 rewards, uint256 claimedPeriods) = estimateRewards(_itemAddress, _itemId);
         require(rewards > 0, "not has rewards!");
 
