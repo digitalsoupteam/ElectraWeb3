@@ -19,21 +19,21 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 const TEST_DATA = {
   tokens: [
     USDT, //
-    // ELCT,
+    ELCT,
   ],
   items: [
     'MopedItem',
     // 'MopedSparePartItem',
   ],
   startDay: [
-    // 1, //
+    1, //
     15,
   ],
   subSellMonths: [
     0, //
-    // 1,
-    // 2,
-    // 3,
+    1,
+    2,
+    3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //
