@@ -57,6 +57,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
     }
 
     /// @dev Only verified tokens are used without hidden fees
+    /// Adds a new token to the protocol. If the token already exists, 
+    /// it will throw an exception. To update the pricer use updateTokenPricer
     function addToken(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
@@ -67,6 +69,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
         pricers[_token] = _pricer;
     }
 
+    /// @dev Updates the pricer of an already registered token. 
+    /// If the token is not registered it will throw an exception
     function updateTokenPricer(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
@@ -77,6 +81,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
         pricers[_token] = _pricer;
     }
 
+    /// @dev Removes a token from use of the protocol. 
+    /// If the token is not registered it will throw an exception
     function deleteToken(address _token) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
         enforceIsSupportedToken(_token);
