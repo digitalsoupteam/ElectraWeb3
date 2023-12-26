@@ -35,6 +35,8 @@ contract AddressBook is UUPSUpgradeable, MulticallUpgradeable {
     // ----- PRODUCT OWNER ACTIONS  -------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
+    /// @dev Updates variable productOwner. There is no need to check if the values ​​are identical, 
+    /// since the EVM handles this situation itself and does not waste extra gas with the same values
     function setProductOwner(address _newProductOwner) external {
         enforceIsProductOwner(msg.sender);
         productOwner = _newProductOwner;
