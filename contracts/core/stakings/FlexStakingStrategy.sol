@@ -166,6 +166,7 @@ contract FlexStakingStrategy is
         if (diffMonths == 0) return;
         uint256 monthsToUpdate = diffMonths - 1;
         if (monthsToUpdate == 0) return;
+        // The variable i is initialized to 0 by default
         for (uint256 i; i < monthsToUpdate; ++i) {
             (uint256 prevYear, uint256 prevMonth, ) = DateTimeLib.timestampToDate(
                 _lastUpdatedTimestamp
