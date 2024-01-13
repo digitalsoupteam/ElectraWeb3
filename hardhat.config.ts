@@ -25,6 +25,10 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    binance: {
+      url: 'https://rpc.ankr.com/bsc',
+      accounts: [CONFIG.privateKey]
+    },
     binanceTestnet: {
       url: 'https://rpc.ankr.com/bsc_testnet_chapel',
       accounts: [CONFIG.privateKey]
