@@ -1,4 +1,4 @@
-![logo](https://github.com/inveker/staking/blob/testnet/docs/images/logo.png) 
+![logo](https://github.com/inveker/staking/blob/main/docs/images/logo.png) 
 
 # User guide
 

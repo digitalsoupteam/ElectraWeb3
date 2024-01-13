@@ -1,14 +1,6 @@
-![logo](https://github.com/inveker/staking/blob/testnet/docs/images/logo.png) 
+![logo](https://github.com/inveker/staking/blob/main/docs/images/logo.png) 
 
 # Admin guide
-
-## Increase time in staking (ONLY TESTNET)
-
-```solidity
-StakingStrategy.addDays(uint256 _daysCount);
-```
-
-<br/>
 
 ## Set new ProductOwner
 

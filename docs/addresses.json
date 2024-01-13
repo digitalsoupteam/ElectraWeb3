@@ -1,0 +1,48 @@
+{
+    "addressBook": "0x2e96d1096607e2B88E79cf20Ae1A544e1844aB18",
+    "treasury": "0x8F24968356126C2a8Cf8a7F38D410D65abFF8Fb9",
+    "tokens": [
+        {
+            "name": "USDT",
+            "token": "0x55d398326f99059fF775485246999027B3197955",
+            "pricer": "0x22b1A3359C527Ee0d3298CD7E675A70865cb4e83"
+        },
+        {
+            "name": "ELCT",
+            "token": "0x2a89e4f630d2a1a93ab4d85230737c43f118e0fb",
+            "pricer": "0x88e9d81790E1Dd1669cF0461a149B695D5ABB487"
+        }
+    ],
+    "items": [
+        {
+            "name": "MopedItem",
+            "address": "0xF9fbA049FA8A1C3b49CFAD803b4F5f76b810f9D1"
+        },
+        {
+            "name": "MopedSparePartItem",
+            "address": "0x5D23B41e3aDB5a6bb96CA47d95A6521823DadfE2"
+        }
+    ],
+    "stakingStartegies": {
+        "fix": [
+            {
+                "name": "TwoYearsFixStakingStrategy",
+                "address": "0x644EDfa652C6B3AeC022519AB47fAd9A5330dA23"
+            },
+            {
+                "name": "ThreeYearsFixStakingStrategy",
+                "address": "0x3412e9b79B2509851e238DDB07fC6576CB825e77"
+            },
+            {
+                "name": "FiveYearsFixStakingStrategy",
+                "address": "0x12ADa9bB406c5EAB9ac37698788D2b168fC46f5d"
+            }
+        ],
+        "flex": [
+            {
+                "name": "FiveYearsFlexStakingStrategy",
+                "address": "0x157113D9F5FA731C33D23B1C4c61DE23Ae67E1fE"
+            }
+        ]
+    }
+}
