@@ -24,7 +24,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       PricerImplementationDeployment.address,
       Pricer__factory.createInterface().encodeFunctionData('initialize', [
         AddressBookDeployment.address, // _addressBook
-        ethers.utils.parseUnits('10', 8), // _initialPrice
+        ethers.utils.parseUnits('0.1', 8), // _initialPrice
         'ELCT / USD', // _description
       ])
     ]

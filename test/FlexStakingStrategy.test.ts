@@ -105,7 +105,7 @@ describe(`FlexStakingStratgey`, () => {
 
               beforeEach(async () => {
                 token = IERC20Metadata__factory.connect(tokenAddress, user)
-                mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 100000)
+                mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 1000000)
                 await token.approve(item.address, mintedPayTokensAmount)
 
                 await ERC20Minter.mint(token.address, treasury.address, 10000000) // deposit to treasury
