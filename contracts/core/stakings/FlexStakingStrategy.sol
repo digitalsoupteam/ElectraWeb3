@@ -260,7 +260,12 @@ contract FlexStakingStrategy is
     // ----- USER ACTIONS  ----------------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function claim(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
+    function claim(
+        address _itemAddress,
+        uint256 _itemId,
+        address _withdrawToken,
+        uint256 _minWithdrawTokenAmount
+    ) external {
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
         address _itemOwner = msg.sender;
@@ -277,6 +282,7 @@ contract FlexStakingStrategy is
             rewards,
             _withdrawToken
         );
+        require(withdrawTokenAmount >= _minWithdrawTokenAmount, "minWithdrawTokenAmount!");
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
 
         emit Claim(
@@ -290,7 +296,12 @@ contract FlexStakingStrategy is
         );
     }
 
-    function sell(address _itemAddress, uint256 _itemId, address _withdrawToken) external {
+    function sell(
+        address _itemAddress,
+        uint256 _itemId,
+        address _withdrawToken,
+        uint256 _minWithdrawTokenAmount
+    ) external {
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
         address _itemOwner = msg.sender;
@@ -336,6 +347,7 @@ contract FlexStakingStrategy is
             sellPrice,
             _withdrawToken
         );
+        require(withdrawTokenAmount >= _minWithdrawTokenAmount, "minWithdrawTokenAmount!");
         require(withdrawTokenAmount > 0, "zero amount!");
 
         IItem(_itemAddress).burn(_itemId);

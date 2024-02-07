@@ -127,7 +127,8 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     function claim(
         address _itemAddress,
         uint256 _itemId,
-        address _withdrawToken
+        address _withdrawToken,
+        uint256 _minWithdrawTokenAmount
     ) external nonReentrant {
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
@@ -144,6 +145,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
             rewards,
             _withdrawToken
         );
+        require(withdrawTokenAmount >= _minWithdrawTokenAmount, "minWithdrawTokenAmount!");
         ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
 
         emit Claim(
@@ -160,7 +162,8 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     function sell(
         address _itemAddress,
         uint256 _itemId,
-        address _withdrawToken
+        address _withdrawToken,
+        uint256 _minWithdrawTokenAmount
     ) external nonReentrant {
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
@@ -174,6 +177,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
             sellAmount,
             _withdrawToken
         );
+        require(withdrawTokenAmount >= _minWithdrawTokenAmount, "minWithdrawTokenAmount!");
         require(withdrawTokenAmount > 0, "zero amount!");
 
         totalWithdrawn[_itemAddress][_itemId] += sellAmount;
