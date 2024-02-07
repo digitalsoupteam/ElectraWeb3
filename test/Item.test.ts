@@ -35,6 +35,7 @@ describe(`Items tests`, () => {
   let initSnapshot: string
   let productOwner: SignerWithAddress
   let user: SignerWithAddress
+  let treasury: Treasury
 
   before(async () => {
     const accounts = await ethers.getSigners()
@@ -42,6 +43,11 @@ describe(`Items tests`, () => {
     user = accounts[9]
 
     await deployments.fixture()
+
+    treasury = Treasury__factory.connect(
+      (await deployments.get('Treasury')).address,
+      ethers.provider,
+    )
 
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
@@ -85,7 +91,9 @@ describe(`Items tests`, () => {
                 const tokenId = 0
 
                 const balanceBefore = await item.balanceOf(user.address)
-                await item.connect(user).mint(stakingStrategyAddress, token.address, '0x')
+                await item
+                  .connect(user)
+                  .mint(stakingStrategyAddress, token.address, ethers.constants.MaxUint256, '0x')
                 const balanceAfter = await item.balanceOf(user.address)
                 assert(
                   balanceAfter.sub(balanceBefore).eq(1),
@@ -99,24 +107,48 @@ describe(`Items tests`, () => {
                 )
               })
 
+              it(`Regular: slippage`, async () => {
+                const tokenPrice = await treasury.usdAmountToToken(
+                  await item.price(),
+                  token.address,
+                )
+                const maxTokensAmount = tokenPrice.sub(1)
+                await expect(
+                  item
+                    .connect(user)
+                    .mint(stakingStrategyAddress, token.address, maxTokensAmount, '0x'),
+                ).to.be.revertedWith('maxPayTokenAmount!')
+              })
+
               it('Error: mint not authorized staking strategy', async () => {
                 const fakeStakingStratgey = ethers.constants.AddressZero
                 await expect(
-                  item.connect(user).mint(fakeStakingStratgey, token.address, '0x'),
+                  item
+                    .connect(user)
+                    .mint(fakeStakingStratgey, token.address, ethers.constants.MaxUint256, '0x'),
                 ).to.be.revertedWith('only staking strategy!')
               })
 
               it('Error: mint with not supported payToken', async () => {
                 const fakeTokenAddress = ethers.constants.AddressZero
                 await expect(
-                  item.connect(user).mint(stakingStrategyAddress, fakeTokenAddress, '0x'),
+                  item
+                    .connect(user)
+                    .mint(
+                      stakingStrategyAddress,
+                      fakeTokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                    ),
                 ).to.be.revertedWith('Treasury: unknown token!')
               })
 
               it(`Regular: owner stop sell`, async () => {
                 await item.connect(productOwner).stopSell()
                 await expect(
-                  item.connect(user).mint(stakingStrategyAddress, token.address, '0x'),
+                  item
+                    .connect(user)
+                    .mint(stakingStrategyAddress, token.address, ethers.constants.MaxUint256, '0x'),
                 ).to.be.revertedWith('maxSupply!')
               })
 
@@ -145,7 +177,9 @@ describe(`Items tests`, () => {
 
               it(`Error: user burn`, async () => {
                 const tokenId = 0
-                await item.connect(user).mint(stakingStrategyAddress, token.address, '0x')
+                await item
+                  .connect(user)
+                  .mint(stakingStrategyAddress, token.address, ethers.constants.MaxUint256, '0x')
                 await expect(item.connect(user).burn(tokenId)).to.be.revertedWith(
                   'only staking strategy!',
                 )
