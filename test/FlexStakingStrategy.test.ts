@@ -139,9 +139,9 @@ describe(`FlexStakingStratgey`, () => {
 
                     beforeEach(async () => {
                       // other token
-                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
                       // tested token
-                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
 
                       tokenPrice = await item.price()
                       initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -738,7 +738,7 @@ describe(`FlexStakingStratgey`, () => {
                     it(`Regular: deposit update.`, async () => {
                       const tokenId = 0
 
-                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -794,7 +794,7 @@ describe(`FlexStakingStratgey`, () => {
                       const tokenId = 0
                       const formatedEarnings = 1000
 
-                      await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()

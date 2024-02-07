@@ -90,7 +90,7 @@ describe(`FixStakingStratgey`, () => {
                 let tokenId = 0
 
                 // Mint item
-                await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+                await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
 
                 // Check errors: initial actions, claim/sell
                 await expect(
@@ -178,7 +178,7 @@ describe(`FixStakingStratgey`, () => {
                 let tokenId = 0
 
                 // Mint item
-                await item.connect(user).mint(stakingStrategy.address, token.address, '0x')
+                await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
 
                 // Check errors: initial actions, claim/sell
                 await expect(
