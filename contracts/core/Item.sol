@@ -84,6 +84,7 @@ contract Item is
     function mint(
         address _stakingStrategy,
         address _payToken,
+        uint256 _maxPayTokenAmount,
         bytes memory _payload
     ) external nonReentrant {
         // Load deps
@@ -96,6 +97,7 @@ contract Item is
 
         // Recieve pay tokens
         uint256 payTokenAmount = treasury.usdAmountToToken(price, _payToken);
+        require(payTokenAmount <= _maxPayTokenAmount, "maxPayTokenAmount!");
         IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(treasury), payTokenAmount);
 
         // Mint item

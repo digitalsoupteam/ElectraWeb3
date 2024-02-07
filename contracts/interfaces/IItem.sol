@@ -12,7 +12,7 @@ interface IItem {
 
     function tokenStakingStrategy(uint256 _tokenId) external returns (address);
 
-    function mint(address _stakingStrategy, address _payToken, bytes memory _payload) external;
+    function mint(address _stakingStrategy, address _payToken, uint256 _maxPayTokenAmount, bytes memory _payload) external;
 
     function stopSell() external;
 
