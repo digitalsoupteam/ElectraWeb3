@@ -163,7 +163,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -172,7 +172,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < minMonthsCount; i++) {
                         console.log(`\n period ${i}`)
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith("can't sell!")
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
@@ -192,10 +192,10 @@ describe(`FlexStakingStratgey`, () => {
                         const balanceBefore = await token.balanceOf(user.address)
                         await stakingStrategy
                           .connect(user)
-                          .claim(item.address, tokenId, token.address)
+                          .claim(item.address, tokenId, token.address, 0)
                         const balanceAfter = await token.balanceOf(user.address)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
 
                         let estimatedRewards = BigNumber.from('0')
@@ -253,7 +253,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       let balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
+                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0)
                       let balanceAfter = await token.balanceOf(user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
@@ -284,10 +284,10 @@ describe(`FlexStakingStratgey`, () => {
                       )
 
                       await expect(
-                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
@@ -295,7 +295,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -305,7 +305,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < minMonthsCount; i++) {
                         console.log(`\n period ${i}`)
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith("can't sell!")
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
@@ -353,11 +353,11 @@ describe(`FlexStakingStratgey`, () => {
                       let balanceBefore = await token.balanceOf(user.address)
                       await stakingStrategy
                         .connect(user)
-                        .claim(item.address, tokenId, token.address)
+                        .claim(item.address, tokenId, token.address, 0)
                       let balanceAfter = await token.balanceOf(user.address)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
 
                       const totalWithdrawn = await stakingStrategy.totalWithdrawn(
@@ -384,7 +384,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
+                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0)
                       balanceAfter = await token.balanceOf(user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
@@ -415,10 +415,10 @@ describe(`FlexStakingStratgey`, () => {
                       )
 
                       await expect(
-                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
@@ -426,7 +426,7 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -440,10 +440,10 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy
                         .connect(user)
-                        .claim(item.address, tokenId, token.address)
+                        .claim(item.address, tokenId, token.address, 0)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
                     })
 
@@ -454,7 +454,7 @@ describe(`FlexStakingStratgey`, () => {
                           await expect(
                             stakingStrategy
                               .connect(user)
-                              .claim(item.address, tokenId, token.address),
+                              .claim(item.address, tokenId, token.address, 0),
                           ).to.be.revertedWith('not has rewards!')
                           if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                         }
@@ -468,7 +468,7 @@ describe(`FlexStakingStratgey`, () => {
                             await expect(
                               stakingStrategy
                                 .connect(user)
-                                .sell(item.address, tokenId, token.address),
+                                .sell(item.address, tokenId, token.address, 0),
                             ).to.be.revertedWith("can't sell!")
                           }
                           let claimTimestamp = await stakingStrategy.claimTimestamp(
@@ -489,13 +489,13 @@ describe(`FlexStakingStratgey`, () => {
                           const balanceBefore = await token.balanceOf(user.address)
                           await stakingStrategy
                             .connect(user)
-                            .claim(item.address, tokenId, token.address)
+                            .claim(item.address, tokenId, token.address, 0)
                           const balanceAfter = await token.balanceOf(user.address)
 
                           await expect(
                             stakingStrategy
                               .connect(user)
-                              .claim(item.address, tokenId, token.address),
+                              .claim(item.address, tokenId, token.address, 0),
                           ).to.be.revertedWith('not has rewards!')
 
                           let estimatedRewards = BigNumber.from('0')
@@ -555,7 +555,7 @@ describe(`FlexStakingStratgey`, () => {
                         let balanceBefore = await token.balanceOf(user.address)
                         await stakingStrategy
                           .connect(user)
-                          .sell(item.address, tokenId, token.address)
+                          .sell(item.address, tokenId, token.address, 0)
                         let balanceAfter = await token.balanceOf(user.address)
 
                         const estimatedBalance = await treasury.usdAmountToToken(
@@ -586,10 +586,10 @@ describe(`FlexStakingStratgey`, () => {
                         )
 
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
 
@@ -599,7 +599,7 @@ describe(`FlexStakingStratgey`, () => {
                           await expect(
                             stakingStrategy
                               .connect(user)
-                              .claim(item.address, tokenId, token.address),
+                              .claim(item.address, tokenId, token.address, 0),
                           ).to.be.revertedWith('not has rewards!')
                           if (i == daysDiff - 1) await time.increase(24 * 60 * 60)
                         }
@@ -613,7 +613,7 @@ describe(`FlexStakingStratgey`, () => {
                             await expect(
                               stakingStrategy
                                 .connect(user)
-                                .sell(item.address, tokenId, token.address),
+                                .sell(item.address, tokenId, token.address, 0),
                             ).to.be.revertedWith("can't sell!")
                           }
                           let claimTimestamp = await stakingStrategy.claimTimestamp(
@@ -662,11 +662,11 @@ describe(`FlexStakingStratgey`, () => {
                         let balanceBefore = await token.balanceOf(user.address)
                         await stakingStrategy
                           .connect(user)
-                          .claim(item.address, tokenId, token.address)
+                          .claim(item.address, tokenId, token.address, 0)
                         let balanceAfter = await token.balanceOf(user.address)
 
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         const totalWithdrawn = await stakingStrategy.totalWithdrawn(
                           item.address,
@@ -694,7 +694,7 @@ describe(`FlexStakingStratgey`, () => {
                         balanceBefore = await token.balanceOf(user.address)
                         await stakingStrategy
                           .connect(user)
-                          .sell(item.address, tokenId, token.address)
+                          .sell(item.address, tokenId, token.address, 0)
                         balanceAfter = await token.balanceOf(user.address)
 
                         const estimatedBalance = await treasury.usdAmountToToken(
@@ -725,10 +725,10 @@ describe(`FlexStakingStratgey`, () => {
                         )
 
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
                     }
@@ -750,7 +750,7 @@ describe(`FlexStakingStratgey`, () => {
                           await expect(
                             stakingStrategy
                               .connect(user)
-                              .sell(item.address, tokenId, token.address),
+                              .sell(item.address, tokenId, token.address, 0),
                           ).to.be.revertedWith("can't sell!")
                         }
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
@@ -806,7 +806,7 @@ describe(`FlexStakingStratgey`, () => {
                           await expect(
                             stakingStrategy
                               .connect(user)
-                              .sell(item.address, tokenId, token.address),
+                              .sell(item.address, tokenId, token.address, 0),
                           ).to.be.revertedWith("can't sell!")
                         }
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
@@ -838,10 +838,10 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy
                         .connect(user)
-                        .claim(item.address, tokenId, token.address)
+                        .claim(item.address, tokenId, token.address, 0)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
                       let [year, month] = await stakingStrategy.currentPeriod()
 
@@ -854,7 +854,7 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       await expect(
-                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith("can't sell!")
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
@@ -864,13 +864,13 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy
                         .connect(user)
-                        .claim(item.address, tokenId, token.address)
+                        .claim(item.address, tokenId, token.address, 0)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address),
+                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
 
-                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address)
+                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0)
                     })
                   })
                 })
