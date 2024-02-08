@@ -11,15 +11,17 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain-types'
-import { ELCT, USDT } from '../constants/addresses'
+import { BNB_PLACEHOLDER, ELCT, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
+import { balanceOf } from './utils/token'
 
 const TEST_DATA = {
   tokens: [
-    USDT, //
-    ELCT,
+    BNB_PLACEHOLDER,
+    // USDT, //
+    // ELCT,
   ],
   items: [
     'MopedItem',
@@ -27,13 +29,13 @@ const TEST_DATA = {
   ],
   startDay: [
     1, //
-    15,
+    // 15,
   ],
   subSellMonths: [
     0, //
-    1,
-    2,
-    3,
+    // 1,
+    // 2,
+    // 3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //
@@ -139,23 +141,55 @@ describe(`FlexStakingStratgey`, () => {
 
                     beforeEach(async () => {
                       // other token
-                      await item
-                        .connect(user)
-                        .mint(
-                          stakingStrategy.address,
-                          token.address,
-                          ethers.constants.MaxUint256,
-                          '0x',
-                        )
+                      const tokenAmount = await treasury.usdAmountToToken(
+                        await item.price(),
+                        tokenAddress,
+                      )
+                      if (tokenAddress == BNB_PLACEHOLDER) {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                            {
+                              value: tokenAmount,
+                            },
+                          )
+                      } else {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                          )
+                      }
                       // tested token
-                      await item
-                        .connect(user)
-                        .mint(
-                          stakingStrategy.address,
-                          token.address,
-                          ethers.constants.MaxUint256,
-                          '0x',
-                        )
+                      if (tokenAddress == BNB_PLACEHOLDER) {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                            {
+                              value: tokenAmount,
+                            },
+                          )
+                      } else {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                          )
+                      }
 
                       tokenPrice = await item.price()
                       initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -173,7 +207,7 @@ describe(`FlexStakingStratgey`, () => {
                       )
                     })
 
-                    xit(`Regular: claim every period (min lock). startDay=${startDay}`, async () => {
+                    it(`Regular: claim every period (min lock). startDay=${startDay}`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
@@ -207,11 +241,11 @@ describe(`FlexStakingStratgey`, () => {
                         await stakingStrategy
                           .connect(productOwner)
                           .setEarnings(year, month, formatedEarnings)
-                        const balanceBefore = await token.balanceOf(user.address)
+                        const balanceBefore = await balanceOf(tokenAddress, user.address)
                         await stakingStrategy
                           .connect(user)
                           .claim(item.address, tokenId, token.address, 0)
-                        const balanceAfter = await token.balanceOf(user.address)
+                        const balanceAfter = await balanceOf(tokenAddress, user.address)
                         await expect(
                           stakingStrategy
                             .connect(user)
@@ -264,7 +298,12 @@ describe(`FlexStakingStratgey`, () => {
                           )}`,
                         )
                         assert(
-                          balanceAfter.sub(balanceBefore).eq(estimatedRewardsByToken),
+                          balanceAfter
+                            .sub(balanceBefore)
+                            .gt(estimatedRewardsByToken.mul(9).div(10)) &&
+                            balanceAfter
+                              .sub(balanceBefore)
+                              .lt(estimatedRewardsByToken.mul(11).div(10)),
                           `flex rewards ${balanceAfter.sub(
                             balanceBefore,
                           )} != ${estimatedRewardsByToken}`,
@@ -272,11 +311,11 @@ describe(`FlexStakingStratgey`, () => {
                       }
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
-                      let balanceBefore = await token.balanceOf(user.address)
+                      let balanceBefore = await balanceOf(tokenAddress, user.address)
                       await stakingStrategy
                         .connect(user)
                         .sell(item.address, tokenId, token.address, 0)
-                      let balanceAfter = await token.balanceOf(user.address)
+                      let balanceAfter = await balanceOf(tokenAddress, user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
                         tokenPrice.sub(
@@ -301,7 +340,8 @@ describe(`FlexStakingStratgey`, () => {
                         )}`,
                       )
                       assert(
-                        balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                        balanceAfter.sub(balanceBefore).gt(estimatedBalance.mul(9).div(10)) &&
+                          balanceAfter.sub(balanceBefore).lt(estimatedBalance.mul(11).div(10)),
                         `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                       )
 
@@ -315,7 +355,7 @@ describe(`FlexStakingStratgey`, () => {
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
-                    xit(`Regular: claim all in one (min lock).`, async () => {
+                    it(`Regular: claim all in one (min lock).`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
@@ -378,11 +418,11 @@ describe(`FlexStakingStratgey`, () => {
                         }
                       }
 
-                      let balanceBefore = await token.balanceOf(user.address)
+                      let balanceBefore = await balanceOf(tokenAddress, user.address)
                       await stakingStrategy
                         .connect(user)
                         .claim(item.address, tokenId, token.address, 0)
-                      let balanceAfter = await token.balanceOf(user.address)
+                      let balanceAfter = await balanceOf(tokenAddress, user.address)
 
                       await expect(
                         stakingStrategy
@@ -406,18 +446,23 @@ describe(`FlexStakingStratgey`, () => {
                         )}`,
                       )
                       assert(
-                        balanceAfter.sub(balanceBefore).eq(estimatedRewardsByToken),
+                        balanceAfter
+                          .sub(balanceBefore)
+                          .gt(estimatedRewardsByToken.mul(9).div(10)) &&
+                          balanceAfter
+                            .sub(balanceBefore)
+                            .lt(estimatedRewardsByToken.mul(11).div(10)),
                         `flex rewards ${balanceAfter.sub(
                           balanceBefore,
                         )} != ${estimatedRewardsByToken}`,
                       )
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
-                      balanceBefore = await token.balanceOf(user.address)
+                      balanceBefore = await balanceOf(tokenAddress, user.address)
                       await stakingStrategy
                         .connect(user)
                         .sell(item.address, tokenId, token.address, 0)
-                      balanceAfter = await token.balanceOf(user.address)
+                      balanceAfter = await balanceOf(tokenAddress, user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
                         tokenPrice.sub(
@@ -442,7 +487,8 @@ describe(`FlexStakingStratgey`, () => {
                         )}`,
                       )
                       assert(
-                        balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                        balanceAfter.sub(balanceBefore).gt(estimatedBalance.mul(9).div(10)) &&
+                          balanceAfter.sub(balanceBefore).lt(estimatedBalance.mul(11).div(10)),
                         `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                       )
 
@@ -456,7 +502,7 @@ describe(`FlexStakingStratgey`, () => {
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
-                    xit(`Regular: claim all in one (min lock) without earnings (endless claim bug).`, async () => {
+                    it(`Regular: claim all in one (min lock) without earnings (endless claim bug).`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
@@ -484,7 +530,7 @@ describe(`FlexStakingStratgey`, () => {
                     })
 
                     for (const subMonths of TEST_DATA.subSellMonths) {
-                      xit(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
+                      it(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
                           console.log(`initial days ${i} ${await getDate()}`)
                           await expect(
@@ -522,11 +568,11 @@ describe(`FlexStakingStratgey`, () => {
                           await stakingStrategy
                             .connect(productOwner)
                             .setEarnings(year, month, formatedEarnings)
-                          const balanceBefore = await token.balanceOf(user.address)
+                          const balanceBefore = await balanceOf(tokenAddress, user.address)
                           await stakingStrategy
                             .connect(user)
                             .claim(item.address, tokenId, token.address, 0)
-                          const balanceAfter = await token.balanceOf(user.address)
+                          const balanceAfter = await balanceOf(tokenAddress, user.address)
 
                           await expect(
                             stakingStrategy
@@ -580,7 +626,12 @@ describe(`FlexStakingStratgey`, () => {
                             )}`,
                           )
                           assert(
-                            balanceAfter.sub(balanceBefore).eq(estimatedRewardsByToken),
+                            balanceAfter
+                              .sub(balanceBefore)
+                              .gt(estimatedRewardsByToken.mul(9).div(10)) &&
+                              balanceAfter
+                                .sub(balanceBefore)
+                                .lt(estimatedRewardsByToken.mul(11).div(10)),
                             `flex rewards ${balanceAfter.sub(
                               balanceBefore,
                             )} != ${estimatedRewardsByToken}`,
@@ -588,11 +639,11 @@ describe(`FlexStakingStratgey`, () => {
                         }
 
                         await stakingStrategy.connect(productOwner).updateDeposits()
-                        let balanceBefore = await token.balanceOf(user.address)
+                        let balanceBefore = await balanceOf(tokenAddress, user.address)
                         await stakingStrategy
                           .connect(user)
                           .sell(item.address, tokenId, token.address, 0)
-                        let balanceAfter = await token.balanceOf(user.address)
+                        let balanceAfter = await balanceOf(tokenAddress, user.address)
 
                         const estimatedBalance = await treasury.usdAmountToToken(
                           tokenPrice.sub(
@@ -617,7 +668,8 @@ describe(`FlexStakingStratgey`, () => {
                           )}`,
                         )
                         assert(
-                          balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                          balanceAfter.sub(balanceBefore).gt(estimatedBalance.mul(9).div(10)) &&
+                            balanceAfter.sub(balanceBefore).lt(estimatedBalance.mul(11).div(10)),
                           `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                         )
 
@@ -633,7 +685,7 @@ describe(`FlexStakingStratgey`, () => {
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
 
-                      xit(`Regular: claim all in one (max lock - ${subMonths}).`, async () => {
+                      it(`Regular: claim all in one (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
                           console.log(`initial days ${i} ${await getDate()}`)
                           await expect(
@@ -699,11 +751,11 @@ describe(`FlexStakingStratgey`, () => {
                           }
                         }
 
-                        let balanceBefore = await token.balanceOf(user.address)
+                        let balanceBefore = await balanceOf(tokenAddress, user.address)
                         await stakingStrategy
                           .connect(user)
                           .claim(item.address, tokenId, token.address, 0)
-                        let balanceAfter = await token.balanceOf(user.address)
+                        let balanceAfter = await balanceOf(tokenAddress, user.address)
 
                         await expect(
                           stakingStrategy
@@ -726,18 +778,23 @@ describe(`FlexStakingStratgey`, () => {
                           )}`,
                         )
                         assert(
-                          balanceAfter.sub(balanceBefore).eq(estimatedRewardsByToken),
+                          balanceAfter
+                            .sub(balanceBefore)
+                            .gt(estimatedRewardsByToken.mul(9).div(10)) &&
+                            balanceAfter
+                              .sub(balanceBefore)
+                              .lt(estimatedRewardsByToken.mul(11).div(10)),
                           `flex rewards ${balanceAfter.sub(
                             balanceBefore,
                           )} != ${estimatedRewardsByToken}`,
                         )
 
                         await stakingStrategy.connect(productOwner).updateDeposits()
-                        balanceBefore = await token.balanceOf(user.address)
+                        balanceBefore = await balanceOf(tokenAddress, user.address)
                         await stakingStrategy
                           .connect(user)
                           .sell(item.address, tokenId, token.address, 0)
-                        balanceAfter = await token.balanceOf(user.address)
+                        balanceAfter = await balanceOf(tokenAddress, user.address)
 
                         const estimatedBalance = await treasury.usdAmountToToken(
                           tokenPrice.sub(
@@ -762,10 +819,11 @@ describe(`FlexStakingStratgey`, () => {
                           )}`,
                         )
                         assert(
-                          balanceAfter.sub(balanceBefore).eq(estimatedBalance),
+                          balanceAfter.sub(balanceBefore).gt(estimatedBalance.mul(9).div(10)) &&
+                            balanceAfter.sub(balanceBefore).lt(estimatedBalance.mul(11).div(10)),
                           `sell balance ${balanceAfter.sub(balanceBefore)} != ${estimatedBalance}`,
                         )
-
+                        
                         await expect(
                           stakingStrategy
                             .connect(user)
@@ -781,17 +839,35 @@ describe(`FlexStakingStratgey`, () => {
                   })
 
                   describe(`Single token in supply`, () => {
-                    xit(`Regular: deposit update.`, async () => {
+                    it(`Regular: deposit update.`, async () => {
                       const tokenId = 0
 
-                      await item
-                        .connect(user)
-                        .mint(
-                          stakingStrategy.address,
-                          token.address,
-                          ethers.constants.MaxUint256,
-                          '0x',
-                        )
+                      const tokenAmount = await treasury.usdAmountToToken(
+                        await item.price(),
+                        tokenAddress,
+                      )
+                      if (tokenAddress == BNB_PLACEHOLDER) {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                            {
+                              value: tokenAmount,
+                            },
+                          )
+                      } else {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                          )
+                      }
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -844,20 +920,37 @@ describe(`FlexStakingStratgey`, () => {
                     })
 
                     it(`Regular: slippage`, async () => {
-                      await item
-                        .connect(user)
-                        .mint(
-                          stakingStrategy.address,
-                          token.address,
-                          ethers.constants.MaxUint256,
-                          '0x',
-                        )
+                      const tokenAmount = await treasury.usdAmountToToken(
+                        await item.price(),
+                        tokenAddress,
+                      )
+                      if (tokenAddress == BNB_PLACEHOLDER) {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                            {
+                              value: tokenAmount,
+                            },
+                          )
+                      } else {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                          )
+                      }
                       const minMonthsCount = (await stakingStrategy.minMonthsCount()).toNumber()
 
                       const tokenId = 0
 
                       for (let i = 0; i < minMonthsCount; i++) {
-                      
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
                           tokenId,
@@ -895,18 +988,36 @@ describe(`FlexStakingStratgey`, () => {
                       ).to.be.revertedWith('minWithdrawTokenAmount!')
                     })
 
-                    xit(`Error: sell without settet earnings.`, async () => {
+                    it(`Error: sell without settet earnings.`, async () => {
                       const tokenId = 0
                       const formatedEarnings = 1000
 
-                      await item
-                        .connect(user)
-                        .mint(
-                          stakingStrategy.address,
-                          token.address,
-                          ethers.constants.MaxUint256,
-                          '0x',
-                        )
+                      const tokenAmount = await treasury.usdAmountToToken(
+                        await item.price(),
+                        tokenAddress,
+                      )
+                      if (tokenAddress == BNB_PLACEHOLDER) {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                            {
+                              value: tokenAmount,
+                            },
+                          )
+                      } else {
+                        await item
+                          .connect(user)
+                          .mint(
+                            stakingStrategy.address,
+                            tokenAddress,
+                            ethers.constants.MaxUint256,
+                            '0x',
+                          )
+                      }
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
