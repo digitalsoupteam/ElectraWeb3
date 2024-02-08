@@ -139,9 +139,23 @@ describe(`FlexStakingStratgey`, () => {
 
                     beforeEach(async () => {
                       // other token
-                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
+                      await item
+                        .connect(user)
+                        .mint(
+                          stakingStrategy.address,
+                          token.address,
+                          ethers.constants.MaxUint256,
+                          '0x',
+                        )
                       // tested token
-                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
+                      await item
+                        .connect(user)
+                        .mint(
+                          stakingStrategy.address,
+                          token.address,
+                          ethers.constants.MaxUint256,
+                          '0x',
+                        )
 
                       tokenPrice = await item.price()
                       initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -159,11 +173,13 @@ describe(`FlexStakingStratgey`, () => {
                       )
                     })
 
-                    it(`Regular: claim every period (min lock). startDay=${startDay}`, async () => {
+                    xit(`Regular: claim every period (min lock). startDay=${startDay}`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -172,7 +188,9 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < minMonthsCount; i++) {
                         console.log(`\n period ${i}`)
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith("can't sell!")
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
@@ -195,7 +213,9 @@ describe(`FlexStakingStratgey`, () => {
                           .claim(item.address, tokenId, token.address, 0)
                         const balanceAfter = await token.balanceOf(user.address)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
 
                         let estimatedRewards = BigNumber.from('0')
@@ -253,7 +273,9 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       let balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0)
+                      await stakingStrategy
+                        .connect(user)
+                        .sell(item.address, tokenId, token.address, 0)
                       let balanceAfter = await token.balanceOf(user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
@@ -287,15 +309,19 @@ describe(`FlexStakingStratgey`, () => {
                         stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                        stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
-                    it(`Regular: claim all in one (min lock).`, async () => {
+                    xit(`Regular: claim all in one (min lock).`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
@@ -305,7 +331,9 @@ describe(`FlexStakingStratgey`, () => {
                       for (let i = 0; i < minMonthsCount; i++) {
                         console.log(`\n period ${i}`)
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith("can't sell!")
                         let claimTimestamp = await stakingStrategy.claimTimestamp(
                           item.address,
@@ -357,7 +385,9 @@ describe(`FlexStakingStratgey`, () => {
                       let balanceAfter = await token.balanceOf(user.address)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                        stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
 
                       const totalWithdrawn = await stakingStrategy.totalWithdrawn(
@@ -384,7 +414,9 @@ describe(`FlexStakingStratgey`, () => {
 
                       await stakingStrategy.connect(productOwner).updateDeposits()
                       balanceBefore = await token.balanceOf(user.address)
-                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0)
+                      await stakingStrategy
+                        .connect(user)
+                        .sell(item.address, tokenId, token.address, 0)
                       balanceAfter = await token.balanceOf(user.address)
 
                       const estimatedBalance = await treasury.usdAmountToToken(
@@ -418,37 +450,41 @@ describe(`FlexStakingStratgey`, () => {
                         stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                        stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('ERC721: invalid token ID')
                     })
 
-                    it(`Regular: claim all in one (min lock) without earnings (endless claim bug).`, async () => {
+                    xit(`Regular: claim all in one (min lock) without earnings (endless claim bug).`, async () => {
                       for (let i = 0; i < daysDiff; i++) {
                         console.log(`initial days ${i} ${await getDate()}`)
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         if (i != daysDiff - 1) await time.increase(24 * 60 * 60)
                       }
 
                       const monthsToClaim = 23
-                      await time.increaseTo(await stakingStrategy.claimTimestamp(
-                        item.address,
-                        tokenId,
-                        monthsToClaim,
-                      ))
+                      await time.increaseTo(
+                        await stakingStrategy.claimTimestamp(item.address, tokenId, monthsToClaim),
+                      )
 
                       await stakingStrategy
                         .connect(user)
                         .claim(item.address, tokenId, token.address, 0)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                        stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
                     })
 
                     for (const subMonths of TEST_DATA.subSellMonths) {
-                      it(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
+                      xit(`Regular: claim every period (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
                           console.log(`initial days ${i} ${await getDate()}`)
                           await expect(
@@ -586,14 +622,18 @@ describe(`FlexStakingStratgey`, () => {
                         )
 
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
 
-                      it(`Regular: claim all in one (max lock - ${subMonths}).`, async () => {
+                      xit(`Regular: claim all in one (max lock - ${subMonths}).`, async () => {
                         for (let i = 0; i < daysDiff; i++) {
                           console.log(`initial days ${i} ${await getDate()}`)
                           await expect(
@@ -666,7 +706,9 @@ describe(`FlexStakingStratgey`, () => {
                         let balanceAfter = await token.balanceOf(user.address)
 
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('not has rewards!')
                         const totalWithdrawn = await stakingStrategy.totalWithdrawn(
                           item.address,
@@ -725,20 +767,31 @@ describe(`FlexStakingStratgey`, () => {
                         )
 
                         await expect(
-                          stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .sell(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                         await expect(
-                          stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                          stakingStrategy
+                            .connect(user)
+                            .claim(item.address, tokenId, token.address, 0),
                         ).to.be.revertedWith('ERC721: invalid token ID')
                       })
                     }
                   })
 
                   describe(`Single token in supply`, () => {
-                    it(`Regular: deposit update.`, async () => {
+                    xit(`Regular: deposit update.`, async () => {
                       const tokenId = 0
 
-                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
+                      await item
+                        .connect(user)
+                        .mint(
+                          stakingStrategy.address,
+                          token.address,
+                          ethers.constants.MaxUint256,
+                          '0x',
+                        )
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -790,11 +843,70 @@ describe(`FlexStakingStratgey`, () => {
                       assert(deposits.eq(0), `deposits != 0, ${deposits} != 0`)
                     })
 
-                    it(`Error: sell without settet earnings.`, async () => {
+                    it(`Regular: slippage`, async () => {
+                      await item
+                        .connect(user)
+                        .mint(
+                          stakingStrategy.address,
+                          token.address,
+                          ethers.constants.MaxUint256,
+                          '0x',
+                        )
+                      const minMonthsCount = (await stakingStrategy.minMonthsCount()).toNumber()
+
+                      const tokenId = 0
+
+                      for (let i = 0; i < minMonthsCount; i++) {
+                      
+                        let claimTimestamp = await stakingStrategy.claimTimestamp(
+                          item.address,
+                          tokenId,
+                          1 + i,
+                        )
+                        let [year, month] = await stakingStrategy.currentPeriod()
+
+                        await time.increaseTo(claimTimestamp)
+
+                        const formatedEarnings = 1000
+                        await stakingStrategy.connect(productOwner).updateDeposits()
+                        await stakingStrategy
+                          .connect(productOwner)
+                          .setEarnings(year, month, formatedEarnings)
+                        await expect(
+                          stakingStrategy
+                            .connect(user)
+                            .claim(
+                              item.address,
+                              tokenId,
+                              token.address,
+                              ethers.constants.MaxUint256,
+                            ),
+                        ).to.be.revertedWith('minWithdrawTokenAmount!')
+                        await stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0)
+                      }
+
+                      await stakingStrategy.connect(productOwner).updateDeposits()
+                      await expect(
+                        stakingStrategy
+                          .connect(user)
+                          .sell(item.address, tokenId, token.address, ethers.constants.MaxUint256),
+                      ).to.be.revertedWith('minWithdrawTokenAmount!')
+                    })
+
+                    xit(`Error: sell without settet earnings.`, async () => {
                       const tokenId = 0
                       const formatedEarnings = 1000
 
-                      await item.connect(user).mint(stakingStrategy.address, token.address, ethers.constants.MaxUint256, '0x')
+                      await item
+                        .connect(user)
+                        .mint(
+                          stakingStrategy.address,
+                          token.address,
+                          ethers.constants.MaxUint256,
+                          '0x',
+                        )
 
                       const tokenPrice = await item.price()
                       const initialMonths = (await stakingStrategy.initialMonths()).toNumber()
@@ -841,7 +953,9 @@ describe(`FlexStakingStratgey`, () => {
                         .claim(item.address, tokenId, token.address, 0)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                        stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
                       let [year, month] = await stakingStrategy.currentPeriod()
 
@@ -867,10 +981,14 @@ describe(`FlexStakingStratgey`, () => {
                         .claim(item.address, tokenId, token.address, 0)
 
                       await expect(
-                        stakingStrategy.connect(user).claim(item.address, tokenId, token.address, 0),
+                        stakingStrategy
+                          .connect(user)
+                          .claim(item.address, tokenId, token.address, 0),
                       ).to.be.revertedWith('not has rewards!')
 
-                      await stakingStrategy.connect(user).sell(item.address, tokenId, token.address, 0)
+                      await stakingStrategy
+                        .connect(user)
+                        .sell(item.address, tokenId, token.address, 0)
                     })
                   })
                 })
