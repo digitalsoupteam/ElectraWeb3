@@ -100,13 +100,15 @@ contract Item is
         require(payTokenAmount <= _maxPayTokenAmount, "maxPayTokenAmount!");
         if(_payToken == address(0)) {
             require(msg.value >= payTokenAmount, "value < payTokenAmount");
+            (bool success, ) = address(treasury).call{value: payTokenAmount}("");
+            require(success, "failed to send to treasury!");
             uint256 change = msg.value - payTokenAmount;
             if(change > 0) {
                 (bool success,) = msg.sender.call{value: change}("");
                 require(success, "failed to send change!");
             }
         } else {
-            IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(treasury), payTokenAmount);
+            IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(this), payTokenAmount);
         }
 
         // Mint item
