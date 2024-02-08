@@ -1,7 +1,7 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { AddressBook__factory, Treasury__factory } from '../typechain-types'
-import { CHAINLINK_USDT_USD, USDT } from '../constants/addresses'
+import { BNB_PLACEHOLDER, CHAINLINK_BNB_USD, CHAINLINK_USDT_USD, USDT, WBNB } from '../constants/addresses'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
@@ -37,6 +37,8 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   
   const treasury = Treasury__factory.connect(deployment.address, deployer)
   await (await treasury.addToken(USDT, CHAINLINK_USDT_USD)).wait(1)
+  await (await treasury.addToken(BNB_PLACEHOLDER, CHAINLINK_BNB_USD)).wait(1)
+  await (await treasury.addToken(WBNB, CHAINLINK_BNB_USD)).wait(1)
 }
 
 deploy.tags = ['Treasury']

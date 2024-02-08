@@ -86,7 +86,7 @@ contract Item is
         address _payToken,
         uint256 _maxPayTokenAmount,
         bytes memory _payload
-    ) external nonReentrant {
+    ) external nonReentrant payable {
         // Load deps
         IAddressBook _addressBook = IAddressBook(addressBook);
         ITreasury treasury = ITreasury(_addressBook.treasury());
@@ -98,7 +98,16 @@ contract Item is
         // Recieve pay tokens
         uint256 payTokenAmount = treasury.usdAmountToToken(price, _payToken);
         require(payTokenAmount <= _maxPayTokenAmount, "maxPayTokenAmount!");
-        IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(treasury), payTokenAmount);
+        if(_payToken == address(0)) {
+            require(msg.value >= payTokenAmount, "value < payTokenAmount");
+            uint256 change = msg.value - payTokenAmount;
+            if(change > 0) {
+                (bool success,) = msg.sender.call{value: change}("");
+                require(success, "failed to send change!");
+            }
+        } else {
+            IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(treasury), payTokenAmount);
+        }
 
         // Mint item
         uint256 tokenId = nextTokenId++;

@@ -10,12 +10,13 @@ import {
   Item,
   Item__factory,
 } from '../typechain-types'
-import { CHAINLINK_LINK_USD, ELCT, LINK, USDT } from '../constants/addresses'
+import { BNB_PLACEHOLDER, CHAINLINK_LINK_USD, ELCT, LINK, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
 
 const TEST_DATA = {
   tokens: [
+    BNB_PLACEHOLDER,
     USDT, //
     ELCT,
   ],
@@ -59,11 +60,9 @@ describe(`Items tests`, () => {
 
   for (const tokenAddress of TEST_DATA.tokens) {
     describe(`Token: ${tokenAddress}`, () => {
-      let token: IERC20Metadata
       let mintedPayTokensAmount: BigNumber
       beforeEach(async () => {
-        token = IERC20Metadata__factory.connect(USDT, user)
-        mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 10000000)
+        mintedPayTokensAmount = await ERC20Minter.mint(tokenAddress, user.address, 10000000)
       })
 
       for (const stakingStrategyTag of TEST_DATA.stakingStrategies) {
@@ -84,16 +83,31 @@ describe(`Items tests`, () => {
                 item = Item__factory.connect(StakingStrategyDeployment.address, user)
                 itemPrice = await item.price()
                 maxSupply = await item.maxSupply()
-                await token.connect(user).approve(item.address, mintedPayTokensAmount)
+                if (tokenAddress != BNB_PLACEHOLDER) {
+                  await IERC20Metadata__factory.connect(tokenAddress, user).approve(
+                    item.address,
+                    mintedPayTokensAmount,
+                  )
+                }
               })
 
               it(`Regular: mint.`, async () => {
                 const tokenId = 0
 
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+
                 const balanceBefore = await item.balanceOf(user.address)
-                await item
-                  .connect(user)
-                  .mint(stakingStrategyAddress, token.address, ethers.constants.MaxUint256, '0x')
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await item
+                    .connect(user)
+                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x', {
+                      value: tokenPrice,
+                    })
+                } else {
+                  await item
+                    .connect(user)
+                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x')
+                }
                 const balanceAfter = await item.balanceOf(user.address)
                 assert(
                   balanceAfter.sub(balanceBefore).eq(1),
@@ -108,48 +122,116 @@ describe(`Items tests`, () => {
               })
 
               it(`Regular: slippage`, async () => {
-                const tokenPrice = await treasury.usdAmountToToken(
-                  await item.price(),
-                  token.address,
-                )
-                const maxTokensAmount = tokenPrice.sub(1)
-                await expect(
-                  item
-                    .connect(user)
-                    .mint(stakingStrategyAddress, token.address, maxTokensAmount, '0x'),
-                ).to.be.revertedWith('maxPayTokenAmount!')
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(
+                        stakingStrategyAddress,
+                        tokenAddress,
+                        0,
+                        '0x',
+                        {
+                          value: tokenPrice,
+                        },
+                      ),
+                  ).to.be.revertedWith('maxPayTokenAmount!')
+                } else {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(
+                        stakingStrategyAddress,
+                        tokenAddress,
+                        0,
+                        '0x',
+                      ),
+                  ).to.be.revertedWith('maxPayTokenAmount!')
+                }
               })
 
               it('Error: mint not authorized staking strategy', async () => {
                 const fakeStakingStratgey = ethers.constants.AddressZero
-                await expect(
-                  item
-                    .connect(user)
-                    .mint(fakeStakingStratgey, token.address, ethers.constants.MaxUint256, '0x'),
-                ).to.be.revertedWith('only staking strategy!')
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(fakeStakingStratgey, tokenAddress, ethers.constants.MaxUint256, '0x', {
+                        value: tokenPrice,
+                      }),
+                  ).to.be.revertedWith('only staking strategy!')
+                } else {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(fakeStakingStratgey, tokenAddress, ethers.constants.MaxUint256, '0x'),
+                  ).to.be.revertedWith('only staking strategy!')
+                }
               })
 
               it('Error: mint with not supported payToken', async () => {
-                const fakeTokenAddress = ethers.constants.AddressZero
-                await expect(
-                  item
-                    .connect(user)
-                    .mint(
-                      stakingStrategyAddress,
-                      fakeTokenAddress,
-                      ethers.constants.MaxUint256,
-                      '0x',
-                    ),
-                ).to.be.revertedWith('Treasury: unknown token!')
+                const fakeTokenAddress = CHAINLINK_LINK_USD
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(
+                        stakingStrategyAddress,
+                        fakeTokenAddress,
+                        ethers.constants.MaxUint256,
+                        '0x',
+                        {
+                          value: tokenPrice,
+                        },
+                      ),
+                  ).to.be.revertedWith('Treasury: unknown token!')
+                } else {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(
+                        stakingStrategyAddress,
+                        fakeTokenAddress,
+                        ethers.constants.MaxUint256,
+                        '0x',
+                      ),
+                  ).to.be.revertedWith('Treasury: unknown token!')
+                }
               })
 
               it(`Regular: owner stop sell`, async () => {
                 await item.connect(productOwner).stopSell()
-                await expect(
-                  item
-                    .connect(user)
-                    .mint(stakingStrategyAddress, token.address, ethers.constants.MaxUint256, '0x'),
-                ).to.be.revertedWith('maxSupply!')
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(
+                        stakingStrategyAddress,
+                        tokenAddress,
+                        ethers.constants.MaxUint256,
+                        '0x',
+                        {
+                          value: tokenPrice,
+                        },
+                      ),
+                  ).to.be.revertedWith('maxSupply!')
+                } else {
+                  await expect(
+                    item
+                      .connect(user)
+                      .mint(
+                        stakingStrategyAddress,
+                        tokenAddress,
+                        ethers.constants.MaxUint256,
+                        '0x',
+                      ),
+                  ).to.be.revertedWith('maxSupply!')
+                }
               })
 
               it(`Regular: owner set new maxSupply`, async () => {
@@ -177,9 +259,19 @@ describe(`Items tests`, () => {
 
               it(`Error: user burn`, async () => {
                 const tokenId = 0
-                await item
-                  .connect(user)
-                  .mint(stakingStrategyAddress, token.address, ethers.constants.MaxUint256, '0x')
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await item
+                    .connect(user)
+                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x', {
+                      value: tokenPrice,
+                    })
+                } else {
+                  await item
+                    .connect(user)
+                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x')
+                }
                 await expect(item.connect(user).burn(tokenId)).to.be.revertedWith(
                   'only staking strategy!',
                 )

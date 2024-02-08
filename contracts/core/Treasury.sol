@@ -63,7 +63,6 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
     function addToken(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
 
-        require(_token != address(0), "_token!");
         require(pricers[_token] == address(0), "Treasury: already exists!");
         require(_pricer != address(0), "Treasury: pricer == 0");
         require(IPricer(_pricer).decimals() == PRICERS_DECIMALS, "Treasury: pricer decimals != 8");
@@ -121,8 +120,9 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable {
         require(address(pricer) != address(0), "not supported token!");
 
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
+        uint256 decimals = _token == address(0) ? 18 : IERC20Metadata(_token).decimals();
         return
-            (_usdAmount * (10 ** IERC20Metadata(_token).decimals()) * (10 ** PRICERS_DECIMALS)) /
+            (_usdAmount * (10 ** decimals) * (10 ** PRICERS_DECIMALS)) /
             uint256(tokenPrice) /
             10 ** USD_DECIMALS;
     }
