@@ -2,14 +2,14 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20__factory, Treasury, Treasury__factory } from '../typechain-types'
-import { CHAINLINK_LINK_USD, ELCT, LINK, USDT } from '../constants/addresses'
+import { CHAINLINK_LINK_USD, CHAINLINK_USDT_USD, ELCT, LINK, USDT } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 
 const TEST_DATA = {
   tokens: [
     {
       address: USDT,
-      pricer: 'UsdtPricer',
+      pricer: CHAINLINK_USDT_USD,
     },
     {
       address: ELCT,
