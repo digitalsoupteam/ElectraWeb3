@@ -97,7 +97,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
     // -----  PROTOCOL ACTIONS  -----------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
+    function stake(address _itemAddress, uint256 _itemId, bytes memory) external nonReentrant {
         IAddressBook(addressBook).enforceIsItemContract(msg.sender);
 
         isStakedToken[_itemAddress][_itemId] = true;

@@ -188,7 +188,7 @@ contract FlexStakingStrategy is
     // -----  PROTOCOL ACTIONS  -----------------------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function stake(address _itemAddress, uint256 _itemId, bytes memory) external {
+    function stake(address _itemAddress, uint256 _itemId, bytes memory) external nonReentrant {
         IAddressBook(addressBook).enforceIsItemContract(msg.sender);
 
         // Initial data
@@ -265,7 +265,7 @@ contract FlexStakingStrategy is
         uint256 _itemId,
         address _withdrawToken,
         uint256 _minWithdrawTokenAmount
-    ) external {
+    ) external nonReentrant {
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
         address _itemOwner = msg.sender;
@@ -301,7 +301,7 @@ contract FlexStakingStrategy is
         uint256 _itemId,
         address _withdrawToken,
         uint256 _minWithdrawTokenAmount
-    ) external {
+    ) external nonReentrant {
         _enforceIsItemOwner(_itemAddress, _itemId);
         _enforceIsStakedToken(_itemAddress, _itemId);
         address _itemOwner = msg.sender;
