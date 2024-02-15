@@ -10,13 +10,14 @@ import {
   Item,
   Item__factory,
 } from '../typechain-types'
-import { BNB_PLACEHOLDER, CHAINLINK_LINK_USD, ELCT, LINK, USDT } from '../constants/addresses'
+import { BNB_PLACEHOLDER, CHAINLINK_LINK_USD, ELCT, LINK, USDT, WBNB } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
 
 const TEST_DATA = {
   tokens: [
     BNB_PLACEHOLDER,
+    WBNB,
     USDT, //
     ELCT,
   ],

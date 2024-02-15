@@ -11,7 +11,7 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain-types'
-import { BNB_PLACEHOLDER, ELCT, USDT } from '../constants/addresses'
+import { BNB_PLACEHOLDER, ELCT, USDT, WBNB } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
@@ -19,23 +19,24 @@ import { balanceOf } from './utils/token'
 
 const TEST_DATA = {
   tokens: [
-    BNB_PLACEHOLDER,
-    // USDT, //
-    // ELCT,
+    { tokenAddress: BNB_PLACEHOLDER, mintedAmount: 1000 },
+    { tokenAddress: WBNB, mintedAmount: 1000 },
+    { tokenAddress: USDT, mintedAmount: 100000 },
+    { tokenAddress: ELCT, mintedAmount: 1000000 },
   ],
   items: [
     'MopedItem',
-    // 'MopedSparePartItem',
+    'MopedSparePartItem',
   ],
   startDay: [
     1, //
-    // 15,
+    15,
   ],
   subSellMonths: [
     0, //
-    // 1,
-    // 2,
-    // 3,
+    1,
+    2,
+    3,
   ],
   stakingStrategies: [
     'FiveYearsFlexStakingStrategy', //
@@ -100,17 +101,17 @@ describe(`FlexStakingStratgey`, () => {
             item = Item__factory.connect(ItemDeployment.address, user)
           })
 
-          for (const tokenAddress of TEST_DATA.tokens) {
+          for (const {tokenAddress, mintedAmount} of TEST_DATA.tokens) {
             describe(`Token ${tokenAddress}`, () => {
               let token: IERC20Metadata
               let mintedPayTokensAmount: BigNumber
 
               beforeEach(async () => {
                 token = IERC20Metadata__factory.connect(tokenAddress, user)
-                mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, 1000000)
+                mintedPayTokensAmount = await ERC20Minter.mint(token.address, user.address, mintedAmount)
                 await token.approve(item.address, mintedPayTokensAmount)
 
-                await ERC20Minter.mint(token.address, treasury.address, 10000000) // deposit to treasury
+                await ERC20Minter.mint(token.address, treasury.address, mintedAmount * 10) // deposit to treasury
               })
 
               for (const startDay of TEST_DATA.startDay) {
@@ -245,6 +246,7 @@ describe(`FlexStakingStratgey`, () => {
                         await stakingStrategy
                           .connect(user)
                           .claim(item.address, tokenId, token.address, 0)
+                          console.log('aw1231')
                         const balanceAfter = await balanceOf(tokenAddress, user.address)
                         await expect(
                           stakingStrategy

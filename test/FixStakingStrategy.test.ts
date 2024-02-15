@@ -19,10 +19,10 @@ import { balanceOf, decimals } from './utils/token'
 
 const TEST_DATA = {
   tokens: [
-    BNB_PLACEHOLDER,
-    WBNB,
-    USDT, //
-    ELCT,
+    { tokenAddress: BNB_PLACEHOLDER, mintedAmount: 1000 },
+    { tokenAddress: WBNB, mintedAmount: 1000 },
+    { tokenAddress: USDT, mintedAmount: 100000 },
+    { tokenAddress: ELCT, mintedAmount: 1000000 },
   ],
   items: [
     'MopedItem', //
@@ -77,13 +77,17 @@ describe(`FixStakingStratgey`, () => {
             item = Item__factory.connect(ItemDeployment.address, user)
           })
 
-          for (const tokenAddress of TEST_DATA.tokens) {
+          for (const { tokenAddress, mintedAmount } of TEST_DATA.tokens) {
             describe(`Token ${tokenAddress}`, () => {
               let mintedPayTokensAmount: BigNumber
 
               beforeEach(async () => {
-                mintedPayTokensAmount = await ERC20Minter.mint(tokenAddress, user.address, 100000)
-                await ERC20Minter.mint(tokenAddress, treasury.address, 10000000) // deposit to treasury
+                mintedPayTokensAmount = await ERC20Minter.mint(
+                  tokenAddress,
+                  user.address,
+                  mintedAmount,
+                )
+                await ERC20Minter.mint(tokenAddress, treasury.address, mintedAmount * 10) // deposit to treasury
                 if (tokenAddress != BNB_PLACEHOLDER) {
                   await IERC20Metadata__factory.connect(tokenAddress, user)
                     .connect(user)
@@ -207,7 +211,7 @@ describe(`FixStakingStratgey`, () => {
                 let tokenId = 0
 
                 // Mint item
-               
+
                 const tokenAmount = await treasury.usdAmountToToken(
                   await item.price(),
                   tokenAddress,
@@ -263,7 +267,7 @@ describe(`FixStakingStratgey`, () => {
                     .toString(),
                   tokenAddress,
                 )
-                
+
                 assert(
                   balanceAfter.sub(balanceBefore).gt(estimatedBalance.mul(9).div(10)) &&
                     balanceAfter.sub(balanceBefore).lt(estimatedBalance.mul(11).div(10)),
@@ -292,7 +296,7 @@ describe(`FixStakingStratgey`, () => {
                 const sellPrice = await treasury.usdAmountToToken(tokenPrice, tokenAddress)
                 assert(
                   sellBalanceAfter.sub(sellBalanceBefore).gt(sellPrice.mul(9).div(10)) &&
-                  sellBalanceAfter.sub(sellBalanceBefore).lt(sellPrice.mul(11).div(10)),
+                    sellBalanceAfter.sub(sellBalanceBefore).lt(sellPrice.mul(11).div(10)),
                   `sell balance! ${sellBalanceAfter.sub(sellBalanceBefore)} != ${sellPrice}`,
                 )
                 console.log(
