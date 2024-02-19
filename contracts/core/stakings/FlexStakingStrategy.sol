@@ -350,7 +350,9 @@ contract FlexStakingStrategy is
         require(withdrawTokenAmount >= _minWithdrawTokenAmount, "minWithdrawTokenAmount!");
 
         IItem(_itemAddress).burn(_itemId);
-        ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        if (sellPrice > 0) {
+            ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        }
 
         emit Sell(
             _itemAddress,

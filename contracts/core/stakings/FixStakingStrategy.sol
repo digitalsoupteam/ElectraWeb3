@@ -11,7 +11,12 @@ import { IStakingStrategy } from "../../interfaces/IStakingStrategy.sol";
 import { IAddressBook } from "../../interfaces/IAddressBook.sol";
 import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUPSUpgradeable, MulticallUpgradeable {
+contract FixStakingStrategy is
+    IStakingStrategy,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
+    MulticallUpgradeable
+{
     // ------------------------------------------------------------------------------------
     // ----- CONSTANTS --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
@@ -173,6 +178,7 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
         address _treasury = IAddressBook(addressBook).treasury();
         uint256 sellAmount = estimateSell(_itemAddress, _itemId);
+
         uint256 withdrawTokenAmount = ITreasury(_treasury).usdAmountToToken(
             sellAmount,
             _withdrawToken
@@ -181,7 +187,9 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
 
         totalWithdrawn[_itemAddress][_itemId] += sellAmount;
         IItem(_itemAddress).burn(_itemId);
-        ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        if (sellAmount > 0) {
+            ITreasury(_treasury).withdraw(_withdrawToken, withdrawTokenAmount, msg.sender);
+        }
 
         emit Sell(
             _itemAddress,
