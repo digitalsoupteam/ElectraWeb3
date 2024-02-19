@@ -178,7 +178,6 @@ contract FixStakingStrategy is IStakingStrategy, ReentrancyGuardUpgradeable, UUP
             _withdrawToken
         );
         require(withdrawTokenAmount >= _minWithdrawTokenAmount, "minWithdrawTokenAmount!");
-        require(withdrawTokenAmount > 0, "zero amount!");
 
         totalWithdrawn[_itemAddress][_itemId] += sellAmount;
         IItem(_itemAddress).burn(_itemId);
