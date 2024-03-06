@@ -108,7 +108,7 @@ contract Item is
                 require(success, "failed to send change!");
             }
         } else {
-            IERC20Metadata(_payToken).safeTransferFrom(msg.sender, address(this), payTokenAmount);
+            IERC20Metadata(_payToken).safeTransferFrom(msg.sender, _addressBook.treasury(), payTokenAmount);
         }
 
         // Mint item
