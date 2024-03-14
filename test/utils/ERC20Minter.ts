@@ -1,9 +1,8 @@
-import axios from 'axios'
-import { ethers, network } from 'hardhat'
+import { ethers, network, deployments } from 'hardhat'
 import { IERC20Metadata__factory } from '../../typechain-types'
 import { setBalance } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber } from 'ethers'
-import { BNB_PLACEHOLDER, BUSD, ELCT, LINK, USDT, WBNB } from '../../constants/addresses'
+import { BNB_PLACEHOLDER, BUSD, LINK, USDT, WBNB } from '../../constants/addresses'
 
 export default class ERC20Minter {
   public static async mint(
@@ -12,21 +11,22 @@ export default class ERC20Minter {
     maxAmountFormated?: number,
   ): Promise<BigNumber> {
     if (tokenAddress == BNB_PLACEHOLDER) {
-      const balance = ethers.utils.parseUnits(`${maxAmountFormated}`, 18);
+      const balance = ethers.utils.parseUnits(`${maxAmountFormated}`, 18)
       await setBalance(recipient, balance.add(await ethers.provider.getBalance(recipient)))
       return balance
     }
+    
 
     const holders = {
-        [WBNB]: '0x36696169C63e42cd08ce11f5deeBbCeBae652050',
-        [BUSD]: '0x56306851238d7aee9fac8cdd6877e92f83d5924c',
-        [USDT]: '0xd183f2bbf8b28d9fec8367cb06fe72b88778c86b',
-        [LINK]: '0x21d45650db732ce5df77685d6021d7d5d1da807f',
-        [ELCT]: '0xBF87F4C03d765Ba17fbec79e7b4fd167fD8895Df'
+      [WBNB]: '0x36696169C63e42cd08ce11f5deeBbCeBae652050',
+      [BUSD]: '0x56306851238d7aee9fac8cdd6877e92f83d5924c',
+      [USDT]: '0xd183f2bbf8b28d9fec8367cb06fe72b88778c86b',
+      [LINK]: '0x21d45650db732ce5df77685d6021d7d5d1da807f',
+      [(await deployments.get('ELCT')).address]: (await ethers.getSigners())[0].address,
     }
 
     const holderAddress = holders[tokenAddress]
-    if(!holderAddress) throw `unknown token holder. token ${tokenAddress}`
+    if (!holderAddress) throw `unknown token holder. token ${tokenAddress}`
     await network.provider.request({
       method: 'hardhat_impersonateAccount',
       params: [holderAddress],
