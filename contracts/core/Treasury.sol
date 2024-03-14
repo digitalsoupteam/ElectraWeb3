@@ -102,7 +102,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable, Reentranc
     // ----- PRODUCT OWNER & PROTOCOL ACTIONS  --------------------------------------------
     // ------------------------------------------------------------------------------------
 
-    function withdraw(address _token, uint256 _amount, address _recipient) external nonReentrant() {
+    function withdraw(address _token, uint256 _amount, address _recipient) external nonReentrant {
         require(_amount > 0, "Treasury: withdrawn amount is zero!");
         IAddressBook _addressBook = IAddressBook(addressBook);
 

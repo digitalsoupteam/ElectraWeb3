@@ -82,11 +82,13 @@ contract Item is
     // ------------------------------------------------------------------------------------
 
     function mint(
+        uint256 _mintAmount,
         address _stakingStrategy,
         address _payToken,
         uint256 _maxPayTokenAmount,
         bytes memory _payload
-    ) external nonReentrant payable {
+    ) external payable nonReentrant {
+        require(_mintAmount > 0, "_mintAmount iz zero!");
         // Load deps
         IAddressBook _addressBook = IAddressBook(addressBook);
         ITreasury treasury = ITreasury(_addressBook.treasury());
@@ -96,28 +98,34 @@ contract Item is
         treasury.enforceIsSupportedToken(_payToken);
 
         // Recieve pay tokens
-        uint256 payTokenAmount = treasury.usdAmountToToken(price, _payToken);
+        uint256 payTokenAmount = treasury.usdAmountToToken(_mintAmount * price, _payToken);
         require(payTokenAmount <= _maxPayTokenAmount, "maxPayTokenAmount!");
-        if(_payToken == address(0)) {
+        if (_payToken == address(0)) {
             require(msg.value >= payTokenAmount, "value < payTokenAmount");
-            (bool success, ) = address(treasury).call{value: payTokenAmount}("");
+            (bool success, ) = address(treasury).call{ value: payTokenAmount }("");
             require(success, "failed to send to treasury!");
             uint256 change = msg.value - payTokenAmount;
-            if(change > 0) {
-                (bool success,) = msg.sender.call{value: change}("");
+            if (change > 0) {
+                (bool success, ) = msg.sender.call{ value: change }("");
                 require(success, "failed to send change!");
             }
         } else {
-            IERC20Metadata(_payToken).safeTransferFrom(msg.sender, _addressBook.treasury(), payTokenAmount);
+            IERC20Metadata(_payToken).safeTransferFrom(
+                msg.sender,
+                _addressBook.treasury(),
+                payTokenAmount
+            );
         }
 
-        // Mint item
-        uint256 tokenId = nextTokenId++;
-        tokenStakingStrategy[tokenId] = _stakingStrategy;
-        _safeMint(msg.sender, tokenId);
-        emit Mint(msg.sender, tokenId, _stakingStrategy, _payToken);
-        // Enable staking
-        IStakingStrategy(_stakingStrategy).stake(address(this), tokenId, _payload);
+        for (uint256 i; i < _mintAmount; ++i) {
+            // Mint item
+            uint256 tokenId = nextTokenId++;
+            tokenStakingStrategy[tokenId] = _stakingStrategy;
+            _safeMint(msg.sender, tokenId);
+            emit Mint(msg.sender, tokenId, _stakingStrategy, _payToken);
+            // Enable staking
+            IStakingStrategy(_stakingStrategy).stake(address(this), tokenId, _payload);
+        }
     }
 
     // ------------------------------------------------------------------------------------

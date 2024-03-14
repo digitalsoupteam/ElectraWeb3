@@ -2,24 +2,23 @@ import { deployments, ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  IERC20Metadata,
   IERC20Metadata__factory,
-  IPricer__factory,
   Treasury,
   Treasury__factory,
   Item,
   Item__factory,
 } from '../typechain-types'
-import { BNB_PLACEHOLDER, CHAINLINK_LINK_USD, ELCT, LINK, USDT, WBNB } from '../constants/addresses'
+import { BNB_PLACEHOLDER, CHAINLINK_LINK_USD, LINK, USDT, WBNB } from '../constants/addresses'
 import ERC20Minter from './utils/ERC20Minter'
 import { BigNumber } from 'ethers'
+import { balanceOf } from './utils/token'
 
 const TEST_DATA = {
   tokens: [
     BNB_PLACEHOLDER,
     WBNB,
     USDT, //
-    ELCT,
+    'ELCT',
   ],
   items: [
     'MopedItem', //
@@ -59,10 +58,13 @@ describe(`Items tests`, () => {
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
 
-  for (const tokenAddress of TEST_DATA.tokens) {
+  for (let tokenAddress of TEST_DATA.tokens) {
     describe(`Token: ${tokenAddress}`, () => {
       let mintedPayTokensAmount: BigNumber
       beforeEach(async () => {
+        tokenAddress = ethers.utils.isAddress(tokenAddress)
+          ? tokenAddress
+          : (await deployments.get(tokenAddress)).address
         mintedPayTokensAmount = await ERC20Minter.mint(tokenAddress, user.address, 10000000)
       })
 
@@ -92,27 +94,54 @@ describe(`Items tests`, () => {
                 }
               })
 
-              it(`Regular: mint.`, async () => {
+              it(`Regular: single mint.`, async () => {
                 const tokenId = 0
 
                 const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+                const mintAmount = 1
 
-                const balanceBefore = await item.balanceOf(user.address)
+                const treasuryPayTokenBalanceBefore = await balanceOf(
+                  tokenAddress,
+                  treasury.address,
+                )
+                const nftBalanceBefore = await item.balanceOf(user.address)
+
                 if (tokenAddress == BNB_PLACEHOLDER) {
                   await item
                     .connect(user)
-                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x', {
-                      value: tokenPrice,
-                    })
+                    .mint(
+                      mintAmount,
+                      stakingStrategyAddress,
+                      tokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                      {
+                        value: tokenPrice,
+                      },
+                    )
                 } else {
                   await item
                     .connect(user)
-                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x')
+                    .mint(
+                      mintAmount,
+                      stakingStrategyAddress,
+                      tokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                    )
                 }
-                const balanceAfter = await item.balanceOf(user.address)
+
+                const treasuryPayTokenBalanceAfter = await balanceOf(tokenAddress, treasury.address)
+                const nftBalanceAfter = await item.balanceOf(user.address)
+
                 assert(
-                  balanceAfter.sub(balanceBefore).eq(1),
-                  `Error mint: balanceBefore=${balanceBefore}, balanceAfter=${balanceAfter}`,
+                  treasuryPayTokenBalanceAfter.eq(treasuryPayTokenBalanceBefore.add(tokenPrice)),
+                  `treasury not recived pay tokens`,
+                )
+
+                assert(
+                  nftBalanceAfter.sub(nftBalanceBefore).eq(mintAmount),
+                  `Error mint: nftBalanceBefore=${nftBalanceBefore}, balanceAfter=${nftBalanceAfter}`,
                 )
 
                 const tokenStakingStrategy = await item.tokenStakingStrategy(tokenId)
@@ -122,7 +151,70 @@ describe(`Items tests`, () => {
                 )
               })
 
-              it(`Regular: slippage`, async () => {
+              it(`Regular: multi mint.`, async () => {
+                const tokenId = 0
+
+                const mintAmount = 10
+
+                const tokensPrice = await treasury.usdAmountToToken(
+                  (await item.price()).mul(mintAmount),
+                  tokenAddress,
+                )
+
+                const treasuryPayTokenBalanceBefore = await balanceOf(
+                  tokenAddress,
+                  treasury.address,
+                )
+                const nftBalanceBefore = await item.balanceOf(user.address)
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await item
+                    .connect(user)
+                    .mint(
+                      mintAmount,
+                      stakingStrategyAddress,
+                      tokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                      {
+                        value: tokensPrice,
+                      },
+                    )
+                } else {
+                  await item
+                    .connect(user)
+                    .mint(
+                      mintAmount,
+                      stakingStrategyAddress,
+                      tokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                    )
+                }
+                const treasuryPayTokenBalanceAfter = await balanceOf(tokenAddress, treasury.address)
+                const nftBalanceAfter = await item.balanceOf(user.address)
+
+                assert(
+                  treasuryPayTokenBalanceAfter.eq(treasuryPayTokenBalanceBefore.add(tokensPrice)),
+                  `treasury not recived pay tokens`,
+                )
+
+                assert(
+                  nftBalanceAfter.sub(nftBalanceBefore).eq(mintAmount),
+                  `Error mint: nftBalanceBefore=${nftBalanceBefore}, balanceAfter=${nftBalanceAfter}`,
+                )
+
+                const tokenStakingStrategy = await item.tokenStakingStrategy(tokenId)
+                assert(
+                  tokenStakingStrategy == stakingStrategyAddress,
+                  `tokenStakingStrategy != stakingStrategyAddress, ${tokenStakingStrategy} != ${stakingStrategyAddress}`,
+                )
+              })
+
+              it(`Error: zero mint.`, async () => {
+                const tokenId = 0
+
+                const mintAmount = 0
+
                 const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
 
                 if (tokenAddress == BNB_PLACEHOLDER) {
@@ -130,25 +222,43 @@ describe(`Items tests`, () => {
                     item
                       .connect(user)
                       .mint(
+                        mintAmount,
                         stakingStrategyAddress,
                         tokenAddress,
-                        0,
+                        ethers.constants.MaxUint256,
                         '0x',
                         {
                           value: tokenPrice,
                         },
                       ),
-                  ).to.be.revertedWith('maxPayTokenAmount!')
+                  ).to.be.revertedWith('_mintAmount iz zero!')
                 } else {
                   await expect(
                     item
                       .connect(user)
                       .mint(
+                        mintAmount,
                         stakingStrategyAddress,
                         tokenAddress,
-                        0,
+                        ethers.constants.MaxUint256,
                         '0x',
                       ),
+                  ).to.be.revertedWith('_mintAmount iz zero!')
+                }
+              })
+
+              it(`Regular: slippage`, async () => {
+                const tokenPrice = await treasury.usdAmountToToken(await item.price(), tokenAddress)
+
+                if (tokenAddress == BNB_PLACEHOLDER) {
+                  await expect(
+                    item.connect(user).mint(1, stakingStrategyAddress, tokenAddress, 0, '0x', {
+                      value: tokenPrice,
+                    }),
+                  ).to.be.revertedWith('maxPayTokenAmount!')
+                } else {
+                  await expect(
+                    item.connect(user).mint(1, stakingStrategyAddress, tokenAddress, 0, '0x'),
                   ).to.be.revertedWith('maxPayTokenAmount!')
                 }
               })
@@ -160,15 +270,28 @@ describe(`Items tests`, () => {
                   await expect(
                     item
                       .connect(user)
-                      .mint(fakeStakingStratgey, tokenAddress, ethers.constants.MaxUint256, '0x', {
-                        value: tokenPrice,
-                      }),
+                      .mint(
+                        1,
+                        fakeStakingStratgey,
+                        tokenAddress,
+                        ethers.constants.MaxUint256,
+                        '0x',
+                        {
+                          value: tokenPrice,
+                        },
+                      ),
                   ).to.be.revertedWith('only staking strategy!')
                 } else {
                   await expect(
                     item
                       .connect(user)
-                      .mint(fakeStakingStratgey, tokenAddress, ethers.constants.MaxUint256, '0x'),
+                      .mint(
+                        1,
+                        fakeStakingStratgey,
+                        tokenAddress,
+                        ethers.constants.MaxUint256,
+                        '0x',
+                      ),
                   ).to.be.revertedWith('only staking strategy!')
                 }
               })
@@ -181,6 +304,7 @@ describe(`Items tests`, () => {
                     item
                       .connect(user)
                       .mint(
+                        1,
                         stakingStrategyAddress,
                         fakeTokenAddress,
                         ethers.constants.MaxUint256,
@@ -195,6 +319,7 @@ describe(`Items tests`, () => {
                     item
                       .connect(user)
                       .mint(
+                        1,
                         stakingStrategyAddress,
                         fakeTokenAddress,
                         ethers.constants.MaxUint256,
@@ -212,6 +337,7 @@ describe(`Items tests`, () => {
                     item
                       .connect(user)
                       .mint(
+                        1,
                         stakingStrategyAddress,
                         tokenAddress,
                         ethers.constants.MaxUint256,
@@ -226,6 +352,7 @@ describe(`Items tests`, () => {
                     item
                       .connect(user)
                       .mint(
+                        1,
                         stakingStrategyAddress,
                         tokenAddress,
                         ethers.constants.MaxUint256,
@@ -265,13 +392,26 @@ describe(`Items tests`, () => {
                 if (tokenAddress == BNB_PLACEHOLDER) {
                   await item
                     .connect(user)
-                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x', {
-                      value: tokenPrice,
-                    })
+                    .mint(
+                      1,
+                      stakingStrategyAddress,
+                      tokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                      {
+                        value: tokenPrice,
+                      },
+                    )
                 } else {
                   await item
                     .connect(user)
-                    .mint(stakingStrategyAddress, tokenAddress, ethers.constants.MaxUint256, '0x')
+                    .mint(
+                      1,
+                      stakingStrategyAddress,
+                      tokenAddress,
+                      ethers.constants.MaxUint256,
+                      '0x',
+                    )
                 }
                 await expect(item.connect(user).burn(tokenId)).to.be.revertedWith(
                   'only staking strategy!',
