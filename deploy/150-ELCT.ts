@@ -3,16 +3,18 @@ import { DeployFunction } from 'hardhat-deploy/types'
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments } = hre
-  const { deploy, getOrNull } = deployments
+  const { deploy, get, getOrNull } = deployments
 
   const signers = await ethers.getSigners()
   const deployer = signers[0]
 
-  const alreadyDeployed = await getOrNull('AddressBook') != null
+  const AddressBookDeployment = await get('AddressBook')
+
+  const alreadyDeployed = await getOrNull('ELCT') != null
   if(alreadyDeployed) return
-  
-  const deployment = await deploy('AddressBook', {
-    contract: 'AddressBook',
+
+  await deploy('ELCT', {
+    contract: 'ELCT',
     from: deployer.address,
     proxy: {
       proxyContract: 'UUPS',
@@ -20,7 +22,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         init: {
           methodName: 'initialize',
           args: [
-            deployer.address, // _productOwner
+            AddressBookDeployment.address, // _addressBook
+            'Electra Token', // _name
+            'ELCT', // _symbol
+            ethers.utils.parseUnits('1000000000', 18), // _initialSupply
           ],
         },
       },
@@ -28,5 +33,6 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 }
 
-deploy.tags = ['AddressBook']
+deploy.tags = ['ELCT']
+deploy.dependencies = ['AddressBook']
 export default deploy

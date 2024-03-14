@@ -35,5 +35,5 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 }
 
 deploy.tags = ['ThreeYearsFixStakingStrategy']
-deploy.dependencies = ['FixStakingStrategyImplementation', 'AddressBook']
+deploy.dependencies = ['TwoYearsFixStakingStrategy']
 export default deploy

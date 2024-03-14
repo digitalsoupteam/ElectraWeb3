@@ -11,6 +11,8 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const deployer = signers[0]
 
   const AddressBookDeployment = await get('AddressBook')
+  const ELCTDeployment = await get('ELCT')
+  const ElctPricerDeployment = await get('ElctPricer')
 
   const alreadyDeployed = await getOrNull('Treasury') != null
   if(alreadyDeployed) return
@@ -34,13 +36,13 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const addressBook = AddressBook__factory.connect(AddressBookDeployment.address, deployer)
   await (await addressBook.setTreasury(deployment.address)).wait(1)
 
-  
   const treasury = Treasury__factory.connect(deployment.address, deployer)
   await (await treasury.addToken(USDT, CHAINLINK_USDT_USD)).wait(1)
   await (await treasury.addToken(BNB_PLACEHOLDER, CHAINLINK_BNB_USD)).wait(1)
   await (await treasury.addToken(WBNB, CHAINLINK_BNB_USD)).wait(1)
+  await (await treasury.addToken(ELCTDeployment.address, ElctPricerDeployment.address)).wait(1)
 }
 
 deploy.tags = ['Treasury']
-deploy.dependencies = ['AddressBook']
+deploy.dependencies = ['ElctPresale']
 export default deploy
