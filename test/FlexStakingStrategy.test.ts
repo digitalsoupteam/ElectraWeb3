@@ -20,9 +20,9 @@ import { balanceOf } from './utils/token'
 const TEST_DATA = {
   tokens: [
     { tokenAddress: BNB_PLACEHOLDER, mintedAmount: 1000 },
-    // { tokenAddress: WBNB, mintedAmount: 1000 },
-    // { tokenAddress: USDT, mintedAmount: 100000 },
-    // { tokenAddress: 'ELCT', mintedAmount: 1000000 },
+    { tokenAddress: WBNB, mintedAmount: 1000 },
+    { tokenAddress: USDT, mintedAmount: 100000 },
+    { tokenAddress: 'ELCT', mintedAmount: 1000000 },
   ],
   items: [
     'MopedItem',
@@ -253,7 +253,6 @@ describe(`FlexStakingStratgey`, () => {
                         await stakingStrategy
                           .connect(user)
                           .claim(item.address, tokenId, token.address, 0)
-                          console.log('aw1231')
                         const balanceAfter = await balanceOf(tokenAddress, user.address)
                         await expect(
                           stakingStrategy
