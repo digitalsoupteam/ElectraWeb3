@@ -9,9 +9,8 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { ITreasury } from "../interfaces/ITreasury.sol";
 import { IAddressBook } from "../interfaces/IAddressBook.sol";
 import { IPricer } from "../interfaces/IPricer.sol";
-import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 
-contract Treasury is ITreasury, UUPSUpgradeable, MulticallUpgradeable, ReentrancyGuardUpgradeable {
+contract Treasury is ITreasury, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     // ------------------------------------------------------------------------------------
     // ----- LIBRARIES --------------------------------------------------------------------
     // ------------------------------------------------------------------------------------
