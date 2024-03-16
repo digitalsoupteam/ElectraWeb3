@@ -74,6 +74,8 @@ describe(`Treasury`, () => {
           ? tokenData.pricer
           : (await deployments.get(tokenData.pricer)).address
         assert(pricer == pricerAddress, `pricer != pricerAddress, ${pricer} != ${pricerAddress}`)
+
+        await treasury.usdAmountToToken(ethers.utils.parseUnits('1', 18), tokenData.address)
       })
 
       it(`Regular: owner withdraw`, async () => {

@@ -65,7 +65,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /// @dev Only verified tokens are used without hidden fees
-    /// Adds a new token to the protocol. If the token already exists, 
+    /// Adds a new token to the protocol. If the token already exists,
     /// it will throw an exception. To update the pricer use updateTokenPricer
     function addToken(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
@@ -77,7 +77,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, ReentrancyGuardUpgradeable {
         pricers[_token] = _pricer;
     }
 
-    /// @dev Updates the pricer of an already registered token. 
+    /// @dev Updates the pricer of an already registered token.
     /// If the token is not registered it will throw an exception
     function updateTokenPricer(address _token, address _pricer) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
@@ -89,7 +89,7 @@ contract Treasury is ITreasury, UUPSUpgradeable, ReentrancyGuardUpgradeable {
         pricers[_token] = _pricer;
     }
 
-    /// @dev Removes a token from use of the protocol. 
+    /// @dev Removes a token from use of the protocol.
     /// If the token is not registered it will throw an exception
     function deleteToken(address _token) external {
         IAddressBook(addressBook).enforceIsProductOwner(msg.sender);
@@ -113,8 +113,8 @@ contract Treasury is ITreasury, UUPSUpgradeable, ReentrancyGuardUpgradeable {
             "Treasury: withdraw not authorized!"
         );
 
-        if(_token == address(0)) {
-           (bool success,) = _recipient.call{value: _amount}("");
+        if (_token == address(0)) {
+            (bool success, ) = _recipient.call{ value: _amount }("");
             require(success, "treasury transfer failed!");
         } else {
             IERC20Metadata(_token).safeTransfer(_recipient, _amount);
@@ -132,10 +132,11 @@ contract Treasury is ITreasury, UUPSUpgradeable, ReentrancyGuardUpgradeable {
 
         (, int256 tokenPrice, , , ) = pricer.latestRoundData();
         uint256 decimals = _token == address(0) ? 18 : IERC20Metadata(_token).decimals();
-        return
-            (_usdAmount * (10 ** decimals) * (10 ** PRICERS_DECIMALS)) /
+        uint256 amount = (_usdAmount * (10 ** decimals) * (10 ** PRICERS_DECIMALS)) /
             uint256(tokenPrice) /
             10 ** USD_DECIMALS;
+        require(amount > 0, "token amount is zero!");
+        return amount;
     }
 
     /// @dev Checks whether the token is registered. Registered tokens have a pricer
