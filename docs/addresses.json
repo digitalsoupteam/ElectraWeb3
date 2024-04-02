@@ -1,47 +1,57 @@
 {
-    "addressBook": "0x2e96d1096607e2B88E79cf20Ae1A544e1844aB18",
-    "treasury": "0x8F24968356126C2a8Cf8a7F38D410D65abFF8Fb9",
+    "addressBook": "0xbDF704eD9F47eEe7b21959C59286c540CE0FadF6",
+    "treasury": "0x809b63FCd950f8F887Fd782C406c478BA7004AA7",
     "tokens": [
         {
             "name": "USDT",
             "token": "0x55d398326f99059fF775485246999027B3197955",
-            "pricer": "0x22b1A3359C527Ee0d3298CD7E675A70865cb4e83"
+            "pricer": "0xB97Ad0E74fa7d920791E90258A6E2085088b4320"
         },
         {
             "name": "ELCT",
-            "token": "0x2a89e4f630d2a1a93ab4d85230737c43f118e0fb",
-            "pricer": "0x88e9d81790E1Dd1669cF0461a149B695D5ABB487"
+            "token": "0xa21Ce34938E896422C35016d6ed66dbb8bD1a47B",
+            "pricer": "0x0975218A95871fb00Eea98A3702ffdEd7CF02d0C"
+        },
+        {
+            "name": "BNB",
+            "token": "0x0000000000000000000000000000000000000000",
+            "pricer": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE"
+        },
+        {
+            "name": "WBNB",
+            "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+            "pricer": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE"
         }
     ],
     "items": [
         {
             "name": "MopedItem",
-            "address": "0xF9fbA049FA8A1C3b49CFAD803b4F5f76b810f9D1"
+            "address": "0x09C92b0bF1FAf0d45b2aA94818bb5fe79008621F"
         },
         {
             "name": "MopedSparePartItem",
-            "address": "0x5D23B41e3aDB5a6bb96CA47d95A6521823DadfE2"
+            "address": "0xc997bf8C7cF981e2B285742Ea07A2e36E14D58a8"
         }
     ],
     "stakingStartegies": {
         "fix": [
             {
                 "name": "TwoYearsFixStakingStrategy",
-                "address": "0x644EDfa652C6B3AeC022519AB47fAd9A5330dA23"
+                "address": "0x43FabE9cb7B2700968502CdCB54A61eDC67d6b91"
             },
             {
                 "name": "ThreeYearsFixStakingStrategy",
-                "address": "0x3412e9b79B2509851e238DDB07fC6576CB825e77"
+                "address": "0x2305cAc88375FEd79089F8934ae0d90D1D343c56"
             },
             {
                 "name": "FiveYearsFixStakingStrategy",
-                "address": "0x12ADa9bB406c5EAB9ac37698788D2b168fC46f5d"
+                "address": "0xB7cD124A172D018Ed487f27726B1293D1FE9e04B"
             }
         ],
         "flex": [
             {
                 "name": "FiveYearsFlexStakingStrategy",
-                "address": "0x157113D9F5FA731C33D23B1C4c61DE23Ae67E1fE"
+                "address": "0xe5062302205F5837e5F6f0CE3344Df0986cC89fB"
             }
         ]
     }
