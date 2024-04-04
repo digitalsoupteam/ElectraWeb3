@@ -1,6 +1,8 @@
 {
     "addressBook": "0xbDF704eD9F47eEe7b21959C59286c540CE0FadF6",
     "treasury": "0x809b63FCd950f8F887Fd782C406c478BA7004AA7",
+    "elctPresale": "0x46ab6779730b055AF397837F81b957fA6F5955e7",
+    "elct": "0xa21Ce34938E896422C35016d6ed66dbb8bD1a47B",
     "tokens": [
         {
             "name": "USDT",
