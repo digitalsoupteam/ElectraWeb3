@@ -27,12 +27,8 @@
     ],
     "items": [
         {
-            "name": "MopedItem",
-            "address": "0x09C92b0bF1FAf0d45b2aA94818bb5fe79008621F"
-        },
-        {
-            "name": "MopedSparePartItem",
-            "address": "0xc997bf8C7cF981e2B285742Ea07A2e36E14D58a8"
+            "name": "MopedTestItem",
+            "address": "0x571DCbE1964a3e7AeF0A540E51612Be53A28F078"
         }
     ],
     "stakingStartegies": {
