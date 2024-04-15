@@ -25,8 +25,7 @@ const TEST_DATA = {
     { tokenAddress: 'ELCT', mintedAmount: 1000000 },
   ],
   items: [
-    'MopedItem',
-    'MopedSparePartItem',
+    'MopedTestItem',
   ],
   startDay: [
     1, //

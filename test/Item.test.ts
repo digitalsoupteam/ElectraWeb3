@@ -21,8 +21,7 @@ const TEST_DATA = {
     'ELCT',
   ],
   items: [
-    'MopedItem', //
-    'MopedSparePartItem',
+    'MopedTestItem',
   ],
   stakingStrategies: [
     'TwoYearsFixStakingStrategy',
